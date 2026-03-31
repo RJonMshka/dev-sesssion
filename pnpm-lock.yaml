@@ -20,6 +20,9 @@ importers:
       publint:
         specifier: 0.3.18
         version: 0.3.18
+      tmp-promise:
+        specifier: 3.0.3
+        version: 3.0.3
       tsup:
         specifier: 8.5.1
         version: 8.5.1(postcss@8.5.8)(typescript@5.8.3)
@@ -50,6 +53,9 @@ importers:
       '@dev-session/security':
         specifier: workspace:*
         version: link:../security
+      zod:
+        specifier: 4.3.6
+        version: 4.3.6
 
   packages/security:
     dependencies:
@@ -1004,6 +1010,13 @@ packages:
     resolution: {integrity: sha512-Bf+ILmBgretUrdJxzXM0SgXLZ3XfiaUuOj/IKQHuTXip+05Xn+uyEYdVg0kYDipTBcLrCVyUzAPz7QmArb0mmw==}
     engines: {node: '>=14.0.0'}
 
+  tmp-promise@3.0.3:
+    resolution: {integrity: sha512-RwM7MoPojPxsOBYnyd2hy0bxtIlVrihNs9pj5SUvY8Zz1sQcQG2tG1hSr8PDxfgEB8RNKDhqbIlroIarSNDNsQ==}
+
+  tmp@0.2.5:
+    resolution: {integrity: sha512-voyz6MApa1rQGUxT3E+BK7/ROe8itEx7vD8/HEvt4xwXucvQ5G5oeEiHkmHZJuBO21RpOf+YYm9MOivj709jow==}
+    engines: {node: '>=14.14'}
+
   tree-kill@1.2.2:
     resolution: {integrity: sha512-L0Orpi8qGpRG//Nd+H90vFB+3iHnue1zSSGmNOOCh1GLJ7rUKVwV2HvijphGQS2UmhUZewS9VgvxYIdgr+fG1A==}
     hasBin: true
@@ -1887,6 +1900,12 @@ snapshots:
       picomatch: 4.0.4
 
   tinyrainbow@3.1.0: {}
+
+  tmp-promise@3.0.3:
+    dependencies:
+      tmp: 0.2.5
+
+  tmp@0.2.5: {}
 
   tree-kill@1.2.2: {}
 

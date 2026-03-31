@@ -28,7 +28,8 @@
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@dev-session/security": "workspace:*"
+		"@dev-session/security": "workspace:*",
+		"zod": "4.3.6"
 	},
 	"engines": {
 		"node": ">=20.0.0"
