@@ -612,6 +612,207 @@ In team mode, `PLAN_N.md` and `FILE_INDEX.md` are committed. `SESSION_STATE.md` 
 
 ---
 
+## Chunk 3.5 — Token counting infrastructure
+
+> **Goal:** Accurate, Claude-native token counting as a shared utility; prerequisite for Chunk 10
+> **Depends on:** Chunk 3
+> **Est. sessions:** 1
+
+### Rationale
+The original plan listed `tiktoken-node` as a v0.2 backlog item. This is incorrect: `tiktoken` uses OpenAI's BPE encoding and is not compatible with Claude's tokenizer. Anthropic provides a free, official `messages.countTokens` API endpoint that returns ground-truth counts matching billing. This chunk adds accurate counting as a foundation before the Context Intelligence Layer (Chunk 10) builds on it.
+
+### Tasks
+
+- [ ] Add `TokenCounter` class to `packages/core`:
+  - `countFile(filePath: ValidatedPath): Promise<number>` — reads file, calls `messages.countTokens`
+  - `countString(content: string): Promise<number>` — counts raw string content
+  - `countFiles(paths: ValidatedPath[]): Promise<TokenCostMap>` — batch count for budget display
+  - Offline fallback: character-based heuristic (`Math.ceil(chars / 4)`) when `ANTHROPIC_API_KEY` is absent
+  - Exposes `isAccurate: boolean` on each result — consumers can warn when using heuristic
+- [ ] `TokenCostMap` type: `Map<ValidatedPath, { tokens: number; accurate: boolean }>`
+- [ ] `TokenBudget` type: `{ limit: number; used: number; remaining: number; overBudget: boolean; accurate: boolean }`
+- [ ] Update `GitignoreAwareWalker.estimateTokenCost()` to delegate to `TokenCounter` (real API) with heuristic fallback — rename to `measureTokenCost()` to reflect accuracy upgrade
+- [ ] Update `ContextBudgetCalculator.estimate()` to use `TokenCounter.countFiles()` — async, replaces sync heuristic
+- [ ] Update `FileIndexEntry.token_cost` population in `init` flow to use real counts when API key present
+- [ ] Validate `DEFAULT_CONTEXT_BUDGET = 4000` against real measured bootstrap contexts — adjust default if needed; document rationale in code
+- [ ] Export `TokenCounter`, `TokenCostMap`, `TokenBudget` from `packages/core`
+- [ ] No new runtime dependencies — uses `@anthropic-ai/sdk` already implied by the adapter system; add it to `core` if not already present (approve explicitly per cross-cutting dep rules)
+
+### Tests
+- [ ] Unit: `countString` returns heuristic result when no API key; `isAccurate: false`
+- [ ] Unit: `countFile` reads file and delegates to `countString`
+- [ ] Integration: `countFiles` batch returns correct `TokenCostMap` shape
+- [ ] Unit: `ContextBudgetCalculator` marks budget as `accurate: false` when heuristic used
+- [ ] Unit: offline mode does not throw — degrades gracefully
+
+### Key exports added to `packages/core`
+```typescript
+export { TokenCounter, TokenCostMap, TokenBudget }
+```
+
+---
+
+## Chunk 10 — Context Intelligence: preview, trim, lint & compact
+
+> **Goal:** Pre-flight visibility into what enters the context and tools to shrink it before the session starts
+> **Depends on:** Chunks 5, 7, 3.5
+> **Est. sessions:** 3–4
+
+### Rationale
+Existing tools (Claude Code, Cursor, opencode) suffer from shared failure modes: context bloat in `CLAUDE.md`/`AGENTS.md`, silent compaction at hard limits (~167K tokens for Claude Code), no way to preview what the model will actually see, and no tooling to reduce context before a session. This chunk makes `dev-session` the first tool that treats context as a measurable, auditable, reducible asset — not a black box.
+
+### Feature A — `dev-session preview`
+
+- [ ] Assemble the full bootstrap context exactly as the active adapter's `BootstrapFormatter` would produce it
+- [ ] Call `TokenCounter.countFiles()` on each component: SESSION_STATE, active plan chunk, always-include files, chunk-tagged files, NEXT_PROMPT header
+- [ ] Render a breakdown table:
+  ```
+  Component              Lines   Tokens   % Budget
+  ─────────────────────────────────────────────────
+  SESSION_STATE.md          42      310      7.8%
+  PLAN_1.md                 88      640     16.0%
+  Always-include (3)       210    1,520     38.0%
+  Context files (5)        190    1,390     34.8%
+  NEXT_PROMPT header         8       60      1.5%
+  ─────────────────────────────────────────────────
+  TOTAL                    538    3,920     98.0%  ⚠ near budget
+  ```
+- [ ] Print assembled prompt to stdout (full text below breakdown) so user can see exactly what the model will receive
+- [ ] `--format json` flag: machine-readable breakdown for scripting/CI
+- [ ] `--copy` flag: copies assembled prompt to clipboard via `clipboardy`
+- [ ] `--no-content` flag: show breakdown only, suppress full prompt text
+- [ ] Warn if `accurate: false` (no API key) — show heuristic caveat
+- [ ] Warn if total exceeds `DEFAULT_CONTEXT_BUDGET` — suggest `dev-session trim`
+
+### Feature B — `dev-session trim`
+
+- [ ] Read current context file list (same source as `preview`)
+- [ ] Interactive mode: for each file, show token cost and prompt action:
+  - `skip` — exclude this file from the session's NEXT_PROMPT (one-time, not persisted to FILE_INDEX)
+  - `truncate <N>` — keep only first N lines of the file for this session (one-time)
+  - `remove` — permanently remove from FILE_INDEX (calls `FileIndexManager` + confirms)
+  - `keep` — no change
+- [ ] `--budget <N>` flag: auto-suggest skipping files until under budget (largest-first)
+- [ ] `--dry-run` flag: show what would be excluded without modifying anything
+- [ ] Does NOT require `ANTHROPIC_API_KEY` — all operations are local
+- [ ] Session-scoped skips/truncations written to a `.session/trim-overrides.json` file (gitignored); cleared on `dev-session advance`
+- [ ] `NextPromptWriter.generateWithFormatter()` respects trim overrides when assembling NEXT_PROMPT
+
+### Feature C — `dev-session lint-context`
+
+- [ ] `ContextLinter` class in `packages/core`:
+  - `detectDuplicates(files)` — fuzzy line-level dedup across CLAUDE.md, SESSION_STATE, NEXT_PROMPT (using normalized strings, not exact match)
+  - `detectSoftLanguage(file)` — count occurrences of "try to", "prefer", "consider", "usually", "ideally", "might" — returns ratio and flagged lines
+  - `detectLineBudgetOverrun(file, limit)` — compares line count to configured budget
+  - `detectConflicts(files)` — simple pattern matching: e.g., "use tabs" + "use spaces" in different files
+  - `detectDeadReferences(files, root)` — finds `@mentions` or file paths in content that no longer exist on disk
+- [ ] `LintResult` type: `{ severity: 'error' | 'warning' | 'info'; rule: string; file: string; line?: number; message: string }`
+- [ ] `dev-session lint-context` command:
+  - Runs all `ContextLinter` checks on always-include + SESSION_STATE + NEXT_PROMPT
+  - Outputs structured report grouped by severity
+  - Exit code 1 if any `error`-severity findings (for CI use)
+  - `--fix` flag: auto-removes duplicate lines (after confirmation prompt per finding)
+  - `--format json` flag for machine-readable output
+- [ ] No `ANTHROPIC_API_KEY` required — fully local static analysis
+
+### Feature D — `dev-session compact <file>`
+
+- [ ] Accepts a single file path (validated via `PathValidator`)
+- [ ] Supported targets: any file in FILE_INDEX or always-include list; rejects files outside project
+- [ ] Backup original to `.session/backups/<filename>.<timestamp>` via `AtomicWriter` before modifying
+- [ ] Calls `messages.create` with a compact system prompt:
+  - "You are a context compressor. Reduce this file to its essential information only. Preserve all hard constraints, rules, and facts. Remove redundancy, soft language, examples that can be inferred, and formatting prose. Output only the compacted content, no commentary."
+- [ ] Shows before/after token count and line count diff for confirmation before writing
+- [ ] `--dry-run` flag: print compacted version to stdout without writing
+- [ ] `--model <id>` flag: override model used for compaction (default: cheapest available Haiku/Flash class model)
+- [ ] Explicit `ANTHROPIC_API_KEY` required — clear `CliError` with suggestion if absent
+- [ ] Updates `FileIndexEntry.token_cost` after writing compacted file
+
+### Tests (Chunk 10)
+- [ ] Unit: `ContextLinter.detectDuplicates` finds normalized duplicates across two files
+- [ ] Unit: `ContextLinter.detectSoftLanguage` returns correct ratio and line numbers
+- [ ] Unit: `ContextLinter.detectDeadReferences` flags non-existent `@mention` paths
+- [ ] Unit: trim overrides are respected by `NextPromptWriter`
+- [ ] E2e: `dev-session preview --format json` on a fixture project parses correctly
+- [ ] E2e: `dev-session trim --budget 3000 --dry-run` on a fixture over-budget project
+- [ ] E2e: `dev-session lint-context` exits 1 on fixture with injected duplicate rules
+- [ ] E2e: `dev-session compact --dry-run` on a large fixture file (no write, output to stdout)
+- [ ] Integration: `dev-session compact` backup file appears in `.session/backups/`
+
+---
+
+## Chunk 11 — Session memory & analytics
+
+> **Goal:** Long-term learning from session history to surface what context actually matters
+> **Depends on:** Chunk 10
+> **Est. sessions:** 2
+
+### Rationale
+No existing tool tracks *what was loaded* across sessions, so they can never tell you "this file has been in your context for 10 sessions and you've never modified it." Session memory closes this loop: `dev-session` becomes the first tool that improves its context recommendations over time by observing your actual usage patterns.
+
+### Tasks
+
+#### 11a — `CONTEXT_LOG.md` and `SessionMemoryManager`
+
+- [ ] `ContextLogEntry` type:
+  ```typescript
+  {
+    sessionId: string          // UUID v4
+    timestamp: string          // ISO 8601
+    chunkId: string
+    filesLoaded: Array<{ path: string; tokens: number; accurate: boolean }>
+    totalTokens: number
+    tasksCompleted: string[]
+    tasksStarted: string[]
+  }
+  ```
+- [ ] `CONTEXT_LOG.md` stored in `.session/` — append-only YAML frontmatter list; always gitignored
+- [ ] `SessionMemoryManager` in `packages/core`:
+  - `append(root, entry: ContextLogEntry)` → `void` — atomic append
+  - `loadAll(root)` → `ContextLogEntry[]` — parse full log
+  - `analyzeStaleness(entries, threshold: number)` → `StalenessReport[]` — files loaded in >N sessions without modification
+  - `detectPassiveLoads(entries, fileIndex)` → `PassiveLoad[]` — always-include files with zero modifications across all logged sessions
+  - `summarizeStats(entries)` → `MemoryStats` — avg tokens/session, most-loaded files, session count, date range
+- [ ] Integrate into session lifecycle: `dev-session update` and `dev-session advance` both append to `CONTEXT_LOG.md`
+- [ ] `StalenessReport` type: `{ path: string; sessionCount: number; lastModified: string | null; suggestion: 'remove-from-always-include' | 'remove-from-index' | 'investigate' }`
+
+#### 11b — `dev-session memory` command
+
+- [ ] `dev-session memory show` — formatted session history (most recent N entries, configurable)
+- [ ] `dev-session memory stats` — aggregate stats: avg tokens/session, top 5 most-loaded files, total sessions, date range
+- [ ] `dev-session memory stale` — runs `analyzeStaleness()` + `detectPassiveLoads()`, outputs actionable report
+  - `--threshold <N>` flag: sessions without modification to consider stale (default: 3)
+  - `--fix` flag: interactive — for each stale file, prompt to demote from always-include or remove from index
+- [ ] `dev-session memory prune --older-than <duration>` — removes log entries older than duration (e.g., `30d`, `3mo`)
+  - Confirmation prompt before deleting
+  - `--dry-run` flag
+
+#### 11c — Integration with existing commands
+
+- [ ] `dev-session status` — add "Session memory" section:
+  - Total sessions logged, avg tokens/session
+  - Count of passive load candidates (with hint to run `dev-session memory stale`)
+- [ ] `dev-session health` — add staleness check:
+  - Flag always-include files with no modification in last N sessions (uses `SessionMemoryManager.analyzeStaleness()`)
+  - Flag always-include list growth rate (sessions where a new file was added)
+
+#### 11d — Tests
+
+- [ ] Unit: `SessionMemoryManager.append()` is idempotent on repeated calls with same `sessionId`
+- [ ] Unit: `analyzeStaleness()` correctly identifies files not modified across N sessions
+- [ ] Unit: `detectPassiveLoads()` returns files in always-include with zero logged modifications
+- [ ] Unit: `summarizeStats()` returns correct averages on fixture log data
+- [ ] Integration: `dev-session update` appends entry to `CONTEXT_LOG.md`
+- [ ] E2e: `dev-session memory stats` on a fixture log file
+- [ ] E2e: `dev-session memory stale --threshold 2` flags correct files in fixture
+
+### Key exports added to `packages/core`
+```typescript
+export { SessionMemoryManager, ContextLogEntry, StalenessReport, PassiveLoad, MemoryStats }
+```
+
+---
+
 ## Risks and open questions
 
 | Question | Status | Decision |
@@ -619,9 +820,11 @@ In team mode, `PLAN_N.md` and `FILE_INDEX.md` are committed. `SESSION_STATE.md` 
 | Commit `.session/PLAN_N.md` to git? | Decided | Team mode yes, personal mode no |
 | `@11ty/gray-matter` vs upstream `gray-matter` | Decided | Use `@11ty/gray-matter` — JS engine RCE risk |
 | MCP server mode for session state | Backlog | Post-v1 — expose session as MCP tool |
-| Token counting in FILE_INDEX | Backlog | v0.2 — `tiktoken-node` for accurate counts |
+| Token counting in FILE_INDEX | Decided | Use `@anthropic-ai/sdk messages.countTokens` API (free, Claude-native); `tiktoken-node` is wrong — uses OpenAI BPE encoding, incompatible with Claude |
 | Multiple concurrent users same repo | Chunk 8 | Handled via team mode + `.gitattributes` |
 | Plugin system beyond adapters | Backlog | Not before v1 — keep scope tight |
+| `DEFAULT_CONTEXT_BUDGET` calibration | Chunk 3.5 | Validate 4,000 token default against real measured bootstrap contexts; adjust if needed |
+| `ANTHROPIC_API_KEY` requirement for compact/preview | Chunk 10 | `preview` and `lint-context` are fully offline; `compact` requires key explicitly; `trim` is offline-only |
 
 ---
 
@@ -631,7 +834,10 @@ In team mode, `PLAN_N.md` and `FILE_INDEX.md` are committed. `SESSION_STATE.md` 
 - `NEXT_PROMPT.md` is ≤ 15 lines and fully self-contained
 - A session bootstrapped from only `NEXT_PROMPT.md` needs zero follow-up questions
 - `dev-session status` completes in < 500ms
+- `dev-session preview` completes in < 5s on a 10-file context (including API token count call)
+- `dev-session lint-context` completes in < 1s (fully local, no API)
 - Core package < 100KB unpacked (no bloat)
 - Zero `npm audit` vulnerabilities (production deps) at release
 - 80% statement coverage, 75% branch coverage enforced in CI
 - No breaking changes to `SessionManager` API between minor versions
+- A project using `dev-session memory stale` can identify and remove at least one unnecessary always-include file after 5 sessions
