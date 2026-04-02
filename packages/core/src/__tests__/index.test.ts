@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+	ContextBudgetCalculator,
+	DEFAULT_CONTEXT_BUDGET,
 	FileIndexManager,
 	GitignoreAwareWalker,
 	NextPromptWriter,
+	PlainTextFormatter,
 	PlanChunkManager,
 	PlanParser,
 	ProjectDetector,
@@ -51,5 +54,29 @@ describe("@dev-session/core", () => {
 			IN_PROGRESS: "in-progress",
 			DONE: "done",
 		});
+	});
+
+	it("exports ContextBudgetCalculator and constants", () => {
+		expect(ContextBudgetCalculator).toBeDefined();
+		expect(typeof ContextBudgetCalculator.estimate).toBe("function");
+		expect(typeof ContextBudgetCalculator.estimateFromString).toBe("function");
+		expect(typeof ContextBudgetCalculator.formatSummary).toBe("function");
+		expect(DEFAULT_CONTEXT_BUDGET).toBe(4000);
+	});
+
+	it("exports PlainTextFormatter", () => {
+		expect(PlainTextFormatter).toBeDefined();
+		expect(PlainTextFormatter.name).toBe("plain");
+		expect(typeof PlainTextFormatter.formatFilesToLoad).toBe("function");
+		expect(typeof PlainTextFormatter.formatExcludes).toBe("function");
+		expect(typeof PlainTextFormatter.generatePrompt).toBe("function");
+	});
+
+	it("exports SessionStateManager.compact", () => {
+		expect(typeof SessionStateManager.compact).toBe("function");
+	});
+
+	it("exports NextPromptWriter.generateWithFormatter", () => {
+		expect(typeof NextPromptWriter.generateWithFormatter).toBe("function");
 	});
 });

@@ -4,12 +4,17 @@
  * The prompt is capped at {@link MAX_PROMPT_LINES} lines and includes project name,
  * active chunk, files to load, resume context, and next steps.
  *
+ * Supports two generation modes:
+ * 1. Legacy `generate()` — backward-compatible simple generation
+ * 2. `generateWithFormatter()` — uses a {@link BootstrapFormatter} for tool-specific output
+ *
  * @packageDocumentation
  */
 
 import * as path from "node:path";
 import type { ValidatedPath } from "@dev-session/security";
 import { AtomicWriter, CliError } from "@dev-session/security";
+import type { BootstrapContext, BootstrapFormatter } from "../formatters/bootstrap-formatter.js";
 import type {
 	FileIndexEntry,
 	PlanChunk,
@@ -22,13 +27,20 @@ import { MAX_PROMPT_LINES } from "../schemas/index.js";
 const MAX_FILES_TO_SHOW = 5;
 
 /** Maximum number of "Next" task lines to include. */
-const MAX_NEXT_LINES = 3;
+const MAX_NEXT_LINES = 4;
 
 /** The filename for the next prompt file. */
 const NEXT_PROMPT_FILENAME = "NEXT_PROMPT.md";
 
-/** Required field prefixes that must appear in a valid next prompt. */
-const REQUIRED_FIELDS: readonly string[] = ["Project:", "Active chunk:", "Files to load:"];
+/**
+ * Required field prefixes that must appear in a valid next prompt.
+ *
+ * Validation accepts both legacy ("Files to load:") and new ("Load:") field names.
+ */
+const REQUIRED_FIELDS: readonly string[] = ["Project:", "Active chunk:"];
+
+/** Field prefixes for file loading — at least one must be present. */
+const FILE_LOAD_FIELDS: readonly string[] = ["Files to load:", "Load:"];
 
 /**
  * Extracts a project name from the session ID.
@@ -114,14 +126,18 @@ function trimToMaxLines(lines: readonly string[]): readonly string[] {
 /**
  * Generates and writes NEXT_PROMPT.md for the next AI coding session.
  *
- * Exports a pure `generate` function, an `AtomicWriter`-based `write` function,
- * and a `validate` function for checking prompt correctness.
+ * Exports:
+ * - `generate()` — legacy simple generation (backward-compatible)
+ * - `generateWithFormatter()` — formatter-aware generation with context budget support
+ * - `write()` — writes content to NEXT_PROMPT.md via AtomicWriter
+ * - `validate()` — validates prompt content structure
  */
 export const NextPromptWriter = {
 	/**
-	 * Generates the content string for NEXT_PROMPT.md.
+	 * Generates the content string for NEXT_PROMPT.md (legacy mode).
 	 *
 	 * Pure function — no side effects. The output is capped at {@link MAX_PROMPT_LINES} lines.
+	 * For tool-specific output, use {@link generateWithFormatter} instead.
 	 *
 	 * @param state - The current session state (active chunk, tasks, notes).
 	 * @param chunk - The active plan chunk with its tasks and title.
@@ -161,6 +177,21 @@ export const NextPromptWriter = {
 	},
 
 	/**
+	 * Generates NEXT_PROMPT.md content using a {@link BootstrapFormatter}.
+	 *
+	 * This is the recommended generation method. It delegates formatting to
+	 * the provided formatter, which can produce tool-specific output
+	 * (e.g., Claude Code `@`-mentions, opencode format, etc.).
+	 *
+	 * @param formatter - The bootstrap formatter to use for rendering.
+	 * @param context - The full bootstrap context data.
+	 * @returns A string suitable for writing to NEXT_PROMPT.md.
+	 */
+	generateWithFormatter(formatter: BootstrapFormatter, context: BootstrapContext): string {
+		return formatter.generatePrompt(context);
+	},
+
+	/**
 	 * Writes the generated prompt content to NEXT_PROMPT.md inside the session directory.
 	 *
 	 * @param sessionDir - A validated path to the `.session/` directory.
@@ -183,7 +214,8 @@ export const NextPromptWriter = {
 	 * Validates a NEXT_PROMPT.md content string.
 	 *
 	 * Checks that the content is non-empty, within the line limit, and contains
-	 * all required field prefixes.
+	 * all required field prefixes. Supports both legacy ("Files to load:") and
+	 * new ("Load:") field names for file references.
 	 *
 	 * @param content - The prompt content string to validate.
 	 * @returns A {@link ValidationResult} with validity status, line count, and any errors.
@@ -206,6 +238,16 @@ export const NextPromptWriter = {
 			if (!found) {
 				errors.push(`Missing required field: "${field}"`);
 			}
+		}
+
+		// Check for at least one file load field (supports both old and new format)
+		const hasFileLoadField = lines.some((line) =>
+			FILE_LOAD_FIELDS.some((field) => line.startsWith(field)),
+		);
+		if (!hasFileLoadField) {
+			errors.push(
+				`Missing file load field: expected one of ${FILE_LOAD_FIELDS.map((f) => `"${f}"`).join(" or ")}`,
+			);
 		}
 
 		return {

@@ -13,6 +13,8 @@ export const FileIndexEntrySchema = z
 		chunk_tags: z.array(z.number().int().min(0)).min(1),
 		/** A short description of the file's purpose. */
 		purpose: z.string().min(1),
+		/** Estimated token cost for loading this file into context. Populated by walker/scanner. */
+		token_cost: z.number().int().min(0).optional(),
 	})
 	.strict();
 

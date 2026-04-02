@@ -63,6 +63,17 @@ The CLI is a thin layer over the programmatic API. All business logic lives in `
 - CLI commands tested via `execa` subprocess — never by calling internals directly
 - Filesystem tests use `memfs` for unit, real temp dirs (via `tmp-promise`) for integration
 
+### Context budget (maximize quality, minimize tokens)
+- **Bootstrap context must not exceed the configured token budget** (default: 4,000 tokens) — this includes SESSION_STATE, the active plan chunk, always-include files, and chunk-tagged files
+- **NEXT_PROMPT.md is capped at 20 lines** (structured sections: header 3, context 4, resume 5, next 5, notes 3)
+- **FILE_INDEX entries should include `token_cost`** — populated by `GitignoreAwareWalker.estimateTokenCost()` or live file scanning
+- **Only the active plan chunk is loaded** — not the full PLAN.md. `docs/PLAN.md` is split into `.session/PLAN_N.md` files by `init`
+- **SESSION_STATE is compacted on chunk advance** — completed chunk tasks are archived to DONE_LOG.md, SESSION_STATE keeps only the active chunk's tasks plus a summary line per completed chunk
+- **`dev-session status` must display the context budget breakdown** — tokens per category, over-budget warnings
+- **Bootstrap formatters are adapter-specific** — Claude Code uses `@`-mention syntax, opencode uses its own format, generic uses plain text. Each adapter implements the `BootstrapFormatter` interface
+- **Exclude patterns are explicit** — NEXT_PROMPT.md includes a "Do NOT load" line listing patterns to avoid (test files, other chunks, dist/)
+- **Stale context detection** — `dev-session health` flags always-include files that haven't been touched in N sessions
+
 ### Dependencies
 - No runtime dependencies in `core` beyond: `@11ty/gray-matter`, `globby`, `zod`, `write-file-atomic`
 - `commander` and `@clack/prompts` are `cli` dependencies only
@@ -245,14 +256,33 @@ export { CliError, SecurityError, SecurityThreat }
   - `groupByDirectory(files)` → `DirectoryGroup[]` — for interactive chunk-tagging prompts
   - `estimateTokenCost(file)` → `number` — rough token count for context budget display
 
-#### 3f — Tests
-- [ ] `SessionStateManager`: load valid, load malformed, markTaskDone idempotent, save atomic
+#### 3f — Context budget system
+- [ ] `ContextBudget` type + `ContextBudgetBreakdown` — breakdown by session state, plan chunk, files, always-include
+- [ ] `ContextBudgetCalculator` — `estimate()` aggregates token costs, `formatSummary()` for display
+- [ ] `DEFAULT_CONTEXT_BUDGET = 4000` tokens (tunable per-project)
+- [ ] `FileIndexEntry.token_cost` optional field — populated by walker, used by budget calculator
+
+#### 3g — Bootstrap formatter system
+- [ ] `BootstrapFormatter` interface — `formatFilesToLoad()`, `formatExcludes()`, `generatePrompt()`
+- [ ] `BootstrapContext` type — all data needed to generate a bootstrap prompt
+- [ ] `PlainTextFormatter` — default implementation with structured sections (header/context/resume/next/notes)
+- [ ] `NextPromptWriter.generateWithFormatter()` — delegates to a formatter for tool-specific output
+- [ ] `MAX_PROMPT_LINES` increased from 15 → 20 (structured section budget: header 3, context 4, resume 5, next 5, notes 3)
+
+#### 3h — State compaction
+- [ ] `SessionStateManager.compact()` — archives completed chunk summaries, keeps SESSION_STATE lean
+- [ ] `NextPromptWriter.validate()` — now accepts both `"Files to load:"` and `"Load:"` field names
+
+#### 3i — Tests
+- [ ] `SessionStateManager`: load valid, load malformed, markTaskDone idempotent, save atomic, compact
 - [ ] `FileIndexManager`: queryByChunk returns correct entries, audit detects stale, add deduplicates
 - [ ] `PlanChunkManager`: loadAll sorts correctly, advance updates state, isComplete logic
-- [ ] `NextPromptWriter`: enforces 15-line limit, validate catches missing fields
+- [ ] `NextPromptWriter`: enforces 20-line limit, validate catches missing fields, generateWithFormatter delegates
 - [ ] `PlanParser`: splits on `##` headings, ignores `#` and `###`, handles empty sections
 - [ ] `ProjectDetector`: detects each tool type, handles missing files gracefully
 - [ ] `GitignoreAwareWalker`: respects `.gitignore`, groups correctly, handles empty dirs
+- [ ] `ContextBudgetCalculator`: estimate with/without token_cost, over-budget detection, formatSummary
+- [ ] `PlainTextFormatter`: structured output, exclude patterns, budget display, truncation
 
 ### Key exports from `packages/core`
 ```typescript
@@ -263,6 +293,8 @@ export { NextPromptWriter, NextPrompt }
 export { PlanParser, BoundaryResult }
 export { ProjectDetector, ProjectInfo }
 export { GitignoreAwareWalker, WalkedFile }
+export { ContextBudgetCalculator, ContextBudget, DEFAULT_CONTEXT_BUDGET }
+export { PlainTextFormatter, BootstrapFormatter, BootstrapContext }
 export { SessionManager }  // unified facade over all managers
 ```
 
@@ -340,24 +372,29 @@ export { SessionManager }  // unified facade over all managers
 - [ ] Read `SESSION_STATE.md` + active chunk
 - [ ] Display: active chunk, task completion % (N/M done), files in context, days since last session
 - [ ] Display: always-include file count, indexed file count, FILE_INDEX health
+- [ ] Display: **context budget breakdown** — tokens per category (SESSION_STATE, plan chunk, always-include, context files), over-budget warning
 - [ ] `--json` flag: machine-readable output (for CI / scripting integration)
-- [ ] Warn if `NEXT_PROMPT.md` > 15 lines ("prompt has grown — consider regenerating")
+- [ ] Warn if `NEXT_PROMPT.md` > 20 lines ("prompt has grown — consider regenerating")
 - [ ] Warn if `always-include` list > 4 files ("creep detected")
+- [ ] Warn if context budget exceeds `DEFAULT_CONTEXT_BUDGET` — suggest removing large files or splitting chunks
 
 #### `dev-session update`
 - [ ] Interactive: show current task list with checkboxes
 - [ ] Mark tasks done / in-progress / todo
 - [ ] Add session notes (free text)
 - [ ] Update "last worked" files (auto-suggest from git status)
-- [ ] Regenerate `NEXT_PROMPT.md` from updated state
+- [ ] Regenerate `NEXT_PROMPT.md` from updated state (using `NextPromptWriter.generateWithFormatter()` with detected adapter's formatter)
+- [ ] Display context budget after regeneration
 - [ ] Run `SecretScanner` on updated files before write
 
 #### `dev-session advance`
 - [ ] Check all tasks in active chunk are `done` — warn if not, prompt to confirm force-advance
 - [ ] Archive completed chunk to `DONE_LOG.md`
+- [ ] **Compact `SESSION_STATE.md`** — call `SessionStateManager.compact()` to move completed chunk details to DONE_LOG and keep SESSION_STATE lean
 - [ ] Advance `SESSION_STATE.md` to next chunk
-- [ ] Regenerate `NEXT_PROMPT.md` for new chunk
+- [ ] Regenerate `NEXT_PROMPT.md` for new chunk (using `PlainTextFormatter` or adapter-specific formatter)
 - [ ] Display: "Advanced to PLAN_2.md. N tasks remaining in this chunk."
+- [ ] Display: context budget for the new chunk
 
 #### `dev-session prompt`
 - [ ] Print `NEXT_PROMPT.md` to stdout (for piping or copying)
@@ -447,8 +484,13 @@ export interface Adapter {
   transformState(state: SessionState): AdapterFiles  // state → files to write
   onSessionStart(ctx: AdapterContext): Promise<void>
   onSessionEnd(ctx: AdapterContext): Promise<void>
+  getFormatter(): BootstrapFormatter              // tool-specific NEXT_PROMPT format
 }
 ```
+
+Each adapter MUST implement `BootstrapFormatter` (defined in `packages/core`) to produce
+tool-native bootstrap prompts. This is how context reduction works end-to-end: the adapter
+knows how its tool loads files, so it generates the most efficient NEXT_PROMPT format.
 
 ### Claude Code adapter (`dev-session/adapters/claude`)
 - [ ] Detect: check for `CLAUDE.md` or `.claude/` directory
@@ -456,14 +498,18 @@ export interface Adapter {
 - [ ] `transformState`: map active chunk notes into `CLAUDE.md` update
 - [ ] `onSessionStart`: read `.claude/MEMORY.md` (first 200 lines) and inject relevant state
 - [ ] `onSessionEnd`: trigger self-update routine format compatible with Claude Code's file-read pattern
-- [ ] Bootstrap prompt format: uses `@`-mention syntax for file loading
+- [ ] `getFormatter()` → `ClaudeBootstrapFormatter` that uses `@`-mention syntax for file loading
+- [ ] `ClaudeBootstrapFormatter.formatFilesToLoad()` produces `@path/to/file` syntax for surgical context injection
+- [ ] `ClaudeBootstrapFormatter.formatExcludes()` produces "Do NOT read: ..." instruction
 - [ ] Tests: fixture `.claude/` directory, verify generated `CLAUDE.md` is valid markdown
+- [ ] Tests: verify `ClaudeBootstrapFormatter.generatePrompt()` produces valid `@`-mention format
 
 ### opencode adapter (`dev-session/adapters/opencode`)
 - [ ] Detect: check for `opencode.json` or `AGENTS.md`
 - [ ] `setup`: write AGENTS.md section with dev-session context protocol
 - [ ] `transformState`: map state to AGENTS.md format
 - [ ] `onSessionEnd`: write session-end instructions in opencode-compatible format
+- [ ] `getFormatter()` → `OpencodeBootstrapFormatter` using opencode's context loading format
 - [ ] Tests: fixture `opencode.json`, verify `AGENTS.md` output
 
 ### Adapter registry

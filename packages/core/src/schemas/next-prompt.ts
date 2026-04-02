@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /** Maximum number of lines allowed in NEXT_PROMPT.md. */
-export const MAX_PROMPT_LINES = 15;
+export const MAX_PROMPT_LINES = 20;
 
 /**
  * Zod schema for the content of NEXT_PROMPT.md.

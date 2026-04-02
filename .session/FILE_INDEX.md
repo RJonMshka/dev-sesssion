@@ -10,7 +10,6 @@ last_updated: "2026-03-30"
 | File | Purpose |
 |---|---|
 | CLAUDE.md | AI session instructions |
-| docs/PLAN.md | Full project plan |
 | .session/SESSION_STATE.md | Active chunk + task tracking |
 
 ## Chunk 1 — Foundation
@@ -99,7 +98,13 @@ last_updated: "2026-03-30"
 | packages/core/src/parsers/plan-parser.ts | PlanParser — fromMarkdown/detectBoundaries/toMarkdown |
 | packages/core/src/detectors/project-detector.ts | ProjectDetector — detect/hasExistingSession/getProjectType |
 | packages/core/src/walkers/gitignore-aware-walker.ts | GitignoreAwareWalker — walk/groupByDirectory/estimateTokenCost |
+| packages/core/src/schemas/context-budget.ts | ContextBudget type + DEFAULT_CONTEXT_BUDGET + ContextBudgetSummarySchema |
+| packages/core/src/calculators/context-budget-calculator.ts | ContextBudgetCalculator — estimate/estimateFromString/formatSummary |
+| packages/core/src/formatters/bootstrap-formatter.ts | BootstrapFormatter interface + BootstrapContext type |
+| packages/core/src/formatters/plain-text-formatter.ts | PlainTextFormatter — default structured bootstrap format |
 | packages/core/src/__tests__/index.test.ts | Smoke test for core exports (5 tests) |
+| packages/core/src/__tests__/context-budget-calculator.test.ts | ContextBudgetCalculator tests (14 tests) |
+| packages/core/src/__tests__/plain-text-formatter.test.ts | PlainTextFormatter tests (20 tests) |
 | packages/core/src/__tests__/session-state-manager.test.ts | SessionStateManager tests (10 tests) |
 | packages/core/src/__tests__/file-index-manager.test.ts | FileIndexManager tests (11 tests) |
 | packages/core/src/__tests__/plan-chunk-manager.test.ts | PlanChunkManager tests (10 tests) |

@@ -3,7 +3,10 @@ import * as path from "node:path";
 import type { ValidatedPath } from "@dev-session/security";
 import { CliError } from "@dev-session/security";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import type { BootstrapContext } from "../formatters/bootstrap-formatter.js";
+import { PlainTextFormatter } from "../formatters/plain-text-formatter.js";
 import { NextPromptWriter } from "../managers/next-prompt-writer.js";
+import type { ContextBudget, ContextBudgetBreakdown } from "../schemas/context-budget.js";
 import type { FileIndexEntry, PlanChunk, SessionState } from "../schemas/index.js";
 import { MAX_PROMPT_LINES } from "../schemas/index.js";
 
@@ -126,7 +129,7 @@ describe("NextPromptWriter", () => {
 		});
 
 		it("rejects content exceeding line limit", () => {
-			const lines = Array.from({ length: 20 }, (_, i) => `Line ${i + 1}`);
+			const lines = Array.from({ length: 25 }, (_, i) => `Line ${i + 1}`);
 			const content = lines.join("\n");
 			const result = NextPromptWriter.validate(content);
 
@@ -138,6 +141,84 @@ describe("NextPromptWriter", () => {
 			const result = NextPromptWriter.validate("Just some text\n");
 			expect(result.valid).toBe(false);
 			expect(result.errors.some((e) => e.includes("Project:"))).toBe(true);
+		});
+
+		it("detects missing file load field", () => {
+			const content = "Project: test\nActive chunk: 1\nResume: something\n";
+			const result = NextPromptWriter.validate(content);
+			expect(result.valid).toBe(false);
+			expect(result.errors.some((e) => e.includes("file load field"))).toBe(true);
+		});
+
+		it("accepts new 'Load:' field name", () => {
+			const content = "Project: test\nActive chunk: 1\nLoad: file.ts\nResume: something\n";
+			const result = NextPromptWriter.validate(content);
+			// Should find Project, Active chunk, and Load: — valid for field checks
+			const fieldErrors = result.errors.filter(
+				(e) => e.includes("Missing required field") || e.includes("file load field"),
+			);
+			expect(fieldErrors).toHaveLength(0);
+		});
+
+		it("accepts legacy 'Files to load:' field name", () => {
+			const content = "Project: test\nActive chunk: 1\nFiles to load: file.ts\nResume: something\n";
+			const result = NextPromptWriter.validate(content);
+			const fieldErrors = result.errors.filter(
+				(e) => e.includes("Missing required field") || e.includes("file load field"),
+			);
+			expect(fieldErrors).toHaveLength(0);
+		});
+	});
+
+	describe("generateWithFormatter", () => {
+		function makeBudget(): ContextBudget {
+			const filesMap = new Map<string, number>();
+			filesMap.set("packages/core/src/index.ts", 100);
+
+			const breakdown: ContextBudgetBreakdown = {
+				sessionState: 100,
+				planChunk: 150,
+				files: filesMap,
+				alwaysInclude: 50,
+			};
+
+			return {
+				totalTokens: 400,
+				breakdown,
+				overBudget: false,
+				budgetCap: 4000,
+			};
+		}
+
+		function makeBootstrapContext(): BootstrapContext {
+			return {
+				state: makeState(),
+				chunk: makeChunk(),
+				chunkFiles: makeFiles(),
+				alwaysIncludeFiles: [
+					{ filepath: "CLAUDE.md", chunk_tags: [0], purpose: "AI", token_cost: 50 },
+				],
+				budget: makeBudget(),
+				excludePatterns: ["**/__tests__/**"],
+				projectName: "dev-session",
+			};
+		}
+
+		it("delegates to the provided formatter", () => {
+			const ctx = makeBootstrapContext();
+			const content = NextPromptWriter.generateWithFormatter(PlainTextFormatter, ctx);
+
+			expect(content).toContain("Project: dev-session");
+			expect(content).toContain("Active chunk: 3");
+			expect(content).toContain("Budget:");
+		});
+
+		it("produces content that passes validation", () => {
+			const ctx = makeBootstrapContext();
+			const content = NextPromptWriter.generateWithFormatter(PlainTextFormatter, ctx);
+			const result = NextPromptWriter.validate(content);
+
+			expect(result.valid).toBe(true);
 		});
 	});
 });

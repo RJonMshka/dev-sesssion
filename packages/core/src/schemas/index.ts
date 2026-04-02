@@ -11,6 +11,16 @@ export type { AdapterConfig } from "./adapter-config.js";
 export { AdapterConfigSchema } from "./adapter-config.js";
 // Plan parser types
 export type { BoundaryResult } from "./boundary-result.js";
+// Context budget
+export type {
+	ContextBudget,
+	ContextBudgetBreakdown,
+	ContextBudgetSummary,
+} from "./context-budget.js";
+export {
+	ContextBudgetSummarySchema,
+	DEFAULT_CONTEXT_BUDGET,
+} from "./context-budget.js";
 export type { AuditResult, FileIndexEntry } from "./file-index-entry.js";
 
 // File index

@@ -229,4 +229,101 @@ active_chunk: 1
 			expect(updated.last_worked_files).toEqual(["new.ts", "other.ts"]);
 		});
 	});
+
+	describe("compact", () => {
+		it("adds a completed chunks summary note", () => {
+			const state: SessionState = {
+				active_chunk: 4,
+				session_id: "s",
+				last_updated: "2026-03-30",
+				tasks: [{ text: "Task A", status: "todo" }],
+				notes: [],
+				last_worked_files: ["old.ts"],
+				completed_chunks: { "1": "2026-03-25", "2": "2026-03-28", "3": "2026-03-30" },
+			};
+
+			const compacted = SessionStateManager.compact(state);
+			expect(compacted.notes.some((n) => n.startsWith("Completed:"))).toBe(true);
+			expect(compacted.notes[0]).toContain("Chunks 1-3");
+			expect(compacted.notes[0]).toContain("DONE_LOG.md");
+		});
+
+		it("does not add duplicate summary if one already exists", () => {
+			const state: SessionState = {
+				active_chunk: 4,
+				session_id: "s",
+				last_updated: "2026-03-30",
+				tasks: [],
+				notes: ["Completed: Chunks 1-3. See DONE_LOG.md for details."],
+				last_worked_files: [],
+				completed_chunks: { "1": "2026-03-25", "2": "2026-03-28", "3": "2026-03-30" },
+			};
+
+			const compacted = SessionStateManager.compact(state);
+			const summaryNotes = compacted.notes.filter((n) => n.startsWith("Completed:"));
+			expect(summaryNotes).toHaveLength(1);
+		});
+
+		it("handles non-consecutive completed chunks", () => {
+			const state: SessionState = {
+				active_chunk: 5,
+				session_id: "s",
+				last_updated: "2026-03-30",
+				tasks: [],
+				notes: [],
+				last_worked_files: [],
+				completed_chunks: { "1": "2026-03-25", "3": "2026-03-30" },
+			};
+
+			const compacted = SessionStateManager.compact(state);
+			expect(compacted.notes[0]).toContain("Chunks 1, 3");
+		});
+
+		it("handles single completed chunk", () => {
+			const state: SessionState = {
+				active_chunk: 2,
+				session_id: "s",
+				last_updated: "2026-03-30",
+				tasks: [],
+				notes: [],
+				last_worked_files: [],
+				completed_chunks: { "1": "2026-03-25" },
+			};
+
+			const compacted = SessionStateManager.compact(state);
+			expect(compacted.notes[0]).toContain("Chunks 1");
+		});
+
+		it("does not add summary when no chunks are completed", () => {
+			const state: SessionState = {
+				active_chunk: 1,
+				session_id: "s",
+				last_updated: "2026-03-30",
+				tasks: [],
+				notes: [],
+				last_worked_files: [],
+				completed_chunks: {},
+			};
+
+			const compacted = SessionStateManager.compact(state);
+			expect(compacted.notes).toHaveLength(0);
+		});
+
+		it("preserves existing notes after the summary", () => {
+			const state: SessionState = {
+				active_chunk: 4,
+				session_id: "s",
+				last_updated: "2026-03-30",
+				tasks: [],
+				notes: ["Existing note 1", "Existing note 2"],
+				last_worked_files: [],
+				completed_chunks: { "1": "2026-03-25", "2": "2026-03-28" },
+			};
+
+			const compacted = SessionStateManager.compact(state);
+			expect(compacted.notes[0]).toContain("Completed:");
+			expect(compacted.notes).toContain("Existing note 1");
+			expect(compacted.notes).toContain("Existing note 2");
+		});
+	});
 });

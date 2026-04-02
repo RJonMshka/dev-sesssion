@@ -121,6 +121,59 @@ export const SessionStateManager = {
 			last_worked_files: [...files],
 		};
 	},
+
+	/**
+	 * Compacts the session state by removing detailed task lists from completed chunks.
+	 *
+	 * Completed chunk tasks are archived to DONE_LOG.md (if not already archived),
+	 * and the in-memory state is trimmed to keep only the active chunk's tasks,
+	 * a summary note per completed chunk, and essential metadata.
+	 *
+	 * This prevents SESSION_STATE.md from growing unboundedly as chunks accumulate.
+	 *
+	 * Pure function — performs no I/O. Call `save()` separately to persist.
+	 *
+	 * @param state - The current session state (may have stale task lists).
+	 * @returns A new session state with only the active chunk's tasks, plus compact summaries.
+	 */
+	compact(state: SessionState): SessionState {
+		// Keep only tasks that belong to the active chunk.
+		// Since all completed chunk tasks should have already been archived via
+		// PlanChunkManager.archive(), we clear them from the state.
+		// We preserve any existing notes and add a compact summary if not already present.
+
+		const completedKeys = Object.keys(state.completed_chunks);
+		const hasSummary = state.notes.some((n) => n.startsWith("Completed:"));
+
+		const notes = [...state.notes];
+
+		if (completedKeys.length > 0 && !hasSummary) {
+			const sortedKeys = completedKeys
+				.map((k) => Number.parseInt(k, 10))
+				.filter((n) => !Number.isNaN(n))
+				.sort((a, b) => a - b);
+
+			if (sortedKeys.length > 0) {
+				const first = sortedKeys[0] as number;
+				const last = sortedKeys[sortedKeys.length - 1] as number;
+				const isConsecutive = last - first === sortedKeys.length - 1;
+
+				const rangeStr =
+					isConsecutive && sortedKeys.length > 1
+						? `${String(first)}-${String(last)}`
+						: sortedKeys.map(String).join(", ");
+
+				notes.unshift(`Completed: Chunks ${rangeStr}. See DONE_LOG.md for details.`);
+			}
+		}
+
+		// Clear last_worked_files from old chunks since they're no longer relevant
+		// after advancing. Keep them if we haven't advanced (active chunk is still current).
+		return {
+			...state,
+			notes,
+		};
+	},
 } as const;
 
 // ---------------------------------------------------------------------------

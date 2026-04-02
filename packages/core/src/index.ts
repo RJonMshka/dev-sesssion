@@ -13,8 +13,14 @@ export {
 	ParseError,
 	SecurityError,
 } from "@dev-session/security";
+// Calculators
+export { ContextBudgetCalculator } from "./calculators/context-budget-calculator.js";
 // Detectors
 export { ProjectDetector } from "./detectors/project-detector.js";
+// Types for bootstrap formatters
+export type { BootstrapContext, BootstrapFormatter } from "./formatters/bootstrap-formatter.js";
+// Bootstrap formatters
+export { PlainTextFormatter } from "./formatters/plain-text-formatter.js";
 export { FileIndexManager } from "./managers/file-index-manager.js";
 export { NextPromptWriter } from "./managers/next-prompt-writer.js";
 export { PlanChunkManager } from "./managers/plan-chunk-manager.js";
@@ -27,6 +33,9 @@ export type {
 	AdapterConfig,
 	AuditResult,
 	BoundaryResult,
+	ContextBudget,
+	ContextBudgetBreakdown,
+	ContextBudgetSummary,
 	DetectedToolValue,
 	DirectoryGroup,
 	FileIndexEntry,
@@ -44,6 +53,8 @@ export type {
 // Schemas and types
 export {
 	AdapterConfigSchema,
+	ContextBudgetSummarySchema,
+	DEFAULT_CONTEXT_BUDGET,
 	DetectedTool,
 	FileIndexEntrySchema,
 	MAX_PROMPT_LINES,
