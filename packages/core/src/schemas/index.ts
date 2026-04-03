@@ -49,6 +49,13 @@ export { SessionStateSchema } from "./session-state.js";
 export type { Task, TaskStatusValue } from "./task.js";
 // Task
 export { TaskSchema, TaskStatus, TaskStatusSchema } from "./task.js";
+// Token counting
+export type {
+	ExternalTokenCounter,
+	TokenBudget,
+	TokenCostMap,
+	TokenCountResult,
+} from "./token-counting.js";
 // Walker types
 export type {
 	DirectoryGroup,

@@ -196,6 +196,37 @@ describe("ContextBudgetCalculator", () => {
 		});
 	});
 
+	describe("accurate flag", () => {
+		it("estimate() always returns accurate: false (heuristic-only)", () => {
+			const budget = ContextBudgetCalculator.estimate(
+				makeState(),
+				makeChunk(),
+				makeFiles(3, 150),
+				makeAlwaysInclude(),
+			);
+
+			expect(budget.accurate).toBe(false);
+		});
+
+		it("estimate() returns accurate: false even with token_cost populated", () => {
+			// token_cost in FileIndexEntry was populated by a prior run — but
+			// the calculator itself still uses heuristic for session state / plan chunk
+			const budget = ContextBudgetCalculator.estimate(
+				makeState(),
+				makeChunk(),
+				makeFiles(5, 500),
+				makeAlwaysInclude(),
+			);
+
+			expect(budget.accurate).toBe(false);
+		});
+
+		it("estimate() returns accurate: false for empty file lists", () => {
+			const budget = ContextBudgetCalculator.estimate(makeState(), makeChunk(), [], []);
+			expect(budget.accurate).toBe(false);
+		});
+	});
+
 	describe("formatSummary", () => {
 		it("formats a within-budget summary", () => {
 			const budget = ContextBudgetCalculator.estimate(
@@ -225,6 +256,41 @@ describe("ContextBudgetCalculator", () => {
 
 			const summary = ContextBudgetCalculator.formatSummary(budget);
 			expect(summary).toContain("OVER BUDGET");
+		});
+
+		it("shows approximate qualifier when not accurate", () => {
+			const budget = ContextBudgetCalculator.estimate(
+				makeState(),
+				makeChunk(),
+				makeFiles(2, 100),
+				makeAlwaysInclude(),
+			);
+
+			const summary = ContextBudgetCalculator.formatSummary(budget);
+			expect(summary).toContain("approximate");
+			expect(summary).toContain("heuristic");
+		});
+
+		it("omits approximate qualifier when accurate", () => {
+			const filesMap = new Map<string, number>();
+			filesMap.set("src/index.ts", 150);
+
+			const accurateBudget = {
+				totalTokens: 500,
+				breakdown: {
+					sessionState: 100,
+					planChunk: 100,
+					files: filesMap,
+					alwaysInclude: 150,
+				},
+				overBudget: false,
+				budgetCap: 4000,
+				accurate: true,
+			};
+
+			const summary = ContextBudgetCalculator.formatSummary(accurateBudget);
+			expect(summary).not.toContain("approximate");
+			expect(summary).not.toContain("~");
 		});
 	});
 });

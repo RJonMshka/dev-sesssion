@@ -187,6 +187,7 @@ describe("NextPromptWriter", () => {
 				breakdown,
 				overBudget: false,
 				budgetCap: 4000,
+				accurate: false,
 			};
 		}
 

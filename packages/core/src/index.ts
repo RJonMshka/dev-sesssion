@@ -15,6 +15,9 @@ export {
 } from "@dev-session/security";
 // Calculators
 export { ContextBudgetCalculator } from "./calculators/context-budget-calculator.js";
+export type { TokenCounterInstance } from "./counters/token-counter.js";
+// Counters
+export { TokenCounter } from "./counters/token-counter.js";
 // Detectors
 export { ProjectDetector } from "./detectors/project-detector.js";
 // Types for bootstrap formatters
@@ -38,6 +41,7 @@ export type {
 	ContextBudgetSummary,
 	DetectedToolValue,
 	DirectoryGroup,
+	ExternalTokenCounter,
 	FileIndexEntry,
 	NextPrompt,
 	PlanChunk,
@@ -46,6 +50,9 @@ export type {
 	SessionState,
 	Task,
 	TaskStatusValue,
+	TokenBudget,
+	TokenCostMap,
+	TokenCountResult,
 	ValidationResult,
 	WalkedFile,
 	WalkOptions,

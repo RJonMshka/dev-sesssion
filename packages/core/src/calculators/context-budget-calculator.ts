@@ -171,6 +171,7 @@ export const ContextBudgetCalculator = {
 			breakdown,
 			overBudget: totalTokens > cap,
 			budgetCap: cap,
+			accurate: false,
 		};
 	},
 
@@ -194,20 +195,25 @@ export const ContextBudgetCalculator = {
 	 */
 	formatSummary(budget: ContextBudget): string {
 		const status = budget.overBudget ? "OVER BUDGET" : "within budget";
+		const prefix = budget.accurate ? "" : "~";
 		const lines: string[] = [
-			`Context budget: ~${String(budget.totalTokens)} / ${String(budget.budgetCap)} tokens (${status})`,
+			`Context budget: ${prefix}${String(budget.totalTokens)} / ${String(budget.budgetCap)} tokens (${status})`,
 		];
 
-		lines.push(`  SESSION_STATE  ~${String(budget.breakdown.sessionState)} tokens`);
-		lines.push(`  Plan chunk     ~${String(budget.breakdown.planChunk)} tokens`);
-		lines.push(`  Always-include ~${String(budget.breakdown.alwaysInclude)} tokens`);
+		if (!budget.accurate) {
+			lines.push("  (approximate — using heuristic token estimates)");
+		}
+
+		lines.push(`  SESSION_STATE  ${prefix}${String(budget.breakdown.sessionState)} tokens`);
+		lines.push(`  Plan chunk     ${prefix}${String(budget.breakdown.planChunk)} tokens`);
+		lines.push(`  Always-include ${prefix}${String(budget.breakdown.alwaysInclude)} tokens`);
 
 		let filesTotal = 0;
 		for (const cost of budget.breakdown.files.values()) {
 			filesTotal += cost;
 		}
 		lines.push(
-			`  Context files  ~${String(filesTotal)} tokens (${String(budget.breakdown.files.size)} files)`,
+			`  Context files  ${prefix}${String(filesTotal)} tokens (${String(budget.breakdown.files.size)} files)`,
 		);
 
 		return lines.join("\n");

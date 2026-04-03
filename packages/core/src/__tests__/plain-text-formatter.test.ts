@@ -61,6 +61,7 @@ function makeBudget(overrides?: Partial<ContextBudget>): ContextBudget {
 		breakdown,
 		overBudget: false,
 		budgetCap: 4000,
+		accurate: false,
 		...overrides,
 	};
 }

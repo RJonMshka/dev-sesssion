@@ -14,6 +14,7 @@ import {
 	SessionStateSchema,
 	TaskSchema,
 	TaskStatus,
+	TokenCounter,
 } from "../index.js";
 
 describe("@dev-session/core", () => {
@@ -44,6 +45,14 @@ describe("@dev-session/core", () => {
 		expect(typeof GitignoreAwareWalker.walk).toBe("function");
 		expect(typeof GitignoreAwareWalker.groupByDirectory).toBe("function");
 		expect(typeof GitignoreAwareWalker.estimateTokenCost).toBe("function");
+		expect(typeof GitignoreAwareWalker.measureTokenCost).toBe("function");
+	});
+
+	it("exports TokenCounter", () => {
+		expect(TokenCounter).toBeDefined();
+		expect(typeof TokenCounter.create).toBe("function");
+		expect(typeof TokenCounter.heuristicCount).toBe("function");
+		expect(typeof TokenCounter.heuristicCountFromBytes).toBe("function");
 	});
 
 	it("exports schemas and constants", () => {

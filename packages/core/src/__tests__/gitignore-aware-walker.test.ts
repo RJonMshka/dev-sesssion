@@ -224,4 +224,42 @@ describe("GitignoreAwareWalker", () => {
 			expect(GitignoreAwareWalker.estimateTokenCost(file)).toBe(0);
 		});
 	});
+
+	describe("measureTokenCost", () => {
+		it("returns heuristic result when no external counter", async () => {
+			const { TokenCounter } = await import("../counters/token-counter.js");
+			const counter = TokenCounter.create();
+			const file = { relativePath: "a.ts", absolutePath: "/a.ts", sizeBytes: 1000 };
+
+			const result = await GitignoreAwareWalker.measureTokenCost(file, counter);
+			expect(result.tokens).toBe(250);
+			expect(result.accurate).toBe(false);
+		});
+
+		it("uses external counter when available", async () => {
+			const { TokenCounter } = await import("../counters/token-counter.js");
+			// Create a temp file for the external counter to read
+			const fs = await import("node:fs");
+			const os = await import("node:os");
+			const path = await import("node:path");
+			const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "walker-measure-"));
+			const filePath = path.join(tmpDir, "test.ts");
+			fs.writeFileSync(filePath, "const x = 1;\n");
+
+			const counter = TokenCounter.create({
+				externalCounter: async (content) => content.length * 3,
+			});
+			const file = {
+				relativePath: "test.ts",
+				absolutePath: filePath,
+				sizeBytes: 14,
+			};
+
+			const result = await GitignoreAwareWalker.measureTokenCost(file, counter);
+			expect(result.tokens).toBe(39); // "const x = 1;\n" = 13 chars * 3
+			expect(result.accurate).toBe(true);
+
+			fs.rmSync(tmpDir, { recursive: true, force: true });
+		});
+	});
 });

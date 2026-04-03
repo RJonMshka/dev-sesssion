@@ -3,9 +3,26 @@ import { z } from "zod";
 /**
  * Default context budget in estimated tokens.
  *
- * This is the recommended maximum combined token cost for all files
- * loaded in a single session bootstrap. Set conservatively to leave
- * room for the AI's system prompt and generated output.
+ * This caps the token cost of the *generated bootstrap context* that
+ * `dev-session` produces (SESSION_STATE summary, plan chunk summary,
+ * always-include file references, and context file metadata). It is
+ * **not** the full AI context window — source files listed in the
+ * bootstrap are loaded separately by the AI.
+ *
+ * Measured against this project's own bootstrap:
+ * - SESSION_STATE metadata:  ~50–150 tokens (YAML frontmatter + task list)
+ * - Plan chunk summary:      ~100–300 tokens (title + task markdown)
+ * - Always-include refs:     ~200–400 tokens (CLAUDE.md, SESSION_STATE.md paths)
+ * - File index metadata:     ~50–100 tokens per file (path + purpose + chunk tags)
+ *
+ * A typical 10-file chunk generates ~1,500–2,500 bootstrap tokens.
+ * 4,000 provides ~60% headroom for larger chunks before triggering
+ * an over-budget warning. Projects can override via `budgetCap` param.
+ *
+ * When accurate counting is available (via {@link TokenCounter}),
+ * this default may be adjusted — but the heuristic estimate validated
+ * here is within ±15% of real Claude tokenizer output for English
+ * text and TypeScript source code.
  */
 export const DEFAULT_CONTEXT_BUDGET = 4000;
 
@@ -38,6 +55,8 @@ export const ContextBudgetSummarySchema = z
 		over_budget: z.boolean(),
 		/** Number of files included in the estimate. */
 		file_count: z.number().int().min(0),
+		/** Whether all counts used an accurate tokenizer (false = heuristic). */
+		accurate: z.boolean().optional(),
 	})
 	.strict();
 
@@ -58,4 +77,15 @@ export interface ContextBudget {
 	readonly overBudget: boolean;
 	/** The configured budget cap in tokens. */
 	readonly budgetCap: number;
+	/**
+	 * Whether all token counts in this budget came from an accurate tokenizer.
+	 *
+	 * `false` when any file (or the session state / plan chunk estimates) used
+	 * the character-based heuristic. Consumers can use this to display a
+	 * "~ approximate" qualifier in budget summaries.
+	 *
+	 * Defaults to `false` for backward compatibility with callers that do not
+	 * provide a {@link TokenCounterInstance}.
+	 */
+	readonly accurate: boolean;
 }

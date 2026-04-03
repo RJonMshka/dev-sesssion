@@ -11,8 +11,14 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 import { CliError } from "@dev-session/security";
-
-import type { DirectoryGroup, WalkedFile, WalkOptions } from "../schemas/index.js";
+import type { TokenCounterInstance } from "../counters/token-counter.js";
+import { TokenCounter } from "../counters/token-counter.js";
+import type {
+	DirectoryGroup,
+	TokenCountResult,
+	WalkedFile,
+	WalkOptions,
+} from "../schemas/index.js";
 
 /** Directories that are always ignored regardless of .gitignore. */
 const ALWAYS_IGNORED_DIRS = new Set(["node_modules", ".git", "dist", "build", ".session"]);
@@ -239,13 +245,44 @@ export const GitignoreAwareWalker = {
 	/**
 	 * Estimates the token cost for a file based on its size.
 	 *
-	 * Uses the rough heuristic of 1 token per 4 bytes (for English text).
+	 * Uses the heuristic of ~1 token per 4 bytes (for English text / code).
+	 * Delegates to {@link TokenCounter.heuristicCountFromBytes} for the actual
+	 * calculation so the heuristic constant is defined in one place.
 	 *
 	 * @param file - The file to estimate.
 	 * @returns The estimated number of tokens.
 	 */
 	estimateTokenCost(file: WalkedFile): number {
-		return Math.ceil(file.sizeBytes / 4);
+		return TokenCounter.heuristicCountFromBytes(file.sizeBytes);
+	},
+
+	/**
+	 * Measures token cost for a file using a {@link TokenCounterInstance}.
+	 *
+	 * When an external (accurate) counter is configured on the instance,
+	 * this returns real tokenizer counts. Otherwise falls back to the
+	 * character-based heuristic. The result includes an `accurate` flag
+	 * so consumers know whether to trust the number.
+	 *
+	 * @param file - The walked file to measure.
+	 * @param counter - A token counter instance (from {@link TokenCounter.create}).
+	 * @returns A promise resolving to a {@link TokenCountResult}.
+	 */
+	async measureTokenCost(
+		file: WalkedFile,
+		counter: TokenCounterInstance,
+	): Promise<TokenCountResult> {
+		if (!counter.hasExternalCounter) {
+			// Fast path: skip file read, use byte-based heuristic
+			return {
+				tokens: TokenCounter.heuristicCountFromBytes(file.sizeBytes),
+				accurate: false,
+			};
+		}
+		// External counter needs the file content — delegate to countFile
+		// We cast absolutePath since walker already resolved it from the filesystem
+		const filePath = file.absolutePath as import("@dev-session/security").ValidatedPath;
+		return counter.countFile(filePath);
 	},
 } as const;
 

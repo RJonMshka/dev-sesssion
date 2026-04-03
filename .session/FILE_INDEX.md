@@ -1,6 +1,6 @@
 ---
 version: 1
-last_updated: "2026-03-30"
+last_updated: "2026-04-02"
 ---
 
 # File Index
@@ -111,4 +111,12 @@ last_updated: "2026-03-30"
 | packages/core/src/__tests__/next-prompt-writer.test.ts | NextPromptWriter tests (10 tests) |
 | packages/core/src/__tests__/plan-parser.test.ts | PlanParser tests (16 tests) |
 | packages/core/src/__tests__/project-detector.test.ts | ProjectDetector tests (12 tests) |
-| packages/core/src/__tests__/gitignore-aware-walker.test.ts | GitignoreAwareWalker tests (14 tests) |
+| packages/core/src/__tests__/gitignore-aware-walker.test.ts | GitignoreAwareWalker tests (16 tests) |
+
+## Chunk 3.5 — Token counting infrastructure
+
+| File | Purpose |
+|---|---|
+| packages/core/src/schemas/token-counting.ts | TokenCountResult, TokenCostMap, TokenBudget, ExternalTokenCounter types |
+| packages/core/src/counters/token-counter.ts | TokenCounter — create, heuristicCount, heuristicCountFromBytes; TokenCounterInstance |
+| packages/core/src/__tests__/token-counter.test.ts | TokenCounter tests (26 tests) |
