@@ -31,8 +31,10 @@
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
+		"@clack/prompts": "1.2.0",
 		"@dev-session/core": "workspace:*",
-		"@dev-session/security": "workspace:*"
+		"@dev-session/security": "workspace:*",
+		"commander": "14"
 	},
 	"engines": {
 		"node": ">=20.0.0"

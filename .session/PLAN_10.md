@@ -1,0 +1,42 @@
+## Chunk 10 — Context Intelligence: preview, trim, lint & compact
+
+### Tasks
+
+- [ ] Assemble the full bootstrap context exactly as the active adapter's `BootstrapFormatter` would produce it
+- [ ] Call `TokenCounter.countFiles()` on each component: SESSION_STATE, active plan chunk, always-include files, chunk-tagged files, NEXT_PROMPT header
+- [ ] Render a breakdown table:
+- [ ] Print assembled prompt to stdout (full text below breakdown) so user can see exactly what the model will receive
+- [ ] `--format json` flag: machine-readable breakdown for scripting/CI
+- [ ] `--copy` flag: copies assembled prompt to clipboard via `clipboardy`
+- [ ] `--no-content` flag: show breakdown only, suppress full prompt text
+- [ ] Warn if `accurate: false` (no API key) — show heuristic caveat
+- [ ] Warn if total exceeds `DEFAULT_CONTEXT_BUDGET` — suggest `dev-session trim`
+- [ ] Read current context file list (same source as `preview`)
+- [ ] Interactive mode: for each file, show token cost and prompt action:
+- [ ] `--budget <N>` flag: auto-suggest skipping files until under budget (largest-first)
+- [ ] `--dry-run` flag: show what would be excluded without modifying anything
+- [ ] Does NOT require `ANTHROPIC_API_KEY` — all operations are local
+- [ ] Session-scoped skips/truncations written to a `.session/trim-overrides.json` file (gitignored); cleared on `dev-session advance`
+- [ ] `NextPromptWriter.generateWithFormatter()` respects trim overrides when assembling NEXT_PROMPT
+- [ ] `ContextLinter` class in `packages/core`:
+- [ ] `LintResult` type: `{ severity: 'error' | 'warning' | 'info'; rule: string; file: string; line?: number; message: string }`
+- [ ] `dev-session lint-context` command:
+- [ ] No `ANTHROPIC_API_KEY` required — fully local static analysis
+- [ ] Accepts a single file path (validated via `PathValidator`)
+- [ ] Supported targets: any file in FILE_INDEX or always-include list; rejects files outside project
+- [ ] Backup original to `.session/backups/<filename>.<timestamp>` via `AtomicWriter` before modifying
+- [ ] Calls `messages.create` with a compact system prompt:
+- [ ] Shows before/after token count and line count diff for confirmation before writing
+- [ ] `--dry-run` flag: print compacted version to stdout without writing
+- [ ] `--model <id>` flag: override model used for compaction (default: cheapest available Haiku/Flash class model)
+- [ ] Explicit `ANTHROPIC_API_KEY` required — clear `CliError` with suggestion if absent
+- [ ] Updates `FileIndexEntry.token_cost` after writing compacted file
+- [ ] Unit: `ContextLinter.detectDuplicates` finds normalized duplicates across two files
+- [ ] Unit: `ContextLinter.detectSoftLanguage` returns correct ratio and line numbers
+- [ ] Unit: `ContextLinter.detectDeadReferences` flags non-existent `@mention` paths
+- [ ] Unit: trim overrides are respected by `NextPromptWriter`
+- [ ] E2e: `dev-session preview --format json` on a fixture project parses correctly
+- [ ] E2e: `dev-session trim --budget 3000 --dry-run` on a fixture over-budget project
+- [ ] E2e: `dev-session lint-context` exits 1 on fixture with injected duplicate rules
+- [ ] E2e: `dev-session compact --dry-run` on a large fixture file (no write, output to stdout)
+- [ ] Integration: `dev-session compact` backup file appears in `.session/backups/`

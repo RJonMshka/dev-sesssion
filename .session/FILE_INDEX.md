@@ -1,6 +1,6 @@
 ---
 version: 1
-last_updated: "2026-04-02"
+last_updated: "2026-04-03"
 ---
 
 # File Index
@@ -120,3 +120,31 @@ last_updated: "2026-04-02"
 | packages/core/src/schemas/token-counting.ts | TokenCountResult, TokenCostMap, TokenBudget, ExternalTokenCounter types |
 | packages/core/src/counters/token-counter.ts | TokenCounter — create, heuristicCount, heuristicCountFromBytes; TokenCounterInstance |
 | packages/core/src/__tests__/token-counter.test.ts | TokenCounter tests (26 tests) |
+
+## Chunk 4 — CLI: init command
+
+| File | Purpose |
+|---|---|
+| packages/cli/src/cli.ts | Commander program setup with global options |
+| packages/cli/src/index.ts | CLI entry point + auto-run |
+| packages/cli/src/commands/init.ts | Init command orchestrator (detection + migration + final writes) |
+| packages/cli/src/commands/detect.ts | Detection phase — PLAN.md, tool files, package.json, .session/ |
+| packages/cli/src/commands/split-plan.ts | Migration path A — split existing PLAN.md into chunks |
+| packages/cli/src/commands/scaffold-plan.ts | Migration path B — interactive plan scaffolding |
+| packages/cli/src/commands/generate-index.ts | Migration path C — auto-generate FILE_INDEX from codebase walk |
+| packages/cli/src/commands/final-writes.ts | Final writes — SESSION_STATE, ROUTINES, NEXT_PROMPT, .gitignore |
+| packages/cli/src/utils/error-handler.ts | Global error handler (CliError/ParseError/SecurityError) |
+| packages/cli/src/utils/signal-handler.ts | SIGINT/SIGTERM cleanup handler |
+| packages/cli/src/utils/dry-run.ts | Dry-run file write proxy |
+| packages/cli/src/utils/index.ts | CLI utility barrel export |
+| packages/cli/src/__tests__/cli.test.ts | CLI program tests (11 tests) |
+| packages/cli/src/__tests__/detect.test.ts | Detection phase tests (13 tests) |
+| packages/cli/src/__tests__/split-plan.test.ts | Split plan tests (6 tests) |
+| packages/cli/src/__tests__/scaffold-plan.test.ts | Scaffold plan tests (6 tests) |
+| packages/cli/src/__tests__/generate-index.test.ts | Generate index tests (6 tests) |
+| packages/cli/src/__tests__/final-writes.test.ts | Final writes tests (8 tests) |
+| packages/cli/src/__tests__/init-integration.test.ts | Init integration tests (3 tests) |
+| packages/cli/src/__tests__/error-handler.test.ts | Error handler tests |
+| packages/cli/src/__tests__/signal-handler.test.ts | Signal handler tests |
+| packages/cli/src/__tests__/dry-run.test.ts | Dry-run tests |
+| packages/cli/src/__tests__/index.test.ts | CLI smoke test |

@@ -1,8 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { main } from "../index.js";
+import { createProgram, handleError, installSignalHandlers, onCleanup, run } from "../index.js";
 
 describe("dev-session CLI", () => {
-	it("exports a main function", () => {
-		expect(typeof main).toBe("function");
+	it("exports createProgram function", () => {
+		expect(typeof createProgram).toBe("function");
+	});
+
+	it("exports run function", () => {
+		expect(typeof run).toBe("function");
+	});
+
+	it("exports handleError function", () => {
+		expect(typeof handleError).toBe("function");
+	});
+
+	it("exports installSignalHandlers function", () => {
+		expect(typeof installSignalHandlers).toBe("function");
+	});
+
+	it("exports onCleanup function", () => {
+		expect(typeof onCleanup).toBe("function");
 	});
 });

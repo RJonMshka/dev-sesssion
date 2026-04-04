@@ -7,14 +7,19 @@
  * @packageDocumentation
  */
 
-/** Placeholder — CLI entry point will be implemented in Chunk 4. */
-export function main(): void {
-	// Will use commander + @clack/prompts
-	process.stdout.write("dev-session v0.0.0\n");
-}
+export { createProgram, run } from "./cli.js";
+export type { InitOptions } from "./commands/init.js";
+export {
+	dryRunGitignorePatch,
+	dryRunMkdir,
+	dryRunWrite,
+	handleError,
+	installSignalHandlers,
+	onCleanup,
+} from "./utils/index.js";
 
 // Auto-run when executed directly
 const isDirectRun = typeof process !== "undefined" && process.argv[1]?.includes("dev-session");
 if (isDirectRun) {
-	main();
+	void import("./cli.js").then(({ run: runCli }) => runCli());
 }
