@@ -8,7 +8,12 @@
  */
 
 export { createProgram, run } from "./cli.js";
+export type { AdvanceOptions, AdvanceResult } from "./commands/advance.js";
+export type { IndexAddOptions, IndexAuditOptions } from "./commands/index-cmd.js";
 export type { InitOptions } from "./commands/init.js";
+export type { PromptOptions } from "./commands/prompt.js";
+export type { StatusJson, StatusOptions } from "./commands/status.js";
+export type { UpdateOptions, UpdateResult } from "./commands/update.js";
 export {
 	dryRunGitignorePatch,
 	dryRunMkdir,

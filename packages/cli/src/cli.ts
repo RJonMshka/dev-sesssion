@@ -9,7 +9,12 @@
  */
 
 import { Command } from "commander";
+import { registerAdvanceCommand } from "./commands/advance.js";
+import { registerIndexCommand } from "./commands/index-cmd.js";
 import { registerInitCommand } from "./commands/init.js";
+import { registerPromptCommand } from "./commands/prompt.js";
+import { registerStatusCommand } from "./commands/status.js";
+import { registerUpdateCommand } from "./commands/update.js";
 import { handleError } from "./utils/error-handler.js";
 import { installSignalHandlers } from "./utils/signal-handler.js";
 
@@ -37,6 +42,11 @@ export function createProgram(): Command {
 
 	// Register subcommands
 	registerInitCommand(program);
+	registerStatusCommand(program);
+	registerUpdateCommand(program);
+	registerAdvanceCommand(program);
+	registerPromptCommand(program);
+	registerIndexCommand(program);
 
 	return program;
 }

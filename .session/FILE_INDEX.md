@@ -148,3 +148,18 @@ last_updated: "2026-04-03"
 | packages/cli/src/__tests__/signal-handler.test.ts | Signal handler tests |
 | packages/cli/src/__tests__/dry-run.test.ts | Dry-run tests |
 | packages/cli/src/__tests__/index.test.ts | CLI smoke test |
+
+## Chunk 5 — CLI: session lifecycle commands
+
+| File | Purpose |
+|---|---|
+| packages/cli/src/commands/status.ts | Status command — task %, budget, warnings, --json |
+| packages/cli/src/commands/update.ts | Update command — interactive task marking, notes, prompt regen |
+| packages/cli/src/commands/advance.ts | Advance command — archive chunk, compact state, advance |
+| packages/cli/src/commands/prompt.ts | Prompt command — print NEXT_PROMPT to stdout, --copy |
+| packages/cli/src/commands/index-cmd.ts | Index commands — add files, audit stale entries |
+| packages/cli/src/__tests__/status.test.ts | Status command tests (20 tests) |
+| packages/cli/src/__tests__/update.test.ts | Update command tests (8 tests) |
+| packages/cli/src/__tests__/advance.test.ts | Advance command tests (7 tests) |
+| packages/cli/src/__tests__/prompt.test.ts | Prompt command tests (5 tests) |
+| packages/cli/src/__tests__/index-cmd.test.ts | Index command tests (8 tests) |
