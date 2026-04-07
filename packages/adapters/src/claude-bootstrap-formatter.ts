@@ -1,21 +1,18 @@
 /**
- * Default bootstrap formatter that produces plain-text NEXT_PROMPT.md content.
+ * Claude Code bootstrap formatter.
  *
- * Uses structured sections with per-section line budgets to maximize
- * information density within the prompt's line cap.
+ * Produces NEXT_PROMPT.md content optimized for Claude Code's context model:
+ * - File references use `@path/to/file` mention syntax
+ * - Excludes are phrased as "Do NOT read" (Claude Code terminology)
+ * - References CLAUDE.md as the session instructions file
  *
- * Section budget (20 lines total):
- * - Header:   3 lines (project, chunk, budget)
- * - Context:  4 lines (files to load, excludes)
- * - Resume:   5 lines (progress, completed chunks, last touched)
- * - Next:     5 lines (pending tasks)
- * - Notes:    3 lines (first relevant notes)
+ * Shares structural sections with {@link PlainTextFormatter} via
+ * shared formatter utilities from `@dev-session/core`.
  *
  * @packageDocumentation
  */
 
-import type { FileIndexEntry } from "../schemas/index.js";
-import type { BootstrapContext, BootstrapFormatter } from "./bootstrap-formatter.js";
+import type { BootstrapContext, BootstrapFormatter, FileIndexEntry } from "@dev-session/core";
 import {
 	DEFAULT_MAX_NEXT_TASKS,
 	DEFAULT_MAX_NOTES,
@@ -25,39 +22,42 @@ import {
 	formatCompletedChunksSummary,
 	getPendingTasks,
 	trimToMaxLines,
-} from "./formatter-utils.js";
+} from "@dev-session/core";
 
-/** Maximum files to show in the "Load" section before truncating. */
+/** Maximum files to show before truncating. */
 const MAX_FILES_TO_SHOW = 6;
 
 /**
- * Default bootstrap formatter using plain text.
+ * Claude Code bootstrap formatter.
  *
- * Suitable for any tool that reads NEXT_PROMPT.md as plain text.
- * Produces structured, information-dense output within a 20-line cap.
+ * Uses `@` file mention syntax that Claude Code understands natively.
+ * When Claude Code processes `@path/to/file`, it automatically loads
+ * that file into context.
  */
-export const PlainTextFormatter: BootstrapFormatter = {
-	name: "plain",
+export const ClaudeBootstrapFormatter: BootstrapFormatter = {
+	name: "claude",
 
 	/**
-	 * Formats file paths as a comma-separated list.
+	 * Formats file paths with Claude Code's `@`-mention syntax.
 	 *
 	 * @param files - The file index entries to format.
-	 * @returns Formatted string of file paths.
+	 * @returns Formatted string with `@`-prefixed file references.
 	 */
 	formatFilesToLoad(files: readonly FileIndexEntry[]): string {
 		if (files.length === 0) {
 			return "(none)";
 		}
 
-		const shown = files.slice(0, MAX_FILES_TO_SHOW).map((f) => f.filepath);
+		const shown = files.slice(0, MAX_FILES_TO_SHOW).map((f) => `@${f.filepath}`);
 		const remaining = files.length - shown.length;
 		const suffix = remaining > 0 ? `, +${String(remaining)} more` : "";
 		return shown.join(", ") + suffix;
 	},
 
 	/**
-	 * Formats exclude patterns as a "Do NOT load" instruction.
+	 * Formats exclude patterns as a "Do NOT read" instruction.
+	 *
+	 * Uses "read" rather than "load" to match Claude Code's terminology.
 	 *
 	 * @param patterns - The glob patterns or paths to exclude.
 	 * @returns Formatted exclude instruction string.
@@ -66,14 +66,14 @@ export const PlainTextFormatter: BootstrapFormatter = {
 		if (patterns.length === 0) {
 			return "";
 		}
-		return `Do NOT load: ${patterns.join(", ")}`;
+		return `Do NOT read: ${patterns.join(", ")}`;
 	},
 
 	/**
-	 * Generates the full bootstrap prompt with structured sections.
+	 * Generates the full Claude Code-optimized bootstrap prompt.
 	 *
 	 * @param context - The full bootstrap context data.
-	 * @returns The NEXT_PROMPT.md content string.
+	 * @returns The NEXT_PROMPT.md content string with `@`-mentions.
 	 */
 	generatePrompt(context: BootstrapContext): string {
 		const { state, chunk, chunkFiles, alwaysIncludeFiles, budget, excludePatterns, projectName } =
@@ -105,8 +105,8 @@ export const PlainTextFormatter: BootstrapFormatter = {
 		lines.push(`Resume: ${resumeParts.join(" ")}`);
 
 		if (state.last_worked_files.length > 0) {
-			const lastFiles = state.last_worked_files.slice(0, 3).join(", ");
-			lines.push(`Last touched: ${lastFiles}`);
+			const lastFiles = state.last_worked_files.slice(0, 3).map((f) => `@${f}`);
+			lines.push(`Last touched: ${lastFiles.join(", ")}`);
 		}
 
 		// -- Next tasks section (up to 5 lines) --

@@ -16,14 +16,15 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { promisify } from "node:util";
 import { cancel, isCancel, log, multiselect, text } from "@clack/prompts";
+import { getFormatterForTool } from "@dev-session/adapters";
 import {
 	type BootstrapContext,
 	ContextBudgetCalculator,
 	FileIndexManager,
 	NextPromptWriter,
-	PlainTextFormatter,
 	type PlanChunk,
 	PlanChunkManager,
+	ProjectDetector,
 	SessionStateManager,
 	type Task,
 	TaskStatus,
@@ -170,10 +171,14 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 		projectName,
 	};
 
-	const promptContent = NextPromptWriter.generateWithFormatter(
-		PlainTextFormatter,
-		bootstrapContext,
-	);
+	const detectedTool = ProjectDetector.detect(options.cwd).tool;
+	const formatter = getFormatterForTool(detectedTool);
+
+	if (options.verbose) {
+		log.info(`Using ${formatter.name} formatter (detected tool: ${detectedTool})`);
+	}
+
+	const promptContent = NextPromptWriter.generateWithFormatter(formatter, bootstrapContext);
 
 	// -----------------------------------------------------------------------
 	// Step 6: Secret scan before writing

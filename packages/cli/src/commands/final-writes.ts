@@ -10,13 +10,14 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { confirm, isCancel, log } from "@clack/prompts";
+import { getFormatterForTool } from "@dev-session/adapters";
 import type { BootstrapContext, FileIndexEntry, PlanChunk, SessionState } from "@dev-session/core";
 import {
 	ContextBudgetCalculator,
 	DEFAULT_CONTEXT_BUDGET,
 	FileIndexManager,
 	NextPromptWriter,
-	PlainTextFormatter,
+	ProjectDetector,
 	RoutinesWriter,
 	SessionStateManager,
 } from "@dev-session/core";
@@ -141,10 +142,14 @@ export async function runFinalWrites(
 		projectName,
 	};
 
-	const promptContent = NextPromptWriter.generateWithFormatter(
-		PlainTextFormatter,
-		bootstrapContext,
-	);
+	const detectedTool = ProjectDetector.detect(options.cwd).tool;
+	const formatter = getFormatterForTool(detectedTool);
+
+	if (options.verbose) {
+		log.info(`Using ${formatter.name} formatter (detected tool: ${detectedTool})`);
+	}
+
+	const promptContent = NextPromptWriter.generateWithFormatter(formatter, bootstrapContext);
 
 	secretWarnings += scanContent(promptContent, "NEXT_PROMPT.md", options.verbose);
 

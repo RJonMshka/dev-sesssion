@@ -14,14 +14,15 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { cancel, confirm, isCancel, log } from "@clack/prompts";
+import { getFormatterForTool } from "@dev-session/adapters";
 import {
 	type BootstrapContext,
 	ContextBudgetCalculator,
 	FileIndexManager,
 	NextPromptWriter,
-	PlainTextFormatter,
 	type PlanChunk,
 	PlanChunkManager,
+	ProjectDetector,
 	SessionStateManager,
 	TaskStatus,
 } from "@dev-session/core";
@@ -170,10 +171,14 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 		projectName,
 	};
 
-	const promptContent = NextPromptWriter.generateWithFormatter(
-		PlainTextFormatter,
-		bootstrapContext,
-	);
+	const detectedTool = ProjectDetector.detect(options.cwd).tool;
+	const formatter = getFormatterForTool(detectedTool);
+
+	if (options.verbose) {
+		log.info(`Using ${formatter.name} formatter (detected tool: ${detectedTool})`);
+	}
+
+	const promptContent = NextPromptWriter.generateWithFormatter(formatter, bootstrapContext);
 
 	NextPromptWriter.write(sessionDir, promptContent);
 

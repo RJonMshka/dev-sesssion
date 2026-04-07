@@ -32,6 +32,7 @@
 	},
 	"dependencies": {
 		"@clack/prompts": "1.2.0",
+		"@dev-session/adapters": "workspace:*",
 		"@dev-session/core": "workspace:*",
 		"@dev-session/security": "workspace:*",
 		"commander": "14"

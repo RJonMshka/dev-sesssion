@@ -1,21 +1,16 @@
 /**
- * Default bootstrap formatter that produces plain-text NEXT_PROMPT.md content.
+ * Cursor bootstrap formatter.
  *
- * Uses structured sections with per-section line budgets to maximize
- * information density within the prompt's line cap.
- *
- * Section budget (20 lines total):
- * - Header:   3 lines (project, chunk, budget)
- * - Context:  4 lines (files to load, excludes)
- * - Resume:   5 lines (progress, completed chunks, last touched)
- * - Next:     5 lines (pending tasks)
- * - Notes:    3 lines (first relevant notes)
+ * Produces NEXT_PROMPT.md content optimized for Cursor's context model:
+ * - File references use plain paths (Cursor resolves from workspace root)
+ * - Excludes are phrased as "Ignore" (matches .cursorrules convention)
+ * - References .cursorrules as the session instructions file
+ * - Compact format optimized for Cursor's context window
  *
  * @packageDocumentation
  */
 
-import type { FileIndexEntry } from "../schemas/index.js";
-import type { BootstrapContext, BootstrapFormatter } from "./bootstrap-formatter.js";
+import type { BootstrapContext, BootstrapFormatter, FileIndexEntry } from "@dev-session/core";
 import {
 	DEFAULT_MAX_NEXT_TASKS,
 	DEFAULT_MAX_NOTES,
@@ -25,22 +20,26 @@ import {
 	formatCompletedChunksSummary,
 	getPendingTasks,
 	trimToMaxLines,
-} from "./formatter-utils.js";
+} from "@dev-session/core";
 
-/** Maximum files to show in the "Load" section before truncating. */
+/** Maximum files to show before truncating. */
 const MAX_FILES_TO_SHOW = 6;
 
 /**
- * Default bootstrap formatter using plain text.
+ * Cursor bootstrap formatter.
  *
- * Suitable for any tool that reads NEXT_PROMPT.md as plain text.
- * Produces structured, information-dense output within a 20-line cap.
+ * Produces structured prompts aligned with Cursor's .cursorrules
+ * conventions. Uses "Ignore" for excludes, matching the directive style
+ * commonly used in .cursorrules files.
  */
-export const PlainTextFormatter: BootstrapFormatter = {
-	name: "plain",
+export const CursorBootstrapFormatter: BootstrapFormatter = {
+	name: "cursor",
 
 	/**
-	 * Formats file paths as a comma-separated list.
+	 * Formats file paths as plain comma-separated paths.
+	 *
+	 * Cursor resolves file paths from the workspace root. No special
+	 * prefix syntax is needed.
 	 *
 	 * @param files - The file index entries to format.
 	 * @returns Formatted string of file paths.
@@ -57,7 +56,9 @@ export const PlainTextFormatter: BootstrapFormatter = {
 	},
 
 	/**
-	 * Formats exclude patterns as a "Do NOT load" instruction.
+	 * Formats exclude patterns using "Ignore" directive.
+	 *
+	 * Uses "Ignore" phrasing to align with Cursor's .cursorrules conventions.
 	 *
 	 * @param patterns - The glob patterns or paths to exclude.
 	 * @returns Formatted exclude instruction string.
@@ -66,11 +67,11 @@ export const PlainTextFormatter: BootstrapFormatter = {
 		if (patterns.length === 0) {
 			return "";
 		}
-		return `Do NOT load: ${patterns.join(", ")}`;
+		return `Ignore: ${patterns.join(", ")}`;
 	},
 
 	/**
-	 * Generates the full bootstrap prompt with structured sections.
+	 * Generates the full Cursor-optimized bootstrap prompt.
 	 *
 	 * @param context - The full bootstrap context data.
 	 * @returns The NEXT_PROMPT.md content string.

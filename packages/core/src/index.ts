@@ -22,6 +22,17 @@ export { TokenCounter } from "./counters/token-counter.js";
 export { ProjectDetector } from "./detectors/project-detector.js";
 // Types for bootstrap formatters
 export type { BootstrapContext, BootstrapFormatter } from "./formatters/bootstrap-formatter.js";
+// Formatter utilities (shared across all formatter implementations)
+export {
+	DEFAULT_MAX_NEXT_TASKS,
+	DEFAULT_MAX_NOTES,
+	DEFAULT_MAX_PROMPT_LINES,
+	formatBudgetLine,
+	formatChunkProgress,
+	formatCompletedChunksSummary,
+	getPendingTasks,
+	trimToMaxLines,
+} from "./formatters/formatter-utils.js";
 // Bootstrap formatters
 export { PlainTextFormatter } from "./formatters/plain-text-formatter.js";
 export { FileIndexManager } from "./managers/file-index-manager.js";

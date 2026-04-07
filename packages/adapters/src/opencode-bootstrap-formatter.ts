@@ -1,21 +1,16 @@
 /**
- * Default bootstrap formatter that produces plain-text NEXT_PROMPT.md content.
+ * opencode bootstrap formatter.
  *
- * Uses structured sections with per-section line budgets to maximize
- * information density within the prompt's line cap.
- *
- * Section budget (20 lines total):
- * - Header:   3 lines (project, chunk, budget)
- * - Context:  4 lines (files to load, excludes)
- * - Resume:   5 lines (progress, completed chunks, last touched)
- * - Next:     5 lines (pending tasks)
- * - Notes:    3 lines (first relevant notes)
+ * Produces NEXT_PROMPT.md content optimized for opencode's context model:
+ * - File references use plain paths (opencode loads via AGENTS.md context)
+ * - Excludes are phrased as "Exclude" (opencode convention)
+ * - References AGENTS.md as the session instructions file
+ * - Includes a "Config: AGENTS.md" line so the tool knows where rules live
  *
  * @packageDocumentation
  */
 
-import type { FileIndexEntry } from "../schemas/index.js";
-import type { BootstrapContext, BootstrapFormatter } from "./bootstrap-formatter.js";
+import type { BootstrapContext, BootstrapFormatter, FileIndexEntry } from "@dev-session/core";
 import {
 	DEFAULT_MAX_NEXT_TASKS,
 	DEFAULT_MAX_NOTES,
@@ -25,22 +20,26 @@ import {
 	formatCompletedChunksSummary,
 	getPendingTasks,
 	trimToMaxLines,
-} from "./formatter-utils.js";
+} from "@dev-session/core";
 
-/** Maximum files to show in the "Load" section before truncating. */
+/** Maximum files to show before truncating. */
 const MAX_FILES_TO_SHOW = 6;
 
 /**
- * Default bootstrap formatter using plain text.
+ * opencode bootstrap formatter.
  *
- * Suitable for any tool that reads NEXT_PROMPT.md as plain text.
- * Produces structured, information-dense output within a 20-line cap.
+ * Produces structured prompts that align with opencode's AGENTS.md
+ * context loading conventions. File references are plain paths since
+ * opencode reads AGENTS.md for context directives.
  */
-export const PlainTextFormatter: BootstrapFormatter = {
-	name: "plain",
+export const OpencodeBootstrapFormatter: BootstrapFormatter = {
+	name: "opencode",
 
 	/**
-	 * Formats file paths as a comma-separated list.
+	 * Formats file paths as plain comma-separated paths.
+	 *
+	 * opencode uses AGENTS.md for context loading — file references
+	 * are plain paths that the tool resolves from the workspace root.
 	 *
 	 * @param files - The file index entries to format.
 	 * @returns Formatted string of file paths.
@@ -57,7 +56,9 @@ export const PlainTextFormatter: BootstrapFormatter = {
 	},
 
 	/**
-	 * Formats exclude patterns as a "Do NOT load" instruction.
+	 * Formats exclude patterns using "Exclude" directive.
+	 *
+	 * Uses "Exclude" phrasing to align with opencode's AGENTS.md conventions.
 	 *
 	 * @param patterns - The glob patterns or paths to exclude.
 	 * @returns Formatted exclude instruction string.
@@ -66,11 +67,14 @@ export const PlainTextFormatter: BootstrapFormatter = {
 		if (patterns.length === 0) {
 			return "";
 		}
-		return `Do NOT load: ${patterns.join(", ")}`;
+		return `Exclude: ${patterns.join(", ")}`;
 	},
 
 	/**
-	 * Generates the full bootstrap prompt with structured sections.
+	 * Generates the full opencode-optimized bootstrap prompt.
+	 *
+	 * Includes a "Config: AGENTS.md" line so the tool can locate
+	 * session rules and instructions.
 	 *
 	 * @param context - The full bootstrap context data.
 	 * @returns The NEXT_PROMPT.md content string.

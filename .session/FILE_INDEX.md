@@ -163,3 +163,21 @@ last_updated: "2026-04-03"
 | packages/cli/src/__tests__/advance.test.ts | Advance command tests (7 tests) |
 | packages/cli/src/__tests__/prompt.test.ts | Prompt command tests (5 tests) |
 | packages/cli/src/__tests__/index-cmd.test.ts | Index command tests (8 tests) |
+
+## Chunk 6 — Adapters: Claude Code, opencode, Cursor
+
+| File | Purpose |
+|---|---|
+| packages/core/src/formatters/formatter-utils.ts | Shared formatter utilities (progress, budget, chunks, trim) |
+| packages/core/src/__tests__/formatter-utils.test.ts | Formatter utilities tests (14 tests) |
+| packages/adapters/src/claude-bootstrap-formatter.ts | Claude Code formatter — @file mentions, "Do NOT read" excludes |
+| packages/adapters/src/opencode-bootstrap-formatter.ts | opencode formatter — AGENTS.md-aware, "Exclude" directive |
+| packages/adapters/src/cursor-bootstrap-formatter.ts | Cursor formatter — .cursorrules-aware, "Ignore" directive |
+| packages/adapters/src/registry.ts | Adapter registry — getFormatterForTool, getRegisteredTools |
+| packages/adapters/src/index.ts | Adapters package entry point |
+| packages/adapters/src/__tests__/test-helpers.ts | Shared test factories for adapter tests |
+| packages/adapters/src/__tests__/claude-bootstrap-formatter.test.ts | Claude formatter tests (16 tests) |
+| packages/adapters/src/__tests__/opencode-bootstrap-formatter.test.ts | opencode formatter tests (16 tests) |
+| packages/adapters/src/__tests__/cursor-bootstrap-formatter.test.ts | Cursor formatter tests (16 tests) |
+| packages/adapters/src/__tests__/registry.test.ts | Registry tests (8 tests) |
+| packages/adapters/src/__tests__/index.test.ts | Adapters smoke tests (5 tests) |
