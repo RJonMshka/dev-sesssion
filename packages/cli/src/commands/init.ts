@@ -12,7 +12,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { cancel, confirm, intro, isCancel, log, outro, spinner } from "@clack/prompts";
+import { cancel, confirm, intro, isCancel, log, outro, select, spinner } from "@clack/prompts";
 import type { PlanChunk } from "@dev-session/core";
 import { ProjectDetector } from "@dev-session/core";
 import type { ValidatedPath } from "@dev-session/security";
@@ -40,15 +40,23 @@ export interface InitOptions {
 	readonly strict: boolean;
 	/** Explicit adapter override (from --adapter flag). */
 	readonly adapter?: string;
+	/**
+	 * Explicitly enable team mode (auto-applies .gitignore + .gitattributes).
+	 * When undefined and not --yes, the wizard prompts for team vs personal.
+	 */
+	readonly teamMode?: boolean;
 }
 
 /**
  * Execute the init command.
  *
+ * Exported so that other commands (e.g. `migrate`) can invoke init
+ * programmatically for sub-directories.
+ *
  * @param options - Resolved CLI options
  * @throws CliError if the project cannot be initialized
  */
-async function runInit(options: InitOptions): Promise<void> {
+export async function runInit(options: InitOptions): Promise<void> {
 	intro("dev-session init");
 
 	const s = spinner();
@@ -102,6 +110,21 @@ async function runInit(options: InitOptions): Promise<void> {
 	}
 
 	// -----------------------------------------------------------------------
+	// Phase 1c: Team vs personal mode selection
+	// -----------------------------------------------------------------------
+	const teamMode = await resolveTeamMode(options);
+
+	if (teamMode === undefined) {
+		cancel("Init cancelled.");
+		outro("No changes made.");
+		return;
+	}
+
+	if (options.verbose) {
+		log.info(`Mode: ${teamMode ? "team" : "personal"}`);
+	}
+
+	// -----------------------------------------------------------------------
 	// Phase 2: Ensure .session/ directory exists
 	// -----------------------------------------------------------------------
 	const sessionDir = ensureSessionDir(options);
@@ -152,7 +175,10 @@ async function runInit(options: InitOptions): Promise<void> {
 	// -----------------------------------------------------------------------
 	// Phase 5: Final writes (SESSION_STATE, ROUTINES, NEXT_PROMPT, .gitignore)
 	// -----------------------------------------------------------------------
-	await runFinalWrites(sessionDir, chunks, indexResult.entries, projectName, options);
+	await runFinalWrites(sessionDir, chunks, indexResult.entries, projectName, {
+		...options,
+		teamMode,
+	});
 
 	// -----------------------------------------------------------------------
 	// Summary
@@ -164,6 +190,48 @@ async function runInit(options: InitOptions): Promise<void> {
 			`Init complete. ${chunks.length} chunk${chunks.length === 1 ? "" : "s"}, ${indexResult.fileCount} indexed file${indexResult.fileCount === 1 ? "" : "s"}. Paste NEXT_PROMPT.md to start your first session.`,
 		);
 	}
+}
+
+/**
+ * Resolve whether to run in team mode.
+ *
+ * Resolution order:
+ * 1. `options.teamMode === true` → team mode (from --team flag)
+ * 2. `options.yes` → personal mode (default, no prompt)
+ * 3. Otherwise → prompt the user
+ *
+ * @param options - CLI options.
+ * @returns true for team mode, false for personal, undefined if cancelled.
+ */
+async function resolveTeamMode(options: InitOptions): Promise<boolean | undefined> {
+	if (options.teamMode === true) {
+		return true;
+	}
+	if (options.yes) {
+		return false;
+	}
+
+	const result = await select({
+		message: "How is this session being used?",
+		options: [
+			{
+				value: "personal",
+				label: "Personal",
+				hint: "session files are local only",
+			},
+			{
+				value: "team",
+				label: "Team",
+				hint: "auto-adds .gitignore + .gitattributes for shared repos",
+			},
+		],
+	});
+
+	if (isCancel(result)) {
+		return undefined;
+	}
+
+	return result === "team";
 }
 
 /**
@@ -192,32 +260,37 @@ function ensureSessionDir(options: InitOptions): ValidatedPath {
  * @param program - The root Commander program
  */
 export function registerInitCommand(program: Command): void {
-	program
+	const cmd = program
 		.command("init")
 		.description("Initialize dev-session in the current project")
-		.action(async () => {
-			const opts = program.opts<{
-				cwd: string;
-				yes: boolean;
-				dryRun: boolean;
-				verbose: boolean;
-				strict: boolean;
-				adapter?: string;
-			}>();
+		.option("--team", "Enable team mode (auto-applies .gitignore + .gitattributes)", false);
 
-			const initOptions: InitOptions = {
-				cwd: opts.cwd,
-				yes: opts.yes,
-				dryRun: opts.dryRun,
-				verbose: opts.verbose,
-				strict: opts.strict,
-				...(opts.adapter !== undefined ? { adapter: opts.adapter } : {}),
-			};
+	cmd.action(async () => {
+		const globalOpts = program.opts<{
+			cwd: string;
+			yes: boolean;
+			dryRun: boolean;
+			verbose: boolean;
+			strict: boolean;
+			adapter?: string;
+		}>();
 
-			try {
-				await runInit(initOptions);
-			} catch (error: unknown) {
-				handleError(error);
-			}
-		});
+		const cmdOpts = cmd.opts<{ team: boolean }>();
+
+		const initOptions: InitOptions = {
+			cwd: globalOpts.cwd,
+			yes: globalOpts.yes,
+			dryRun: globalOpts.dryRun,
+			verbose: globalOpts.verbose,
+			strict: globalOpts.strict,
+			...(globalOpts.adapter !== undefined ? { adapter: globalOpts.adapter } : {}),
+			teamMode: cmdOpts.team,
+		};
+
+		try {
+			await runInit(initOptions);
+		} catch (error: unknown) {
+			handleError(error);
+		}
+	});
 }

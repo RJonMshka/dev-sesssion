@@ -38,6 +38,8 @@ export interface FinalWriteOptions {
 	readonly strict: boolean;
 	/** Explicit adapter override (from --adapter flag). */
 	readonly adapter?: string;
+	/** Team mode — auto-applies .gitignore and .gitattributes patches. */
+	readonly teamMode?: boolean;
 }
 
 /** Result from the final writes phase. */
@@ -46,6 +48,8 @@ export interface FinalWriteResult {
 	readonly filesWritten: number;
 	/** Whether .gitignore was patched. */
 	readonly gitignorePatched: boolean;
+	/** Whether .gitattributes was patched (team mode only). */
+	readonly gitattributesPatched: boolean;
 	/** Number of secret scan warnings. */
 	readonly secretWarnings: number;
 }
@@ -61,6 +65,13 @@ const GITIGNORE_ENTRIES = [
 	".session/SESSION_STATE.md",
 	".session/NEXT_PROMPT.md",
 	".session/DONE_LOG.md",
+] as const;
+
+/** Lines to add to .gitattributes for team merge strategy. */
+const GITATTRIBUTES_ENTRIES = [
+	"",
+	"# dev-session (team merge strategy)",
+	".session/FILE_INDEX.md merge=ours",
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -190,6 +201,9 @@ export async function runFinalWrites(
 	// --- 4. Offer to patch .gitignore ---
 	const gitignorePatched = await patchGitignore(options);
 
+	// --- 5. Patch .gitattributes in team mode ---
+	const gitattributesPatched = options.teamMode === true ? patchGitattributes(options) : false;
+
 	if (!options.dryRun) {
 		log.info(`Context budget: ${ContextBudgetCalculator.formatSummary(budget)}`);
 	}
@@ -197,6 +211,7 @@ export async function runFinalWrites(
 	return {
 		filesWritten,
 		gitignorePatched,
+		gitattributesPatched,
 		secretWarnings,
 	};
 }
@@ -336,6 +351,9 @@ function scanContent(content: string, filename: string, verbose: boolean): numbe
 /**
  * Offer to patch .gitignore with session-specific entries.
  *
+ * In team mode (`options.teamMode === true`) or with `--yes`, the patch is
+ * applied automatically without a confirmation prompt.
+ *
  * @param options - CLI options.
  * @returns Whether the patch was applied.
  */
@@ -366,8 +384,9 @@ async function patchGitignore(options: FinalWriteOptions): Promise<boolean> {
 		return false;
 	}
 
+	// Team mode or --yes: apply automatically, no prompt
 	let shouldPatch: boolean;
-	if (options.yes) {
+	if (options.teamMode === true || options.yes) {
 		shouldPatch = true;
 	} else {
 		const result = await confirm({
@@ -390,4 +409,48 @@ async function patchGitignore(options: FinalWriteOptions): Promise<boolean> {
 	}
 
 	return false;
+}
+
+/**
+ * Patch `.gitattributes` with the FILE_INDEX.md merge strategy entry.
+ *
+ * Applied automatically in team mode. The patch is idempotent — a second
+ * call is a no-op if the entry is already present.
+ *
+ * @param options - CLI options (must have teamMode === true).
+ * @returns Whether the patch was applied.
+ */
+function patchGitattributes(options: FinalWriteOptions): boolean {
+	const gitattributesPath = path.join(options.cwd, ".gitattributes");
+
+	let existingContent = "";
+	try {
+		existingContent = fs.readFileSync(gitattributesPath, "utf-8");
+	} catch {
+		// No .gitattributes — we'll create one
+	}
+
+	const alreadyPatched = GITATTRIBUTES_ENTRIES.some(
+		(entry) => entry.trim().length > 0 && existingContent.includes(entry),
+	);
+
+	if (alreadyPatched) {
+		if (options.verbose) {
+			log.info(".gitattributes already contains dev-session merge strategy.");
+		}
+		return false;
+	}
+
+	if (options.dryRun) {
+		log.message(
+			`  [dry-run] Would patch .gitattributes: ${GITATTRIBUTES_ENTRIES.filter((e) => e.trim()).join(", ")}`,
+		);
+		return false;
+	}
+
+	const newContent = `${existingContent}${GITATTRIBUTES_ENTRIES.join("\n")}\n`;
+	const validatedPath = PathValidator.safeResolvePath(".gitattributes", options.cwd);
+	AtomicWriter.writeFile(validatedPath, newContent, { skipGuard: true });
+	log.success("Patched .gitattributes with FILE_INDEX.md merge=ours.");
+	return true;
 }

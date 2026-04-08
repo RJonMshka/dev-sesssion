@@ -175,4 +175,100 @@ describe("runFinalWrites", () => {
 
 		expect(result.secretWarnings).toBe(0);
 	});
+
+	it("returns gitattributesPatched: false in personal mode", async () => {
+		const result = await runFinalWrites(sessionDir, SAMPLE_CHUNKS, SAMPLE_ENTRIES, "test-project", {
+			cwd: tmpDir,
+			yes: true,
+			dryRun: false,
+			verbose: false,
+			strict: false,
+		});
+
+		expect(result.gitattributesPatched).toBe(false);
+		expect(fs.existsSync(path.join(tmpDir, ".gitattributes"))).toBe(false);
+	});
+});
+
+describe("runFinalWrites — team mode", () => {
+	it("auto-patches .gitignore without prompting in team mode", async () => {
+		const result = await runFinalWrites(sessionDir, SAMPLE_CHUNKS, SAMPLE_ENTRIES, "test-project", {
+			cwd: tmpDir,
+			yes: false, // no --yes, but teamMode should still auto-apply
+			dryRun: false,
+			verbose: false,
+			strict: false,
+			teamMode: true,
+		});
+
+		expect(result.gitignorePatched).toBe(true);
+		const content = fs.readFileSync(path.join(tmpDir, ".gitignore"), "utf-8");
+		expect(content).toContain(".session/SESSION_STATE.md");
+	});
+
+	it("patches .gitattributes with FILE_INDEX.md merge=ours in team mode", async () => {
+		const result = await runFinalWrites(sessionDir, SAMPLE_CHUNKS, SAMPLE_ENTRIES, "test-project", {
+			cwd: tmpDir,
+			yes: false,
+			dryRun: false,
+			verbose: false,
+			strict: false,
+			teamMode: true,
+		});
+
+		expect(result.gitattributesPatched).toBe(true);
+		const content = fs.readFileSync(path.join(tmpDir, ".gitattributes"), "utf-8");
+		expect(content).toContain(".session/FILE_INDEX.md merge=ours");
+	});
+
+	it(".gitattributes patch is idempotent — second run does not double-append", async () => {
+		const opts = {
+			cwd: tmpDir,
+			yes: false,
+			dryRun: false,
+			verbose: false,
+			strict: false,
+			teamMode: true,
+		} as const;
+
+		await runFinalWrites(sessionDir, SAMPLE_CHUNKS, SAMPLE_ENTRIES, "test-project", opts);
+		const result = await runFinalWrites(sessionDir, SAMPLE_CHUNKS, SAMPLE_ENTRIES, "test-project", opts);
+
+		expect(result.gitattributesPatched).toBe(false);
+
+		const content = fs.readFileSync(path.join(tmpDir, ".gitattributes"), "utf-8");
+		const matchCount = (content.match(/FILE_INDEX\.md merge=ours/g) ?? []).length;
+		expect(matchCount).toBe(1);
+	});
+
+	it("appends to existing .gitattributes content", async () => {
+		const existingContent = "*.md linguist-documentation\n";
+		fs.writeFileSync(path.join(tmpDir, ".gitattributes"), existingContent);
+
+		await runFinalWrites(sessionDir, SAMPLE_CHUNKS, SAMPLE_ENTRIES, "test-project", {
+			cwd: tmpDir,
+			yes: false,
+			dryRun: false,
+			verbose: false,
+			strict: false,
+			teamMode: true,
+		});
+
+		const content = fs.readFileSync(path.join(tmpDir, ".gitattributes"), "utf-8");
+		expect(content).toContain("*.md linguist-documentation");
+		expect(content).toContain("FILE_INDEX.md merge=ours");
+	});
+
+	it("dry-run does not write .gitattributes", async () => {
+		await runFinalWrites(sessionDir, SAMPLE_CHUNKS, SAMPLE_ENTRIES, "test-project", {
+			cwd: tmpDir,
+			yes: true,
+			dryRun: true,
+			verbose: false,
+			strict: false,
+			teamMode: true,
+		});
+
+		expect(fs.existsSync(path.join(tmpDir, ".gitattributes"))).toBe(false);
+	});
 });

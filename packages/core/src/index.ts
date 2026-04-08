@@ -30,6 +30,8 @@ export type { TokenCounterInstance } from "./counters/token-counter.js";
 export { TokenCounter } from "./counters/token-counter.js";
 // Detectors
 export { ProjectDetector } from "./detectors/project-detector.js";
+export { MonorepoDetector } from "./detectors/monorepo-detector.js";
+export type { MonorepoInfo, MonorepoType, WorkspacePackage } from "./detectors/monorepo-detector.js";
 // Types for bootstrap formatters
 export type { BootstrapContext, BootstrapFormatter } from "./formatters/bootstrap-formatter.js";
 // Formatter utilities (shared across all formatter implementations)

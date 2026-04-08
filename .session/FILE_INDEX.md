@@ -196,3 +196,16 @@ last_updated: "2026-04-03"
 | packages/adapters/src/__tests__/cursor-adapter.test.ts | Cursor adapter lifecycle tests |
 | packages/cli/src/utils/adapter-io.ts | AdapterWriteFile/ReadFile backed by AtomicWriter+PathValidator |
 | packages/cli/src/utils/resolve-adapter.ts | Adapter resolution: flag → detect → fallback |
+
+## Chunk 8 — Team mode & enterprise features (partial)
+
+| File | Purpose |
+|---|---|
+| packages/core/src/detectors/monorepo-detector.ts | MonorepoDetector — detect pnpm/nx/turborepo/npm/yarn; resolve workspace packages |
+| packages/core/src/__tests__/monorepo-detector.test.ts | MonorepoDetector tests (30 tests) |
+| packages/cli/src/commands/migrate.ts | migrate command — detect monorepo, multiselect packages, run init per package |
+| packages/cli/src/__tests__/migrate.test.ts | migrate command tests (10 tests) |
+| packages/cli/src/commands/init.ts | Updated: --team flag, team mode prompt (resolveTeamMode), runInit exported |
+| packages/cli/src/commands/final-writes.ts | Updated: teamMode option, patchGitattributes, auto-gitignore in team mode |
+| packages/cli/src/__tests__/final-writes.test.ts | Updated: +6 team mode tests (gitattributes patch, idempotency, dry-run) |
+| packages/cli/src/cli.ts | Updated: registerMigrateCommand registered |

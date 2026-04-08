@@ -12,6 +12,7 @@ import { Command } from "commander";
 import { registerAdvanceCommand } from "./commands/advance.js";
 import { registerIndexCommand } from "./commands/index-cmd.js";
 import { registerInitCommand } from "./commands/init.js";
+import { registerMigrateCommand } from "./commands/migrate.js";
 import { registerPromptCommand } from "./commands/prompt.js";
 import { registerStatusCommand } from "./commands/status.js";
 import { registerUpdateCommand } from "./commands/update.js";
@@ -43,6 +44,7 @@ export function createProgram(): Command {
 
 	// Register subcommands
 	registerInitCommand(program);
+	registerMigrateCommand(program);
 	registerStatusCommand(program);
 	registerUpdateCommand(program);
 	registerAdvanceCommand(program);
