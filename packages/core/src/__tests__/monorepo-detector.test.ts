@@ -43,10 +43,7 @@ describe("MonorepoDetector", () => {
 		it("detects pnpm workspace and resolves packages", () => {
 			fs.mkdirSync(path.join(tmpDir, "packages", "core"), { recursive: true });
 			fs.mkdirSync(path.join(tmpDir, "packages", "cli"), { recursive: true });
-			fs.writeFileSync(
-				path.join(tmpDir, "pnpm-workspace.yaml"),
-				"packages:\n  - 'packages/*'\n",
-			);
+			fs.writeFileSync(path.join(tmpDir, "pnpm-workspace.yaml"), "packages:\n  - 'packages/*'\n");
 
 			const info = MonorepoDetector.detect(tmpDir);
 			expect(info.isMonorepo).toBe(true);
@@ -62,10 +59,7 @@ describe("MonorepoDetector", () => {
 				path.join(tmpDir, "packages", "core", "package.json"),
 				'{"name":"@repo/core"}',
 			);
-			fs.writeFileSync(
-				path.join(tmpDir, "pnpm-workspace.yaml"),
-				"packages:\n  - 'packages/*'\n",
-			);
+			fs.writeFileSync(path.join(tmpDir, "pnpm-workspace.yaml"), "packages:\n  - 'packages/*'\n");
 
 			const info = MonorepoDetector.detect(tmpDir);
 			expect(info.packages[0]?.name).toBe("@repo/core");
@@ -88,10 +82,7 @@ describe("MonorepoDetector", () => {
 
 		it("handles double-quoted patterns", () => {
 			fs.mkdirSync(path.join(tmpDir, "apps", "web"), { recursive: true });
-			fs.writeFileSync(
-				path.join(tmpDir, "pnpm-workspace.yaml"),
-				'packages:\n  - "apps/*"\n',
-			);
+			fs.writeFileSync(path.join(tmpDir, "pnpm-workspace.yaml"), 'packages:\n  - "apps/*"\n');
 
 			const info = MonorepoDetector.detect(tmpDir);
 			expect(info.packages).toHaveLength(1);
@@ -100,10 +91,7 @@ describe("MonorepoDetector", () => {
 
 		it("handles unquoted patterns", () => {
 			fs.mkdirSync(path.join(tmpDir, "libs", "utils"), { recursive: true });
-			fs.writeFileSync(
-				path.join(tmpDir, "pnpm-workspace.yaml"),
-				"packages:\n  - libs/*\n",
-			);
+			fs.writeFileSync(path.join(tmpDir, "pnpm-workspace.yaml"), "packages:\n  - libs/*\n");
 
 			const info = MonorepoDetector.detect(tmpDir);
 			expect(info.packages).toHaveLength(1);
@@ -125,10 +113,7 @@ describe("MonorepoDetector", () => {
 		it("does not include hidden directories (dot-prefixed)", () => {
 			fs.mkdirSync(path.join(tmpDir, "packages", "core"), { recursive: true });
 			fs.mkdirSync(path.join(tmpDir, "packages", ".hidden"), { recursive: true });
-			fs.writeFileSync(
-				path.join(tmpDir, "pnpm-workspace.yaml"),
-				"packages:\n  - 'packages/*'\n",
-			);
+			fs.writeFileSync(path.join(tmpDir, "pnpm-workspace.yaml"), "packages:\n  - 'packages/*'\n");
 
 			const info = MonorepoDetector.detect(tmpDir);
 			const names = info.packages.map((p) => p.relativePath);
@@ -149,10 +134,7 @@ describe("MonorepoDetector", () => {
 
 		it("absolute paths are correctly set", () => {
 			fs.mkdirSync(path.join(tmpDir, "packages", "core"), { recursive: true });
-			fs.writeFileSync(
-				path.join(tmpDir, "pnpm-workspace.yaml"),
-				"packages:\n  - 'packages/*'\n",
-			);
+			fs.writeFileSync(path.join(tmpDir, "pnpm-workspace.yaml"), "packages:\n  - 'packages/*'\n");
 
 			const info = MonorepoDetector.detect(tmpDir);
 			expect(info.packages[0]?.absolutePath).toBe(path.join(tmpDir, "packages", "core"));
@@ -172,10 +154,7 @@ describe("MonorepoDetector", () => {
 
 		it("handles literal directory patterns", () => {
 			fs.mkdirSync(path.join(tmpDir, "shared"), { recursive: true });
-			fs.writeFileSync(
-				path.join(tmpDir, "pnpm-workspace.yaml"),
-				"packages:\n  - 'shared'\n",
-			);
+			fs.writeFileSync(path.join(tmpDir, "pnpm-workspace.yaml"), "packages:\n  - 'shared'\n");
 
 			const info = MonorepoDetector.detect(tmpDir);
 			expect(info.packages).toHaveLength(1);
@@ -184,10 +163,7 @@ describe("MonorepoDetector", () => {
 
 		it("pnpm takes priority over nx.json", () => {
 			fs.mkdirSync(path.join(tmpDir, "packages", "a"), { recursive: true });
-			fs.writeFileSync(
-				path.join(tmpDir, "pnpm-workspace.yaml"),
-				"packages:\n  - 'packages/*'\n",
-			);
+			fs.writeFileSync(path.join(tmpDir, "pnpm-workspace.yaml"), "packages:\n  - 'packages/*'\n");
 			fs.writeFileSync(path.join(tmpDir, "nx.json"), "{}");
 
 			const info = MonorepoDetector.detect(tmpDir);

@@ -1,6 +1,6 @@
 ---
 version: 1
-last_updated: "2026-04-03"
+last_updated: "2026-04-08"
 ---
 
 # File Index
@@ -197,15 +197,22 @@ last_updated: "2026-04-03"
 | packages/cli/src/utils/adapter-io.ts | AdapterWriteFile/ReadFile backed by AtomicWriter+PathValidator |
 | packages/cli/src/utils/resolve-adapter.ts | Adapter resolution: flag → detect → fallback |
 
-## Chunk 8 — Team mode & enterprise features (partial)
+## Chunk 8 — Team mode & enterprise features
 
 | File | Purpose |
 |---|---|
 | packages/core/src/detectors/monorepo-detector.ts | MonorepoDetector — detect pnpm/nx/turborepo/npm/yarn; resolve workspace packages |
 | packages/core/src/__tests__/monorepo-detector.test.ts | MonorepoDetector tests (30 tests) |
+| packages/core/src/checkers/health-checker.ts | HealthChecker — full session audit (9 checks), HealthReport, HealthSeverity |
 | packages/cli/src/commands/migrate.ts | migrate command — detect monorepo, multiselect packages, run init per package |
+| packages/cli/src/commands/health.ts | health command — display audit report, --fix stale entries, --json output |
+| packages/cli/src/commands/import.ts | import command — --from claude (H2→notes) and --from cursor (.mdc globs→FILE_INDEX) |
+| packages/cli/src/__tests__/monorepo-detector.test.ts | MonorepoDetector tests (30 tests) |
 | packages/cli/src/__tests__/migrate.test.ts | migrate command tests (10 tests) |
-| packages/cli/src/commands/init.ts | Updated: --team flag, team mode prompt (resolveTeamMode), runInit exported |
+| packages/cli/src/__tests__/health.test.ts | health command tests (12 tests) |
+| packages/cli/src/__tests__/import.test.ts | import command tests (11 tests) |
+| packages/cli/src/commands/init.ts | Updated: --team flag, --max-files flag, team mode prompt (resolveTeamMode), runInit exported |
+| packages/cli/src/commands/generate-index.ts | Updated: --max-files cap after GitignoreAwareWalker.walk() |
 | packages/cli/src/commands/final-writes.ts | Updated: teamMode option, patchGitattributes, auto-gitignore in team mode |
 | packages/cli/src/__tests__/final-writes.test.ts | Updated: +6 team mode tests (gitattributes patch, idempotency, dry-run) |
-| packages/cli/src/cli.ts | Updated: registerMigrateCommand registered |
+| packages/cli/src/cli.ts | Updated: registerMigrateCommand, registerHealthCommand, registerImportCommand registered |

@@ -232,7 +232,13 @@ describe("runFinalWrites — team mode", () => {
 		} as const;
 
 		await runFinalWrites(sessionDir, SAMPLE_CHUNKS, SAMPLE_ENTRIES, "test-project", opts);
-		const result = await runFinalWrites(sessionDir, SAMPLE_CHUNKS, SAMPLE_ENTRIES, "test-project", opts);
+		const result = await runFinalWrites(
+			sessionDir,
+			SAMPLE_CHUNKS,
+			SAMPLE_ENTRIES,
+			"test-project",
+			opts,
+		);
 
 		expect(result.gitattributesPatched).toBe(false);
 

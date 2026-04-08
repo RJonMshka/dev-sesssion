@@ -25,13 +25,24 @@ export type {
 } from "./adapters/adapter.js";
 // Calculators
 export { ContextBudgetCalculator } from "./calculators/context-budget-calculator.js";
+export type {
+	HealthIssue,
+	HealthReport,
+	HealthSeverityValue,
+} from "./checkers/health-checker.js";
+// Checkers
+export { HealthChecker, HealthSeverity } from "./checkers/health-checker.js";
 export type { TokenCounterInstance } from "./counters/token-counter.js";
 // Counters
 export { TokenCounter } from "./counters/token-counter.js";
+export type {
+	MonorepoInfo,
+	MonorepoType,
+	WorkspacePackage,
+} from "./detectors/monorepo-detector.js";
+export { MonorepoDetector } from "./detectors/monorepo-detector.js";
 // Detectors
 export { ProjectDetector } from "./detectors/project-detector.js";
-export { MonorepoDetector } from "./detectors/monorepo-detector.js";
-export type { MonorepoInfo, MonorepoType, WorkspacePackage } from "./detectors/monorepo-detector.js";
 // Types for bootstrap formatters
 export type { BootstrapContext, BootstrapFormatter } from "./formatters/bootstrap-formatter.js";
 // Formatter utilities (shared across all formatter implementations)
@@ -47,7 +58,7 @@ export {
 } from "./formatters/formatter-utils.js";
 // Bootstrap formatters
 export { PlainTextFormatter } from "./formatters/plain-text-formatter.js";
-export { FileIndexManager } from "./managers/file-index-manager.js";
+export { FILE_INDEX_PAGE_SIZE, FileIndexManager } from "./managers/file-index-manager.js";
 export { NextPromptWriter } from "./managers/next-prompt-writer.js";
 export { PlanChunkManager } from "./managers/plan-chunk-manager.js";
 export { RoutinesWriter } from "./managers/routines-writer.js";

@@ -52,7 +52,7 @@ function makeTmpDir(): string {
 }
 
 function createPnpmMonorepo(rootDir: string, packageDirs: string[]): void {
-	const patterns = [...new Set(packageDirs.map((d) => d.split("/")[0] + "/*"))];
+	const patterns = [...new Set(packageDirs.map((d) => `${d.split("/")[0]}/*`))];
 	fs.writeFileSync(
 		path.join(rootDir, "pnpm-workspace.yaml"),
 		`packages:\n${patterns.map((p) => `  - '${p}'`).join("\n")}\n`,
@@ -141,9 +141,7 @@ describe("runMigrate", () => {
 
 		await runMigrate({ ...BASE_OPTS, cwd: tmpDir, adapter: "claude" });
 
-		expect(runInit).toHaveBeenCalledWith(
-			expect.objectContaining({ adapter: "claude" }),
-		);
+		expect(runInit).toHaveBeenCalledWith(expect.objectContaining({ adapter: "claude" }));
 	});
 
 	it("respects package selections from multiselect prompt", async () => {
@@ -175,8 +173,6 @@ describe("runMigrate", () => {
 
 		await runMigrate({ ...BASE_OPTS, dryRun: true, cwd: tmpDir });
 
-		expect(runInit).toHaveBeenCalledWith(
-			expect.objectContaining({ dryRun: true }),
-		);
+		expect(runInit).toHaveBeenCalledWith(expect.objectContaining({ dryRun: true }));
 	});
 });

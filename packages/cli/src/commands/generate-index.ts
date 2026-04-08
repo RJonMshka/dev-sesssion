@@ -68,13 +68,21 @@ export async function generateIndex(
 		readonly dryRun: boolean;
 		readonly verbose: boolean;
 		readonly cwd: string;
+		/** Cap the total number of indexed files. Defaults to unlimited. */
+		readonly maxFiles?: number;
 	},
 ): Promise<GenerateIndexResult> {
 	const s = spinner();
 
 	// --- Walk codebase ---
 	s.start("Scanning codebase...");
-	const files = GitignoreAwareWalker.walk(options.cwd);
+	let files = GitignoreAwareWalker.walk(options.cwd);
+	if (options.maxFiles !== undefined && files.length > options.maxFiles) {
+		log.warn(
+			`Found ${String(files.length)} files — capping at ${String(options.maxFiles)} (--max-files). Remaining files will not be indexed.`,
+		);
+		files = files.slice(0, options.maxFiles);
+	}
 	const groups = GitignoreAwareWalker.groupByDirectory(files);
 	s.stop(
 		`Found ${files.length} file${files.length === 1 ? "" : "s"} across ${groups.length} director${groups.length === 1 ? "y" : "ies"}.`,

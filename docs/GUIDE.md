@@ -92,6 +92,11 @@ Imagine a thick textbook. Without a table of contents, you'd have to flip throug
 
 Files tagged `0` or `always` are loaded in every session regardless of the active chunk. Use this for your `CLAUDE.md`, key config files, or anything the AI should always know about.
 
+> **Large repos:** If your project has more than 500 indexed files, `dev-session` automatically
+> splits the index into `FILE_INDEX_1.md`, `FILE_INDEX_2.md`, etc. You never need to manage this
+> manually — load and save work the same way. Use `--max-files` on `dev-session init` to cap
+> how many files get indexed in the first place.
+
 ---
 
 ### 4. `SESSION_STATE.md` — the handoff note
@@ -299,9 +304,15 @@ dev-session init
 dev-session init --team          # skip team/personal prompt, go straight to team mode
 dev-session init --yes           # no prompts, use all defaults (personal mode)
 dev-session init --dry-run       # preview what would be written
+dev-session init --max-files 200 # cap the FILE_INDEX at 200 files (useful for large repos)
 ```
 
 **When to use:** Once, when setting up a new project. Re-running it on an existing session will ask if you want to reinitialize.
+
+> **Large repo tip:** On a monorepo or a project with many generated files, the codebase walk can
+> pick up hundreds of files you don't need the AI to know about. Pass `--max-files <n>` to cap the
+> index. Files are indexed in walk order (alphabetical, `.gitignore`-aware), so the most important
+> source files — which tend to appear first — are prioritized.
 
 ---
 
@@ -422,6 +433,76 @@ dev-session migrate --yes        # init all uninitialzed packages automatically
 `migrate` detects pnpm workspaces, Nx, Turborepo, and npm/yarn workspaces. For each package that doesn't already have a `.session/` directory, it runs the full `init` wizard.
 
 **When to use:** When adding `dev-session` to a monorepo that has multiple packages.
+
+---
+
+### `dev-session health`
+
+Audits your `.session/` directory and reports anything that looks wrong — missing plan files,
+stale index entries, an overgrown always-include list, an expired session, and more. Think of it
+as a linter for your session state.
+
+```bash
+dev-session health               # print a report of all issues
+dev-session health --fix         # auto-fix issues that can be fixed (stale entries)
+dev-session health --fix --yes   # fix without prompting for confirmation
+dev-session health --json        # machine-readable output for CI or scripts
+```
+
+**What it checks:**
+
+| Check | Severity | What it means |
+|---|---|---|
+| `SESSION_STATE_INVALID` | Error | `SESSION_STATE.md` is missing or unparseable |
+| `PLAN_MISSING` | Error | The active chunk's `PLAN_N.md` does not exist |
+| `FILE_INDEX_INVALID` | Error | `FILE_INDEX.md` is missing or malformed |
+| `STALE_INDEX_ENTRIES` | Warning | FILE_INDEX points to files that no longer exist on disk |
+| `MISSING_CHUNK_FILES` | Warning | FILE_INDEX references chunk IDs with no matching plan file |
+| `ALWAYS_INCLUDE_CREEP` | Warning | More than 4 files in the always-include list |
+| `BUDGET_EXCEEDED` | Warning | Active chunk's files exceed the context token budget |
+| `PROMPT_MISSING` | Warning | `NEXT_PROMPT.md` does not exist |
+| `PROMPT_TOO_LONG` | Warning | `NEXT_PROMPT.md` exceeds the 15-line limit |
+| `ALL_TASKS_DONE` | Info | All chunk tasks are done — time to advance |
+| `SESSION_STALE` | Info | Session hasn't been updated in more than 7 days |
+
+**When to use:** Run `dev-session health` any time something feels off, or as part of your CI
+pipeline to validate that the session structure is intact.
+
+---
+
+### `dev-session import`
+
+Pulls context from your existing AI tool configuration files into `dev-session` so you don't have
+to re-enter information you've already written elsewhere.
+
+**Import from `CLAUDE.md`:**
+
+```bash
+dev-session import --from claude
+```
+
+Reads every `##` section heading in `CLAUDE.md` and adds a corresponding note to
+`SESSION_STATE.md`. If you already have rules like "## HARD RULES" or "## Session workflow" in
+your `CLAUDE.md`, they become session notes the AI can reference without loading the full file.
+Duplicate notes are automatically deduplicated — safe to run multiple times.
+
+**Import from Cursor rules:**
+
+```bash
+dev-session import --from cursor
+```
+
+Reads every `.mdc` file in `.cursor/rules/`, extracts the `globs:` patterns from the frontmatter,
+and adds any matching project files to `FILE_INDEX.md` tagged to the active chunk. This lets you
+bootstrap your file index from rules you've already written for Cursor — no double-entry.
+
+```bash
+dev-session import --from claude --dry-run    # preview without writing
+dev-session import --from cursor --verbose    # show each file being added
+```
+
+**When to use:** Once after init, if you're migrating from a project that already has `CLAUDE.md`
+rules or Cursor rules. You can also re-run after adding new rules to pick up additions.
 
 ---
 
@@ -619,8 +700,53 @@ Nothing breaks — but `dev-session status` will warn you. The 15-line limit is 
 
 **Q: How do I handle a monorepo where only some packages use AI?**
 
-Run `dev-session migrate` from the monorepo root. It detects all workspace packages and lets you select which ones to initialize. Packages you skip won't be touched. You can always run `migrate` again later to initialize additional packages.
+Run `dev-session migrate` from the monorepo root. It detects all workspace packages and lets you
+select which ones to initialize. Packages you skip won't be touched. You can always run `migrate`
+again later to initialize additional packages.
 
 ---
 
-*This guide covers dev-session as of chunk 8 (team mode & enterprise features). For the latest changes, see `CONTRIBUTING.md` and the session state in `.session/SESSION_STATE.md`.*
+**Q: `dev-session health` reports `STALE_INDEX_ENTRIES`. What do I do?**
+
+Run:
+
+```bash
+dev-session health --fix
+```
+
+It will list the stale files and ask for confirmation before removing them. Pass `--yes` to skip
+the prompt. This is the same operation as `dev-session index audit --fix`, but surfaced more
+prominently via the health check.
+
+---
+
+**Q: I already have rules in `CLAUDE.md`. Do I need to re-enter them?**
+
+No. Run:
+
+```bash
+dev-session import --from claude
+```
+
+Every `##` section in your `CLAUDE.md` becomes a note in `SESSION_STATE.md`. The AI can then
+reference those rules at the start of each session without loading the full `CLAUDE.md` file.
+
+---
+
+**Q: My repo has thousands of files and `dev-session init` indexed all of them.**
+
+Use `--max-files` to cap the index:
+
+```bash
+dev-session init --max-files 150
+```
+
+Files are indexed in walk order (alphabetical, `.gitignore`-aware). Generated files and
+dependencies that you haven't already excluded via `.gitignore` are common culprits — add them
+to `.gitignore` first, then re-run init.
+
+---
+
+*This guide covers dev-session as of chunk 8 (import, health, pagination, team mode & enterprise
+features). For the latest changes, see `CONTRIBUTING.md` and the session state in
+`.session/SESSION_STATE.md`.*

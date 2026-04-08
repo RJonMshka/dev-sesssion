@@ -18,8 +18,14 @@ import type { AuditResult, FileIndexEntry } from "../schemas/index.js";
 /** The filename for the file index within the session directory. */
 const FILE_INDEX_FILENAME = "FILE_INDEX.md";
 
-/** Pattern matching "## Chunk N — Title" headings. */
-const CHUNK_HEADING_PATTERN = /^##\s+Chunk\s+(\d+)\s/;
+/**
+ * Maximum entries per page when pagination is enabled.
+ * Repos exceeding this threshold use FILE_INDEX_1.md, FILE_INDEX_2.md, etc.
+ */
+export const FILE_INDEX_PAGE_SIZE = 500;
+
+/** Pattern matching "## Chunk N" or "## Chunk N — Title" headings. */
+const CHUNK_HEADING_PATTERN = /^##\s+Chunk\s+(\d+)(\s|$)/;
 
 /** Pattern matching "## Always Include" heading. */
 const ALWAYS_INCLUDE_HEADING = /^##\s+Always\s+Include\s*$/;
@@ -40,33 +46,45 @@ export const FileIndexManager = {
 	/**
 	 * Loads and parses FILE_INDEX.md from the given session directory.
 	 *
+	 * When `FILE_INDEX_1.md` exists alongside `FILE_INDEX.md`, all pages
+	 * (`FILE_INDEX_1.md`, `FILE_INDEX_2.md`, …) are loaded and merged.
+	 *
 	 * @param sessionDir - Validated path to the `.session/` directory.
 	 * @returns An array of parsed file index entries.
 	 * @throws {ParseError} If the file cannot be read or contains malformed content.
 	 */
 	load(sessionDir: ValidatedPath): FileIndexEntry[] {
+		// Detect paginated layout: FILE_INDEX_1.md exists
+		if (fs.existsSync(path.join(sessionDir, "FILE_INDEX_1.md"))) {
+			return loadPaginatedIndex(sessionDir);
+		}
 		const filePath = path.join(sessionDir, FILE_INDEX_FILENAME);
 		const relativePath = path.relative(process.cwd(), filePath);
-
 		const content = readFileContent(filePath, relativePath);
 		return parseFileIndex(content, relativePath);
 	},
 
 	/**
-	 * Serializes file index entries and writes them to FILE_INDEX.md via AtomicWriter.
+	 * Serializes file index entries and writes them atomically.
 	 *
-	 * Entries are grouped by chunk tag and sorted by chunk ID.
-	 * Chunk tag `0` is rendered as the "Always Include" section.
+	 * When `entries.length > FILE_INDEX_PAGE_SIZE`, the index is split into
+	 * `FILE_INDEX_1.md`, `FILE_INDEX_2.md`, … pages and a stub `FILE_INDEX.md`
+	 * is written. Existing page files are cleaned up if the page count shrinks.
 	 *
 	 * @param sessionDir - Validated path to the `.session/` directory.
 	 * @param entries - The file index entries to serialize and write.
 	 * @throws {Error} If the atomic write fails.
 	 */
 	save(sessionDir: ValidatedPath, entries: readonly FileIndexEntry[]): void {
+		if (entries.length > FILE_INDEX_PAGE_SIZE) {
+			savePaginatedIndex(sessionDir, entries);
+			return;
+		}
+		// Remove any leftover page files (e.g. after entries shrink)
+		cleanPageFiles(sessionDir);
+		// sessionDir is already validated by the caller; filename is a constant.
 		const filePath = path.join(sessionDir, FILE_INDEX_FILENAME) as ValidatedPath;
-		const content = serializeEntries(entries);
-
-		AtomicWriter.writeFile(filePath, content);
+		AtomicWriter.writeFile(filePath, serializeEntries(entries));
 	},
 
 	/**
@@ -418,6 +436,111 @@ function groupByChunkTag(entries: readonly FileIndexEntry[]): Map<number, FileIn
 function mergeChunkTags(existing: readonly number[], incoming: readonly number[]): number[] {
 	const tagSet = new Set([...existing, ...incoming]);
 	return [...tagSet].sort((a, b) => a - b);
+}
+
+// ---------------------------------------------------------------------------
+// Internal: Pagination
+// ---------------------------------------------------------------------------
+
+/**
+ * Load all paginated FILE_INDEX_N.md pages and merge them.
+ *
+ * @param sessionDir - Validated path to .session/
+ * @returns Merged entries from all pages
+ * @throws {ParseError} If any page is unreadable
+ */
+function loadPaginatedIndex(sessionDir: string): FileIndexEntry[] {
+	const entries: FileIndexEntry[] = [];
+	let page = 1;
+
+	while (true) {
+		const pagePath = path.join(sessionDir, `FILE_INDEX_${String(page)}.md`);
+		if (!fs.existsSync(pagePath)) break;
+
+		const relativePath = `FILE_INDEX_${String(page)}.md`;
+		const content = readFileContent(pagePath, relativePath);
+		const pageEntries = parseFileIndex(content, relativePath);
+		entries.push(...pageEntries);
+		page++;
+	}
+
+	return entries;
+}
+
+/**
+ * Write entries split across multiple FILE_INDEX_N.md page files,
+ * then write a stub FILE_INDEX.md indicating the paginated layout.
+ *
+ * @param sessionDir - Validated path to .session/
+ * @param entries - All entries to paginate
+ */
+function savePaginatedIndex(sessionDir: ValidatedPath, entries: readonly FileIndexEntry[]): void {
+	const pageCount = Math.ceil(entries.length / FILE_INDEX_PAGE_SIZE);
+
+	// Remove old page files that exceed the new page count
+	cleanPageFiles(sessionDir, pageCount);
+
+	// Write each page
+	// sessionDir is already validated by the caller; page filenames are constants.
+	for (let i = 0; i < pageCount; i++) {
+		const pageEntries = entries.slice(i * FILE_INDEX_PAGE_SIZE, (i + 1) * FILE_INDEX_PAGE_SIZE);
+		const pagePath = path.join(sessionDir, `FILE_INDEX_${String(i + 1)}.md`) as ValidatedPath;
+		AtomicWriter.writeFile(pagePath, serializeEntries(pageEntries));
+	}
+
+	// Write stub FILE_INDEX.md so older readers don't crash
+	const stubPath = path.join(sessionDir, FILE_INDEX_FILENAME) as ValidatedPath;
+	const stubContent = buildPaginationStub(pageCount, entries.length);
+	AtomicWriter.writeFile(stubPath, stubContent);
+}
+
+/**
+ * Build the stub FILE_INDEX.md content for paginated repos.
+ *
+ * @param pageCount - Number of pages
+ * @param totalEntries - Total entry count across all pages
+ * @returns Markdown string for the stub file
+ */
+function buildPaginationStub(pageCount: number, totalEntries: number): string {
+	const today = new Date().toISOString().slice(0, 10);
+	const pageList = Array.from(
+		{ length: pageCount },
+		(_, i) => `FILE_INDEX_${String(i + 1)}.md`,
+	).join(", ");
+	return [
+		`---`,
+		`version: 1`,
+		`last_updated: "${today}"`,
+		`paginated: true`,
+		`pages: ${String(pageCount)}`,
+		`---`,
+		``,
+		`# File Index (Paginated)`,
+		``,
+		`This project has ${String(totalEntries)} indexed files split across ${String(pageCount)} page${pageCount === 1 ? "" : "s"}.`,
+		`Load: ${pageList}`,
+		``,
+	].join("\n");
+}
+
+/**
+ * Remove FILE_INDEX_N.md page files, optionally keeping files up to `keepUpTo`.
+ *
+ * @param sessionDir - Path to .session/
+ * @param keepUpTo - Keep pages 1..keepUpTo; pass 0 or omit to remove all
+ */
+function cleanPageFiles(sessionDir: string, keepUpTo = 0): void {
+	let page = keepUpTo + 1;
+	while (true) {
+		const pagePath = path.join(sessionDir, `FILE_INDEX_${String(page)}.md`);
+		if (!fs.existsSync(pagePath)) break;
+		try {
+			fs.rmSync(pagePath);
+		} catch {
+			// Best-effort cleanup
+		}
+		page++;
+	}
 }
 
 // ---------------------------------------------------------------------------

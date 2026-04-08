@@ -45,6 +45,11 @@ export interface InitOptions {
 	 * When undefined and not --yes, the wizard prompts for team vs personal.
 	 */
 	readonly teamMode?: boolean;
+	/**
+	 * Cap the number of files indexed during FILE_INDEX generation.
+	 * When undefined, all discovered files are indexed.
+	 */
+	readonly maxFiles?: number;
 }
 
 /**
@@ -170,7 +175,14 @@ export async function runInit(options: InitOptions): Promise<void> {
 	// -----------------------------------------------------------------------
 	// Phase 4: FILE_INDEX generation (migration path C)
 	// -----------------------------------------------------------------------
-	const indexResult = await generateIndex(sessionDir, chunks, options);
+	const generateOpts: Parameters<typeof generateIndex>[2] = {
+		yes: options.yes,
+		dryRun: options.dryRun,
+		verbose: options.verbose,
+		cwd: options.cwd,
+		...(options.maxFiles !== undefined ? { maxFiles: options.maxFiles } : {}),
+	};
+	const indexResult = await generateIndex(sessionDir, chunks, generateOpts);
 
 	// -----------------------------------------------------------------------
 	// Phase 5: Final writes (SESSION_STATE, ROUTINES, NEXT_PROMPT, .gitignore)
@@ -263,7 +275,12 @@ export function registerInitCommand(program: Command): void {
 	const cmd = program
 		.command("init")
 		.description("Initialize dev-session in the current project")
-		.option("--team", "Enable team mode (auto-applies .gitignore + .gitattributes)", false);
+		.option("--team", "Enable team mode (auto-applies .gitignore + .gitattributes)", false)
+		.option(
+			"--max-files <n>",
+			"Cap the number of files indexed (useful for large repos)",
+			undefined,
+		);
 
 	cmd.action(async () => {
 		const globalOpts = program.opts<{
@@ -275,7 +292,9 @@ export function registerInitCommand(program: Command): void {
 			adapter?: string;
 		}>();
 
-		const cmdOpts = cmd.opts<{ team: boolean }>();
+		const cmdOpts = cmd.opts<{ team: boolean; maxFiles?: string }>();
+		const maxFiles =
+			cmdOpts.maxFiles !== undefined ? Number.parseInt(cmdOpts.maxFiles, 10) : undefined;
 
 		const initOptions: InitOptions = {
 			cwd: globalOpts.cwd,
@@ -285,6 +304,7 @@ export function registerInitCommand(program: Command): void {
 			strict: globalOpts.strict,
 			...(globalOpts.adapter !== undefined ? { adapter: globalOpts.adapter } : {}),
 			teamMode: cmdOpts.team,
+			...(maxFiles !== undefined && !Number.isNaN(maxFiles) ? { maxFiles } : {}),
 		};
 
 		try {

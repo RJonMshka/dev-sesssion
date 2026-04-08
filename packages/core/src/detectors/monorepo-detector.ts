@@ -206,7 +206,7 @@ function readPackageJsonWorkspaces(cwd: string): string[] | undefined {
 			return undefined;
 		}
 		const record = raw as Record<string, unknown>;
-		const workspaces: unknown = record["workspaces"];
+		const workspaces: unknown = record.workspaces;
 
 		if (Array.isArray(workspaces)) {
 			return workspaces.filter((w): w is string => typeof w === "string");
@@ -215,7 +215,7 @@ function readPackageJsonWorkspaces(cwd: string): string[] | undefined {
 		// Yarn 1 nested: { packages: [...], nohoist: [...] }
 		if (typeof workspaces === "object" && workspaces !== null) {
 			const ws = workspaces as Record<string, unknown>;
-			const packages: unknown = ws["packages"];
+			const packages: unknown = ws.packages;
 			if (Array.isArray(packages)) {
 				return packages.filter((p): p is string => typeof p === "string");
 			}
@@ -317,9 +317,7 @@ function expandPattern(cwd: string, pattern: string): string[] {
 		const entries = fs.readdirSync(parentAbs, { withFileTypes: true });
 		return entries
 			.filter((e) => e.isDirectory() && !e.name.startsWith("."))
-			.map((e) =>
-				normalizeSlashes(parentRel ? `${parentRel}/${e.name}` : e.name),
-			);
+			.map((e) => normalizeSlashes(parentRel ? `${parentRel}/${e.name}` : e.name));
 	} catch {
 		return [];
 	}
@@ -356,7 +354,7 @@ function readPackageName(packageDir: string): string | undefined {
 			return undefined;
 		}
 		const record = raw as Record<string, unknown>;
-		const name: unknown = record["name"];
+		const name: unknown = record.name;
 		return typeof name === "string" ? name : undefined;
 	} catch {
 		return undefined;

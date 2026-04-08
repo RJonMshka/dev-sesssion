@@ -14,15 +14,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import {
-	cancel,
-	intro,
-	isCancel,
-	log,
-	multiselect,
-	outro,
-	spinner,
-} from "@clack/prompts";
+import { cancel, intro, isCancel, log, multiselect, outro, spinner } from "@clack/prompts";
 import type { WorkspacePackage } from "@dev-session/core";
 import { MonorepoDetector } from "@dev-session/core";
 import type { Command } from "commander";
@@ -78,7 +70,9 @@ export async function runMigrate(options: MigrateOptions): Promise<void> {
 		return;
 	}
 
-	log.info(`Found ${info.packages.length} workspace package${info.packages.length === 1 ? "" : "s"}:`);
+	log.info(
+		`Found ${info.packages.length} workspace package${info.packages.length === 1 ? "" : "s"}:`,
+	);
 	for (const pkg of info.packages) {
 		const label = pkg.name ?? pkg.relativePath;
 		const status = packageHasSession(pkg.absolutePath) ? " (already initialized)" : "";
@@ -99,7 +93,9 @@ export async function runMigrate(options: MigrateOptions): Promise<void> {
 
 	if (options.yes) {
 		selected = needsInit;
-		log.info(`Initializing all ${needsInit.length} package${needsInit.length === 1 ? "" : "s"} (--yes mode).`);
+		log.info(
+			`Initializing all ${needsInit.length} package${needsInit.length === 1 ? "" : "s"} (--yes mode).`,
+		);
 	} else {
 		const choices = needsInit.map((pkg) => ({
 			value: pkg.relativePath,
@@ -160,9 +156,7 @@ export async function runMigrate(options: MigrateOptions): Promise<void> {
 			`Migration complete. ${successCount} package${successCount === 1 ? "" : "s"} initialized.`,
 		);
 	} else {
-		outro(
-			`Migration done with errors. ${successCount} succeeded, ${failCount} failed.`,
-		);
+		outro(`Migration done with errors. ${successCount} succeeded, ${failCount} failed.`);
 	}
 }
 
