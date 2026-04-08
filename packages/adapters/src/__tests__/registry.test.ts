@@ -1,9 +1,58 @@
 import { DetectedTool, PlainTextFormatter } from "@dev-session/core";
 import { describe, expect, it } from "vitest";
+import { ClaudeAdapter } from "../claude-adapter.js";
 import { ClaudeBootstrapFormatter } from "../claude-bootstrap-formatter.js";
+import { CursorAdapter } from "../cursor-adapter.js";
 import { CursorBootstrapFormatter } from "../cursor-bootstrap-formatter.js";
+import { OpencodeAdapter } from "../opencode-adapter.js";
 import { OpencodeBootstrapFormatter } from "../opencode-bootstrap-formatter.js";
-import { getFormatterForTool, getRegisteredTools } from "../registry.js";
+import { getAdapterForTool, getFormatterForTool, getRegisteredTools } from "../registry.js";
+
+describe("getAdapterForTool", () => {
+	it("returns ClaudeAdapter for claude", () => {
+		const adapter = getAdapterForTool(DetectedTool.CLAUDE);
+		expect(adapter).toBe(ClaudeAdapter);
+		expect(adapter.config.name).toBe("claude");
+		expect(adapter.formatter).toBe(ClaudeBootstrapFormatter);
+	});
+
+	it("returns OpencodeAdapter for opencode", () => {
+		const adapter = getAdapterForTool(DetectedTool.OPENCODE);
+		expect(adapter).toBe(OpencodeAdapter);
+		expect(adapter.config.name).toBe("opencode");
+	});
+
+	it("returns CursorAdapter for cursor", () => {
+		const adapter = getAdapterForTool(DetectedTool.CURSOR);
+		expect(adapter).toBe(CursorAdapter);
+		expect(adapter.config.name).toBe("cursor");
+	});
+
+	it("returns fallback adapter for unknown tools", () => {
+		const adapter = getAdapterForTool(DetectedTool.UNKNOWN);
+		expect(adapter.config.name).toBe("plain");
+		expect(adapter.formatter).toBe(PlainTextFormatter);
+		expect(adapter.setup).toBeUndefined();
+		expect(adapter.transformState).toBeUndefined();
+	});
+
+	it("returns fallback for unrecognized tool strings", () => {
+		const adapter = getAdapterForTool("windsurf" as "unknown");
+		expect(adapter.config.name).toBe("plain");
+	});
+
+	it("all adapters have lifecycle hooks defined", () => {
+		const tools = [DetectedTool.CLAUDE, DetectedTool.OPENCODE, DetectedTool.CURSOR] as const;
+
+		for (const tool of tools) {
+			const adapter = getAdapterForTool(tool);
+			expect(typeof adapter.setup).toBe("function");
+			expect(typeof adapter.transformState).toBe("function");
+			expect(typeof adapter.onSessionStart).toBe("function");
+			expect(typeof adapter.onSessionEnd).toBe("function");
+		}
+	});
+});
 
 describe("getFormatterForTool", () => {
 	it("returns ClaudeBootstrapFormatter for claude", () => {
@@ -31,7 +80,6 @@ describe("getFormatterForTool", () => {
 	});
 
 	it("returns PlainTextFormatter for unrecognized tool strings", () => {
-		// Cast to simulate an unsupported tool value
 		const formatter = getFormatterForTool("windsurf" as "unknown");
 		expect(formatter).toBe(PlainTextFormatter);
 		expect(formatter.name).toBe("plain");

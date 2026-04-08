@@ -1,40 +1,80 @@
 /**
- * Adapter registry — resolves a detected tool to its bootstrap formatter.
+ * Adapter registry — resolves a detected tool to its adapter or formatter.
  *
  * Maps {@link DetectedToolValue} identifiers to the corresponding
- * {@link BootstrapFormatter} implementation. Falls back to
+ * {@link Adapter} implementation. Falls back to a minimal adapter wrapping
  * {@link PlainTextFormatter} for unknown tools.
  *
  * @packageDocumentation
  */
 
-import type { BootstrapFormatter, DetectedToolValue } from "@dev-session/core";
+import type { Adapter, BootstrapFormatter, DetectedToolValue } from "@dev-session/core";
 import { DetectedTool, PlainTextFormatter } from "@dev-session/core";
-import { ClaudeBootstrapFormatter } from "./claude-bootstrap-formatter.js";
-import { CursorBootstrapFormatter } from "./cursor-bootstrap-formatter.js";
-import { OpencodeBootstrapFormatter } from "./opencode-bootstrap-formatter.js";
+import { ClaudeAdapter } from "./claude-adapter.js";
+import { CursorAdapter } from "./cursor-adapter.js";
+import { OpencodeAdapter } from "./opencode-adapter.js";
 
 /**
- * Internal mapping of tool identifiers to formatter instances.
+ * Minimal fallback adapter for unknown tools.
+ *
+ * Uses {@link PlainTextFormatter} and has no lifecycle hooks.
+ */
+const FALLBACK_ADAPTER: Adapter = {
+	config: {
+		name: "plain",
+		display_name: "Plain Text (fallback)",
+		detect_files: [],
+		output_files: [],
+		config_version: 1,
+	},
+	formatter: PlainTextFormatter,
+};
+
+/**
+ * Internal mapping of tool identifiers to adapter instances.
  *
  * Uses `Object.create(null)` per project security conventions to avoid
  * prototype pollution on the lookup table.
  */
-const FORMATTER_MAP: Record<string, BootstrapFormatter> = Object.assign(
-	Object.create(null) as Record<string, BootstrapFormatter>,
+const ADAPTER_MAP: Record<string, Adapter> = Object.assign(
+	Object.create(null) as Record<string, Adapter>,
 	{
-		[DetectedTool.CLAUDE]: ClaudeBootstrapFormatter,
-		[DetectedTool.OPENCODE]: OpencodeBootstrapFormatter,
-		[DetectedTool.CURSOR]: CursorBootstrapFormatter,
-		[DetectedTool.UNKNOWN]: PlainTextFormatter,
+		[DetectedTool.CLAUDE]: ClaudeAdapter,
+		[DetectedTool.OPENCODE]: OpencodeAdapter,
+		[DetectedTool.CURSOR]: CursorAdapter,
+		[DetectedTool.UNKNOWN]: FALLBACK_ADAPTER,
 	},
 );
 
 /**
+ * Resolves a detected tool identifier to the full lifecycle adapter.
+ *
+ * Falls back to a minimal adapter wrapping {@link PlainTextFormatter}
+ * if the tool is unknown or not recognized.
+ *
+ * @param tool - The detected tool identifier from {@link ProjectDetector}.
+ * @returns The matching {@link Adapter} implementation.
+ *
+ * @example
+ * ```typescript
+ * import { DetectedTool } from "@dev-session/core";
+ * import { getAdapterForTool } from "@dev-session/adapters";
+ *
+ * const adapter = getAdapterForTool(DetectedTool.CLAUDE);
+ * // adapter.config.name === "claude"
+ * // adapter.formatter.name === "claude"
+ * ```
+ */
+export function getAdapterForTool(tool: DetectedToolValue): Adapter {
+	const adapter: Adapter | undefined = ADAPTER_MAP[tool];
+	return adapter ?? FALLBACK_ADAPTER;
+}
+
+/**
  * Resolves a detected tool identifier to the appropriate bootstrap formatter.
  *
- * Falls back to {@link PlainTextFormatter} if the tool is unknown or not
- * recognized in the registry.
+ * Convenience wrapper around {@link getAdapterForTool} for code that only
+ * needs the formatter, not the full adapter lifecycle.
  *
  * @param tool - The detected tool identifier from {@link ProjectDetector}.
  * @returns The matching {@link BootstrapFormatter} implementation.
@@ -49,17 +89,16 @@ const FORMATTER_MAP: Record<string, BootstrapFormatter> = Object.assign(
  * ```
  */
 export function getFormatterForTool(tool: DetectedToolValue): BootstrapFormatter {
-	const formatter: BootstrapFormatter | undefined = FORMATTER_MAP[tool];
-	return formatter ?? PlainTextFormatter;
+	return getAdapterForTool(tool).formatter;
 }
 
 /**
- * Returns all registered formatter names.
+ * Returns all registered adapter names.
  *
  * Useful for listing supported tools in help text or diagnostics.
  *
  * @returns Array of registered tool identifiers.
  */
 export function getRegisteredTools(): readonly string[] {
-	return Object.keys(FORMATTER_MAP);
+	return Object.keys(ADAPTER_MAP);
 }

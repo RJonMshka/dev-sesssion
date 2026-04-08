@@ -14,7 +14,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { cancel, confirm, isCancel, log } from "@clack/prompts";
-import { getFormatterForTool } from "@dev-session/adapters";
 import {
 	type BootstrapContext,
 	ContextBudgetCalculator,
@@ -22,13 +21,14 @@ import {
 	NextPromptWriter,
 	type PlanChunk,
 	PlanChunkManager,
-	ProjectDetector,
 	SessionStateManager,
 	TaskStatus,
 } from "@dev-session/core";
 import { CliError, PathValidator, type ValidatedPath } from "@dev-session/security";
 import type { Command } from "commander";
+import { createAdapterReadFile } from "../utils/adapter-io.js";
 import { handleError } from "../utils/error-handler.js";
+import { resolveAdapter } from "../utils/resolve-adapter.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -42,6 +42,8 @@ export interface AdvanceOptions {
 	readonly yes: boolean;
 	/** Show detailed output. */
 	readonly verbose: boolean;
+	/** Explicit adapter override (from --adapter flag). */
+	readonly adapter?: string;
 }
 
 /** Result returned after an advance run. */
@@ -161,6 +163,23 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 	const excludePatterns = buildExcludePatterns(state.active_chunk, allChunks);
 	const projectName = detectProjectName(options.cwd);
 
+	// Resolve adapter (flag → detect → fallback)
+	const { adapter, tool: detectedTool, source } = resolveAdapter(options.cwd, options.adapter);
+
+	if (options.verbose) {
+		log.info(`Using ${adapter.config.display_name} adapter (${source}: ${detectedTool})`);
+	}
+
+	// Run transformState hook if the adapter provides one
+	if (adapter.transformState) {
+		const readFile = createAdapterReadFile(options.cwd);
+		state = adapter.transformState(state, {
+			projectRoot: options.cwd,
+			sessionDir,
+			readFile,
+		});
+	}
+
 	const bootstrapContext: BootstrapContext = {
 		state,
 		chunk: newChunk,
@@ -171,14 +190,7 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 		projectName,
 	};
 
-	const detectedTool = ProjectDetector.detect(options.cwd).tool;
-	const formatter = getFormatterForTool(detectedTool);
-
-	if (options.verbose) {
-		log.info(`Using ${formatter.name} formatter (detected tool: ${detectedTool})`);
-	}
-
-	const promptContent = NextPromptWriter.generateWithFormatter(formatter, bootstrapContext);
+	const promptContent = NextPromptWriter.generateWithFormatter(adapter.formatter, bootstrapContext);
 
 	NextPromptWriter.write(sessionDir, promptContent);
 
@@ -287,12 +299,14 @@ export function registerAdvanceCommand(program: Command): void {
 				cwd: string;
 				yes: boolean;
 				verbose: boolean;
+				adapter?: string;
 			}>();
 
 			const advanceOptions: AdvanceOptions = {
 				cwd: opts.cwd,
 				yes: opts.yes,
 				verbose: opts.verbose,
+				...(opts.adapter !== undefined ? { adapter: opts.adapter } : {}),
 			};
 
 			try {

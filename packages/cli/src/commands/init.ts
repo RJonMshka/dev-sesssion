@@ -38,6 +38,8 @@ export interface InitOptions {
 	readonly verbose: boolean;
 	/** Enable strict mode (block on secret detection). */
 	readonly strict: boolean;
+	/** Explicit adapter override (from --adapter flag). */
+	readonly adapter?: string;
 }
 
 /**
@@ -200,6 +202,7 @@ export function registerInitCommand(program: Command): void {
 				dryRun: boolean;
 				verbose: boolean;
 				strict: boolean;
+				adapter?: string;
 			}>();
 
 			const initOptions: InitOptions = {
@@ -208,6 +211,7 @@ export function registerInitCommand(program: Command): void {
 				dryRun: opts.dryRun,
 				verbose: opts.verbose,
 				strict: opts.strict,
+				...(opts.adapter !== undefined ? { adapter: opts.adapter } : {}),
 			};
 
 			try {

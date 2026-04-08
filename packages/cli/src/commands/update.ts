@@ -16,7 +16,6 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { promisify } from "node:util";
 import { cancel, isCancel, log, multiselect, text } from "@clack/prompts";
-import { getFormatterForTool } from "@dev-session/adapters";
 import {
 	type BootstrapContext,
 	ContextBudgetCalculator,
@@ -24,14 +23,15 @@ import {
 	NextPromptWriter,
 	type PlanChunk,
 	PlanChunkManager,
-	ProjectDetector,
 	SessionStateManager,
 	type Task,
 	TaskStatus,
 } from "@dev-session/core";
 import { CliError, PathValidator, SecretScanner, type ValidatedPath } from "@dev-session/security";
 import type { Command } from "commander";
+import { createAdapterReadFile } from "../utils/adapter-io.js";
 import { handleError } from "../utils/error-handler.js";
+import { resolveAdapter } from "../utils/resolve-adapter.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -49,6 +49,8 @@ export interface UpdateOptions {
 	readonly verbose: boolean;
 	/** Enable strict mode (block on secret detection). */
 	readonly strict: boolean;
+	/** Explicit adapter override (from --adapter flag). */
+	readonly adapter?: string;
 }
 
 /** Result returned after an update run. */
@@ -161,6 +163,23 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 
 	const projectName = detectProjectName(options.cwd);
 
+	// Resolve adapter (flag → detect → fallback)
+	const { adapter, tool: detectedTool, source } = resolveAdapter(options.cwd, options.adapter);
+
+	if (options.verbose) {
+		log.info(`Using ${adapter.config.display_name} adapter (${source}: ${detectedTool})`);
+	}
+
+	// Run transformState hook if the adapter provides one
+	if (adapter.transformState) {
+		const readFile = createAdapterReadFile(options.cwd);
+		state = adapter.transformState(state, {
+			projectRoot: options.cwd,
+			sessionDir,
+			readFile,
+		});
+	}
+
 	const bootstrapContext: BootstrapContext = {
 		state,
 		chunk,
@@ -171,14 +190,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 		projectName,
 	};
 
-	const detectedTool = ProjectDetector.detect(options.cwd).tool;
-	const formatter = getFormatterForTool(detectedTool);
-
-	if (options.verbose) {
-		log.info(`Using ${formatter.name} formatter (detected tool: ${detectedTool})`);
-	}
-
-	const promptContent = NextPromptWriter.generateWithFormatter(formatter, bootstrapContext);
+	const promptContent = NextPromptWriter.generateWithFormatter(adapter.formatter, bootstrapContext);
 
 	// -----------------------------------------------------------------------
 	// Step 6: Secret scan before writing
@@ -475,6 +487,7 @@ export function registerUpdateCommand(program: Command): void {
 				yes: boolean;
 				verbose: boolean;
 				strict: boolean;
+				adapter?: string;
 			}>();
 
 			const updateOptions: UpdateOptions = {
@@ -482,6 +495,7 @@ export function registerUpdateCommand(program: Command): void {
 				yes: opts.yes,
 				verbose: opts.verbose,
 				strict: opts.strict,
+				...(opts.adapter !== undefined ? { adapter: opts.adapter } : {}),
 			};
 
 			try {

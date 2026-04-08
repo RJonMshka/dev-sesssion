@@ -13,6 +13,16 @@ export {
 	ParseError,
 	SecurityError,
 } from "@dev-session/security";
+// Adapter interface and context types
+export type {
+	Adapter,
+	AdapterReadFile,
+	AdapterSetupContext,
+	AdapterSetupResult,
+	AdapterWriteFile,
+	SessionLifecycleContext,
+	TransformStateContext,
+} from "./adapters/adapter.js";
 // Calculators
 export { ContextBudgetCalculator } from "./calculators/context-budget-calculator.js";
 export type { TokenCounterInstance } from "./counters/token-counter.js";

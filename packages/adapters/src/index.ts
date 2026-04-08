@@ -2,18 +2,22 @@
  * @dev-session/adapters
  *
  * Tool-specific adapters for dev-session.
- * Provides bootstrap formatters optimized for Claude Code, opencode, and Cursor.
+ * Provides full lifecycle adapters and bootstrap formatters for Claude Code, opencode, and Cursor.
  *
- * Use {@link getFormatterForTool} to resolve a detected tool to its formatter,
- * or import a specific formatter directly.
+ * Use {@link getAdapterForTool} to resolve a detected tool to its full adapter,
+ * or {@link getFormatterForTool} for just the formatter.
  *
  * @packageDocumentation
  */
 
+// Full lifecycle adapters
+export { ClaudeAdapter } from "./claude-adapter.js";
 // Formatters
 export { ClaudeBootstrapFormatter } from "./claude-bootstrap-formatter.js";
+export { CursorAdapter } from "./cursor-adapter.js";
 export { CursorBootstrapFormatter } from "./cursor-bootstrap-formatter.js";
+export { OpencodeAdapter } from "./opencode-adapter.js";
 export { OpencodeBootstrapFormatter } from "./opencode-bootstrap-formatter.js";
 
 // Registry
-export { getFormatterForTool, getRegisteredTools } from "./registry.js";
+export { getAdapterForTool, getFormatterForTool, getRegisteredTools } from "./registry.js";

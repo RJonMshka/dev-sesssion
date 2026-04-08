@@ -10,20 +10,20 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { confirm, isCancel, log } from "@clack/prompts";
-import { getFormatterForTool } from "@dev-session/adapters";
 import type { BootstrapContext, FileIndexEntry, PlanChunk, SessionState } from "@dev-session/core";
 import {
 	ContextBudgetCalculator,
 	DEFAULT_CONTEXT_BUDGET,
 	FileIndexManager,
 	NextPromptWriter,
-	ProjectDetector,
 	RoutinesWriter,
 	SessionStateManager,
 } from "@dev-session/core";
 import type { ValidatedPath } from "@dev-session/security";
 import { AtomicWriter, CliError, PathValidator, SecretScanner } from "@dev-session/security";
+import { createAdapterReadFile, createAdapterWriteFile } from "../utils/adapter-io.js";
 import { dryRunGitignorePatch, dryRunWrite } from "../utils/dry-run.js";
+import { resolveAdapter } from "../utils/resolve-adapter.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -36,6 +36,8 @@ export interface FinalWriteOptions {
 	readonly dryRun: boolean;
 	readonly verbose: boolean;
 	readonly strict: boolean;
+	/** Explicit adapter override (from --adapter flag). */
+	readonly adapter?: string;
 }
 
 /** Result from the final writes phase. */
@@ -132,6 +134,38 @@ export async function runFinalWrites(
 
 	const excludePatterns = buildExcludePatterns(activeChunk.chunk_id, chunks);
 
+	// Resolve adapter (flag → detect → fallback)
+	const { adapter, tool: detectedTool, source } = resolveAdapter(options.cwd, options.adapter);
+
+	if (options.verbose) {
+		log.info(`Using ${adapter.config.display_name} adapter (${source}: ${detectedTool})`);
+	}
+
+	// --- 3a. Run adapter setup (generates tool-specific files like CLAUDE.md) ---
+	if (!options.dryRun && adapter.setup) {
+		const projectInfo = {
+			tool: detectedTool,
+			project_type: "unknown" as const,
+			existing_files: [] as string[],
+			project_root: options.cwd,
+			has_existing_session: true,
+			project_name: projectName,
+		};
+
+		const setupResult = await adapter.setup({
+			projectRoot: options.cwd,
+			sessionDir,
+			projectInfo,
+			isReinit: false,
+			writeFile: createAdapterWriteFile(options.cwd),
+			readFile: createAdapterReadFile(options.cwd),
+		});
+
+		if (options.verbose) {
+			log.info(`Adapter setup: ${setupResult.summary}`);
+		}
+	}
+
 	const bootstrapContext: BootstrapContext = {
 		state: sessionState,
 		chunk: activeChunk,
@@ -142,14 +176,7 @@ export async function runFinalWrites(
 		projectName,
 	};
 
-	const detectedTool = ProjectDetector.detect(options.cwd).tool;
-	const formatter = getFormatterForTool(detectedTool);
-
-	if (options.verbose) {
-		log.info(`Using ${formatter.name} formatter (detected tool: ${detectedTool})`);
-	}
-
-	const promptContent = NextPromptWriter.generateWithFormatter(formatter, bootstrapContext);
+	const promptContent = NextPromptWriter.generateWithFormatter(adapter.formatter, bootstrapContext);
 
 	secretWarnings += scanContent(promptContent, "NEXT_PROMPT.md", options.verbose);
 

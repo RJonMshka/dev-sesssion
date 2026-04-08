@@ -173,11 +173,26 @@ last_updated: "2026-04-03"
 | packages/adapters/src/claude-bootstrap-formatter.ts | Claude Code formatter — @file mentions, "Do NOT read" excludes |
 | packages/adapters/src/opencode-bootstrap-formatter.ts | opencode formatter — AGENTS.md-aware, "Exclude" directive |
 | packages/adapters/src/cursor-bootstrap-formatter.ts | Cursor formatter — .cursorrules-aware, "Ignore" directive |
-| packages/adapters/src/registry.ts | Adapter registry — getFormatterForTool, getRegisteredTools |
+| packages/adapters/src/registry.ts | Adapter registry — getAdapterForTool, getFormatterForTool, getRegisteredTools |
 | packages/adapters/src/index.ts | Adapters package entry point |
 | packages/adapters/src/__tests__/test-helpers.ts | Shared test factories for adapter tests |
 | packages/adapters/src/__tests__/claude-bootstrap-formatter.test.ts | Claude formatter tests (16 tests) |
 | packages/adapters/src/__tests__/opencode-bootstrap-formatter.test.ts | opencode formatter tests (16 tests) |
 | packages/adapters/src/__tests__/cursor-bootstrap-formatter.test.ts | Cursor formatter tests (16 tests) |
-| packages/adapters/src/__tests__/registry.test.ts | Registry tests (8 tests) |
-| packages/adapters/src/__tests__/index.test.ts | Adapters smoke tests (5 tests) |
+| packages/adapters/src/__tests__/registry.test.ts | Registry tests (14 tests) |
+| packages/adapters/src/__tests__/index.test.ts | Adapters smoke tests (9 tests) |
+
+## Chunk 7 — Adapter lifecycle hooks + CLI integration
+
+| File | Purpose |
+|---|---|
+| packages/core/src/adapters/adapter.ts | Adapter interface + context types + IO helper types |
+| packages/core/src/__tests__/adapter.test.ts | Adapter interface type contract tests (12 tests) |
+| packages/adapters/src/claude-adapter.ts | Claude Code adapter — CLAUDE.md section, MEMORY.md reading |
+| packages/adapters/src/opencode-adapter.ts | opencode adapter — AGENTS.md section generation |
+| packages/adapters/src/cursor-adapter.ts | Cursor adapter — .cursorrules section generation |
+| packages/adapters/src/__tests__/claude-adapter.test.ts | Claude adapter lifecycle tests |
+| packages/adapters/src/__tests__/opencode-adapter.test.ts | opencode adapter lifecycle tests |
+| packages/adapters/src/__tests__/cursor-adapter.test.ts | Cursor adapter lifecycle tests |
+| packages/cli/src/utils/adapter-io.ts | AdapterWriteFile/ReadFile backed by AtomicWriter+PathValidator |
+| packages/cli/src/utils/resolve-adapter.ts | Adapter resolution: flag → detect → fallback |
