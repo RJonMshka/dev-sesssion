@@ -2,6 +2,7 @@
 	"name": "@dev-session/adapters",
 	"version": "0.0.0",
 	"private": true,
+	"license": "MIT",
 	"license": "UNLICENSED",
 	"type": "module",
 	"exports": {
