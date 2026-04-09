@@ -1,7 +1,6 @@
 {
 	"name": "dev-session",
 	"version": "0.0.0",
-	"private": true,
 	"license": "MIT",
 	"type": "module",
 	"bin": {
@@ -32,10 +31,12 @@
 	},
 	"dependencies": {
 		"@clack/prompts": "1.2.0",
+		"commander": "14"
+	},
+	"devDependencies": {
 		"@dev-session/adapters": "workspace:*",
 		"@dev-session/core": "workspace:*",
-		"@dev-session/security": "workspace:*",
-		"commander": "14"
+		"@dev-session/security": "workspace:*"
 	},
 	"engines": {
 		"node": ">=20.0.0"

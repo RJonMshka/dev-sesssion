@@ -197,6 +197,17 @@ last_updated: "2026-04-08"
 | packages/cli/src/utils/adapter-io.ts | AdapterWriteFile/ReadFile backed by AtomicWriter+PathValidator |
 | packages/cli/src/utils/resolve-adapter.ts | Adapter resolution: flag → detect → fallback |
 
+## Chunk 9 — Open-source prep & polish
+
+| File | Purpose |
+|---|---|
+| .releaserc.json | semantic-release config — conventional commits, pkgRoot: packages/cli, CHANGELOG |
+| .github/workflows/release.yml | Release workflow — triggered on main push, runs semantic-release |
+| CHANGELOG.md | Auto-generated changelog (written by @semantic-release/changelog) |
+| packages/cli/package.json | Updated: private removed, @dev-session/* moved to devDeps |
+| packages/cli/tsup.config.ts | Updated: noExternal bundles @dev-session/* workspace deps into CLI dist |
+| packages/adapters/package.json | Fixed: duplicate license key removed |
+
 ## Chunk 8 — Team mode & enterprise features
 
 | File | Purpose |
