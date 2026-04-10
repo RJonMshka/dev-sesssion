@@ -12,7 +12,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { cancel, confirm, intro, isCancel, log, outro, select, spinner } from "@clack/prompts";
+import { cancel, confirm, intro, isCancel, log, note, outro, select, spinner } from "@clack/prompts";
 import type { PlanChunk } from "@dev-session/core";
 import { ProjectDetector } from "@dev-session/core";
 import type { ValidatedPath } from "@dev-session/security";
@@ -198,8 +198,17 @@ export async function runInit(options: InitOptions): Promise<void> {
 	if (options.dryRun) {
 		outro("Dry run complete. No files were written.");
 	} else {
+		note(
+			[
+				"1. Paste .session/NEXT_PROMPT.md into your AI chat to begin",
+				"2. dev-session status    → task progress + context budget",
+				"3. dev-session update    → mark tasks done after each session",
+				"4. dev-session advance   → move to the next chunk when done",
+			].join("\n"),
+			"Next steps",
+		);
 		outro(
-			`Init complete. ${chunks.length} chunk${chunks.length === 1 ? "" : "s"}, ${indexResult.fileCount} indexed file${indexResult.fileCount === 1 ? "" : "s"}. Paste NEXT_PROMPT.md to start your first session.`,
+			`Init complete. ${chunks.length} chunk${chunks.length === 1 ? "" : "s"}, ${indexResult.fileCount} indexed file${indexResult.fileCount === 1 ? "" : "s"}.`,
 		);
 	}
 }

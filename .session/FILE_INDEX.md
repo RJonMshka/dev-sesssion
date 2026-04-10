@@ -217,6 +217,11 @@ last_updated: "2026-04-08"
 | packages/cli/src/commands/final-writes.ts | Fixed: added_at uses full ISO datetime, not date-only string |
 | packages/cli/src/commands/export.ts | export command — --to claude (SESSION_STATE → CLAUDE.md section) and --to cursor (FILE_INDEX → .cursor/rules/dev-session.mdc) |
 | packages/cli/src/__tests__/export.test.ts | export command tests (19 tests) |
+| README.md | Full project README — problem, how it works, quick start, commands, adapters, team mode, security, contributing |
+| docs/getting-started.md | Installation, .session/ structure, first session walkthrough, advance, --yes mode |
+| docs/commands.md | Full command reference for all 10 commands + global flags |
+| docs/adapters.md | Claude Code / opencode / Cursor — detection, NEXT_PROMPT format, setup, export |
+| docs/team-mode.md | Shared vs personal files, gitignore/gitattributes, team workflow, monorepo teams |
 
 ## Chunk 8 — Team mode & enterprise features
 
