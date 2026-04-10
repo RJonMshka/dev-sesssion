@@ -215,6 +215,8 @@ last_updated: "2026-04-08"
 | .github/workflows/ci.yml | Updated: build step moved before test step |
 | packages/core/src/parsers/plan-parser.ts | Fixed: toMarkdown() now writes YAML frontmatter (required by PlanChunkManager) |
 | packages/cli/src/commands/final-writes.ts | Fixed: added_at uses full ISO datetime, not date-only string |
+| packages/cli/src/commands/export.ts | export command — --to claude (SESSION_STATE → CLAUDE.md section) and --to cursor (FILE_INDEX → .cursor/rules/dev-session.mdc) |
+| packages/cli/src/__tests__/export.test.ts | export command tests (19 tests) |
 
 ## Chunk 8 — Team mode & enterprise features
 

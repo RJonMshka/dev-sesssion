@@ -10,6 +10,7 @@
 
 import { Command } from "commander";
 import { registerAdvanceCommand } from "./commands/advance.js";
+import { registerExportCommand } from "./commands/export.js";
 import { registerHealthCommand } from "./commands/health.js";
 import { registerImportCommand } from "./commands/import.js";
 import { registerIndexCommand } from "./commands/index-cmd.js";
@@ -54,6 +55,7 @@ export function createProgram(): Command {
 	registerIndexCommand(program);
 	registerHealthCommand(program);
 	registerImportCommand(program);
+	registerExportCommand(program);
 
 	return program;
 }
