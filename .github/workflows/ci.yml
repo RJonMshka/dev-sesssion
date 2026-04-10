@@ -43,11 +43,11 @@ jobs:
         run: npm audit --omit=dev
         continue-on-error: true
 
-      - name: Test
-        run: pnpm test
-
       - name: Build
         run: pnpm build
+
+      - name: Test
+        run: pnpm test
 
       - name: Publint
         run: pnpm publint

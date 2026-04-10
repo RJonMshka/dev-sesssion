@@ -228,19 +228,20 @@ export async function runFinalWrites(
  */
 function buildInitialState(activeChunk: PlanChunk): SessionState {
 	const sessionId = generateSessionId();
-	const now = new Date().toISOString().slice(0, 10);
+	const nowDate = new Date().toISOString().slice(0, 10);
+	const nowIso = new Date().toISOString();
 
 	return {
 		active_chunk: activeChunk.chunk_id,
 		session_id: sessionId,
-		last_updated: now,
+		last_updated: nowDate,
 		tasks: activeChunk.tasks.map((t) => ({
 			text: t.text,
 			status: t.status,
-			added_at: now,
+			added_at: nowIso,
 		})),
 		last_worked_files: [],
-		notes: [`Session initialized on ${now}`],
+		notes: [`Session initialized on ${nowDate}`],
 		completed_chunks: {},
 	};
 }

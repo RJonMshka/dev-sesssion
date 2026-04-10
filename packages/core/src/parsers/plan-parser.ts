@@ -322,14 +322,45 @@ export const PlanParser = {
 	},
 
 	/**
-	 * Serialize a {@link PlanChunk} back to markdown format.
+	 * Serialize a {@link PlanChunk} to a PLAN_N.md file format.
+	 *
+	 * Writes YAML frontmatter (required by {@link PlanChunkManager}) followed
+	 * by a human-readable markdown body. The `---` delimiters are read back
+	 * by `FrontmatterParser`; the body is for human reference only.
 	 *
 	 * @param chunk - The plan chunk to serialize.
-	 * @returns A markdown string representing the chunk.
+	 * @returns A markdown string with frontmatter representing the chunk.
 	 */
 	toMarkdown(chunk: PlanChunk): string {
 		const lines: string[] = [];
 
+		// --- YAML frontmatter (required by PlanChunkManager / FrontmatterParser) ---
+		lines.push("---");
+		lines.push(`chunk_id: ${chunk.chunk_id}`);
+		lines.push(`title: ${JSON.stringify(chunk.title)}`);
+		lines.push(`depends_on: [${chunk.depends_on.join(", ")}]`);
+		if (chunk.est_sessions !== undefined) {
+			lines.push(`est_sessions: ${chunk.est_sessions}`);
+		}
+		if (chunk.tasks.length > 0) {
+			lines.push("tasks:");
+			for (const task of chunk.tasks) {
+				lines.push(`  - text: ${JSON.stringify(task.text)}`);
+				lines.push(`    status: ${task.status}`);
+				if (task.added_at !== undefined) {
+					lines.push(`    added_at: ${JSON.stringify(task.added_at)}`);
+				}
+				if (task.completed_at !== undefined) {
+					lines.push(`    completed_at: ${JSON.stringify(task.completed_at)}`);
+				}
+			}
+		} else {
+			lines.push("tasks: []");
+		}
+		lines.push("---");
+		lines.push("");
+
+		// --- Human-readable body ---
 		lines.push(`## Chunk ${chunk.chunk_id} — ${chunk.title}`);
 		lines.push("");
 

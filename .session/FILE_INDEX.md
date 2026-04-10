@@ -207,6 +207,14 @@ last_updated: "2026-04-08"
 | packages/cli/package.json | Updated: private removed, @dev-session/* moved to devDeps |
 | packages/cli/tsup.config.ts | Updated: noExternal bundles @dev-session/* workspace deps into CLI dist |
 | packages/adapters/package.json | Fixed: duplicate license key removed |
+| tests/e2e/cli.e2e.test.ts | E2E tests — 15 subprocess tests via execa (init, status, health, prompt, index) |
+| tests/helpers/run-cli.ts | execa wrapper — strips ANSI, reject:false, uses cli-runner.cjs |
+| tests/helpers/cli-runner.cjs | CJS wrapper calling run() directly (not named dev-session.* to avoid double-run) |
+| tests/setup/e2e-global-setup.ts | Vitest globalSetup — builds CLI if dist missing before E2E |
+| vitest.config.ts | Updated: globalSetup added to e2e project config |
+| .github/workflows/ci.yml | Updated: build step moved before test step |
+| packages/core/src/parsers/plan-parser.ts | Fixed: toMarkdown() now writes YAML frontmatter (required by PlanChunkManager) |
+| packages/cli/src/commands/final-writes.ts | Fixed: added_at uses full ISO datetime, not date-only string |
 
 ## Chunk 8 — Team mode & enterprise features
 
