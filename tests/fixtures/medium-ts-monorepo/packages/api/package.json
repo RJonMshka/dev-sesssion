@@ -1,0 +1,13 @@
+{
+	"name": "@fixture/api",
+	"version": "1.0.0",
+	"type": "module",
+	"scripts": {
+		"start": "node dist/app.js"
+	},
+	"dependencies": {
+		"@fixture/config": "workspace:*",
+		"@fixture/shared": "workspace:*",
+		"express": "^4.18.0"
+	}
+}

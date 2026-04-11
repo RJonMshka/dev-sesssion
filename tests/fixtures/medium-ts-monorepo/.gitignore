@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+*.log
+coverage/
+
+# dev-session (ephemeral session state)
+.session/SESSION_STATE.md
+.session/NEXT_PROMPT.md
+.session/DONE_LOG.md

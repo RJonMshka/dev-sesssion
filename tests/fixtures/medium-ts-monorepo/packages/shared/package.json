@@ -1,0 +1,12 @@
+{
+	"name": "@fixture/shared",
+	"version": "1.0.0",
+	"type": "module",
+	"main": "./dist/index.cjs",
+	"exports": {
+		".": "./dist/index.js"
+	},
+	"dependencies": {
+		"zod": "^3.22.0"
+	}
+}
