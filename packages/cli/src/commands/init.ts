@@ -12,7 +12,17 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { cancel, confirm, intro, isCancel, log, note, outro, select, spinner } from "@clack/prompts";
+import {
+	cancel,
+	confirm,
+	intro,
+	isCancel,
+	log,
+	note,
+	outro,
+	select,
+	spinner,
+} from "@clack/prompts";
 import type { PlanChunk } from "@dev-session/core";
 import { ProjectDetector } from "@dev-session/core";
 import type { ValidatedPath } from "@dev-session/security";

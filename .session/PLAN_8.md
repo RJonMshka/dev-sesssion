@@ -1,3 +1,40 @@
+---
+chunk_id: 8
+title: "Team mode & enterprise features"
+depends_on: []
+tasks:
+  - text: "`dev-session init --team` — prompts for team vs personal mode"
+    status: todo
+  - text: "Generates `.gitignore` patch: adds `SESSION_STATE.md`, `NEXT_PROMPT.md`, `DONE_LOG.md`"
+    status: todo
+  - text: "Generates `.gitattributes` entry: mark `FILE_INDEX.md` as merge=ours to reduce conflicts"
+    status: todo
+  - text: "`dev-session migrate` — handles monorepos: auto-detect `pnpm-workspace.yaml` / `nx.json` / `turborepo`"
+    status: todo
+  - text: "`dev-session import --from claude` — parse existing `CLAUDE.md` content into chunk notes"
+    status: todo
+  - text: "`dev-session import --from cursor` — parse `.cursor/rules/*.mdc` frontmatter into FILE_INDEX tags"
+    status: todo
+  - text: "`dev-session health` — full audit command:"
+    status: todo
+  - text: "`dev-session health --fix` — auto-remediate where safe (remove stale index entries)"
+    status: todo
+  - text: "FILE_INDEX pagination for repos with 500+ files — split into `FILE_INDEX_1.md`, `FILE_INDEX_2.md`"
+    status: todo
+  - text: "`--max-files` flag on `init` to limit initial index size"
+    status: todo
+  - text: "Token budget display: show estimated context window cost for current chunk's files"
+    status: todo
+  - text: "Integration: team mode `.gitignore` patch is idempotent"
+    status: todo
+  - text: "Integration: monorepo detection for pnpm, nx, turborepo workspace files"
+    status: todo
+  - text: "E2e: `dev-session import --from claude` on fixture `CLAUDE.md`"
+    status: todo
+  - text: "E2e: `dev-session health` on intentionally degraded `.session/`"
+    status: todo
+---
+
 ## Chunk 8 — Team mode & enterprise features
 
 ### Tasks

@@ -78,6 +78,9 @@ export async function runHealth(options: HealthOptions): Promise<void> {
 	if (options.json) {
 		const jsonOutput = buildJsonOutput(report);
 		process.stdout.write(`${JSON.stringify(jsonOutput, null, 2)}\n`);
+		if (!report.healthy) {
+			process.exitCode = 1;
+		}
 		return;
 	}
 
