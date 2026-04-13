@@ -58,12 +58,17 @@ export {
 } from "./formatters/formatter-utils.js";
 // Bootstrap formatters
 export { PlainTextFormatter } from "./formatters/plain-text-formatter.js";
+export type { LintResult } from "./linters/context-linter.js";
+// Linters
+export { ContextLinter } from "./linters/context-linter.js";
 export { FILE_INDEX_PAGE_SIZE, FileIndexManager } from "./managers/file-index-manager.js";
 export { NextPromptWriter } from "./managers/next-prompt-writer.js";
 export { PlanChunkManager } from "./managers/plan-chunk-manager.js";
 export { RoutinesWriter } from "./managers/routines-writer.js";
 // Managers
 export { SessionStateManager } from "./managers/session-state-manager.js";
+// Trim overrides
+export { TrimOverridesManager } from "./managers/trim-overrides-manager.js";
 // Parsers
 export { PlanParser } from "./parsers/plan-parser.js";
 export type {
@@ -108,6 +113,7 @@ export {
 	TaskStatus,
 	TaskStatusSchema,
 } from "./schemas/index.js";
-
+export type { TrimOverrideEntry, TrimOverrides } from "./schemas/trim-overrides.js";
+export { TRIM_OVERRIDES_FILENAME, TrimOverridesSchema } from "./schemas/trim-overrides.js";
 // Walkers
 export { GitignoreAwareWalker } from "./walkers/gitignore-aware-walker.js";

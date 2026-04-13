@@ -217,3 +217,177 @@ dev-session migrate [--yes]
 Detects the workspace layout (pnpm, npm, Yarn, Nx, Turborepo) and lists all packages. In interactive mode, lets you select which packages to initialize. With `--yes`, initializes all packages.
 
 Each package gets its own `.session/` directory. The monorepo root is not initialized.
+
+---
+
+## dev-session preview
+
+Show the assembled bootstrap context that will be sent to the AI — including a token breakdown table and the full prompt text.
+
+```bash
+dev-session preview [--format json] [--no-content] [--copy]
+```
+
+**Options:**
+
+| Flag | Description |
+|---|---|
+| `--format json` | Output structured JSON instead of the human-readable table |
+| `--no-content` | Print only the token breakdown; suppress the assembled prompt text |
+| `--copy` | Copy the full assembled prompt to clipboard |
+
+**What it shows:**
+
+- Token counts per component: `SESSION_STATE`, `PLAN_CHUNK`, always-include files, context files
+- Whether the total is over the configured budget cap
+- The full assembled prompt text (unless `--no-content`)
+- A warning when token counts are heuristic (not exact)
+
+**JSON output shape:**
+
+```json
+{
+  "total_tokens": 4210,
+  "budget_cap": 8000,
+  "over_budget": false,
+  "accurate": false,
+  "heuristic_warning": "Token counts are heuristic (~4 bytes/token). Use an external counter for accuracy.",
+  "components": {
+    "session_state": { "tokens": 320, "file": ".session/SESSION_STATE.md" },
+    "plan_chunk": { "tokens": 180, "file": ".session/PLAN_01.md" },
+    "always_include": { "tokens": 950, "files": [...] },
+    "context_files": { "tokens": 2760, "files": [...] },
+    "excluded_files": ["src/legacy/old-api.ts"]
+  },
+  "prompt_text": "..."
+}
+```
+
+Exits non-zero if no `.session/` directory exists.
+
+---
+
+## dev-session trim
+
+Reduce the context footprint by excluding files from the bootstrap prompt.
+
+```bash
+dev-session trim [--budget <n>] [--dry-run] [--yes]
+```
+
+**Options:**
+
+| Flag | Description |
+|---|---|
+| `--budget <n>` | Target token budget; auto-select files to exclude until total is under `n` |
+| `--dry-run` | Show what would be excluded without writing anything (global flag) |
+| `--yes` | Skip confirmation prompts; apply exclusions immediately |
+
+**Modes:**
+
+- **Budget mode** (`--budget N`): Automatically selects the largest files to exclude until the total token count is under `N`. Shows which files would be (or are) excluded.
+- **Interactive mode** (no `--budget`): Presents a multi-select list of all context files so you can choose which to exclude manually.
+
+Exclusions are saved to `.session/trim-overrides.json`. They are applied to every subsequent `preview` and context assembly until cleared.
+
+Run `dev-session advance` to clear all trim overrides and start fresh for the next chunk.
+
+Exits non-zero if `--budget` is not a valid number or if no `.session/` directory exists.
+
+---
+
+## dev-session lint-context
+
+Run static analysis on context files to catch common issues before they degrade AI responses.
+
+```bash
+dev-session lint-context [--json]
+```
+
+**Options:**
+
+| Flag | Description |
+|---|---|
+| `--json` | Output structured JSON (useful for CI) |
+
+**Checks performed:**
+
+| Check | Severity |
+|---|---|
+| Duplicate content blocks across files (normalized 3-line windows) | warning |
+| Soft / hedging language ("maybe", "possibly", "consider", "might", "could") | info |
+| Dead `@mention` references (paths that no longer exist) | error |
+
+Exits **0** when there are no error-severity findings. Exits **1** if any `error` findings are present (e.g. dead `@mention` references).
+
+Does **not** require `ANTHROPIC_API_KEY` — all analysis is done locally.
+
+**JSON output shape:**
+
+```json
+{
+  "passed": false,
+  "summary": { "errors": 1, "warnings": 0, "infos": 2, "total": 3 },
+  "findings": [
+    {
+      "severity": "error",
+      "file": "docs/architecture.md",
+      "line": 14,
+      "message": "Dead @mention reference: src/old-module.ts does not exist"
+    }
+  ]
+}
+```
+
+---
+
+## dev-session compact
+
+Use an AI model to compress a context file, reducing its token count while preserving meaning.
+
+```bash
+dev-session compact <file> [--model <id>] [--dry-run] [--yes]
+```
+
+**Arguments:**
+
+| Argument | Description |
+|---|---|
+| `<file>` | Path to the file to compact (relative to project root) |
+
+**Options:**
+
+| Flag | Description |
+|---|---|
+| `--model <id>` | Model to use (default: `claude-haiku-4-5-20251001`) |
+| `--dry-run` | Print compacted content to stdout without writing (global flag) |
+| `--yes` | Skip confirmation prompt |
+
+**Requires** `ANTHROPIC_API_KEY` environment variable.
+
+**What it does:**
+
+1. Reads the target file and counts its tokens
+2. Calls the Haiku model with a compaction system prompt
+3. Shows before/after token and line counts
+4. Prompts for confirmation (unless `--yes` or `--dry-run`)
+5. Creates a timestamped backup at `.session/backups/<filename>.<timestamp>`
+6. Writes the compacted content atomically
+7. Updates `token_cost` in `FILE_INDEX.md` for the file
+
+**Example:**
+
+```bash
+# See what the compacted version would look like (no writes)
+dev-session compact docs/architecture.md --dry-run
+
+# Compact with a specific model, skip confirmation
+dev-session compact .session/SESSION_STATE.md --yes
+
+# Use a different model
+dev-session compact CLAUDE.md --model claude-haiku-4-5-20251001
+```
+
+Backups are never auto-deleted. Run `dev-session advance` or remove `.session/backups/` manually to clean them up.
+
+Exits non-zero if `ANTHROPIC_API_KEY` is unset, the file does not exist, or the API call fails.

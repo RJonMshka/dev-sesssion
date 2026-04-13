@@ -10,14 +10,18 @@
 
 import { Command } from "commander";
 import { registerAdvanceCommand } from "./commands/advance.js";
+import { registerCompactCommand } from "./commands/compact.js";
 import { registerExportCommand } from "./commands/export.js";
 import { registerHealthCommand } from "./commands/health.js";
 import { registerImportCommand } from "./commands/import.js";
 import { registerIndexCommand } from "./commands/index-cmd.js";
 import { registerInitCommand } from "./commands/init.js";
+import { registerLintContextCommand } from "./commands/lint-context.js";
 import { registerMigrateCommand } from "./commands/migrate.js";
+import { registerPreviewCommand } from "./commands/preview.js";
 import { registerPromptCommand } from "./commands/prompt.js";
 import { registerStatusCommand } from "./commands/status.js";
+import { registerTrimCommand } from "./commands/trim.js";
 import { registerUpdateCommand } from "./commands/update.js";
 import { handleError } from "./utils/error-handler.js";
 import { installSignalHandlers } from "./utils/signal-handler.js";
@@ -56,6 +60,10 @@ export function createProgram(): Command {
 	registerHealthCommand(program);
 	registerImportCommand(program);
 	registerExportCommand(program);
+	registerPreviewCommand(program);
+	registerTrimCommand(program);
+	registerLintContextCommand(program);
+	registerCompactCommand(program);
 
 	return program;
 }

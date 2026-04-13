@@ -242,3 +242,23 @@ last_updated: "2026-04-08"
 | packages/cli/src/commands/final-writes.ts | Updated: teamMode option, patchGitattributes, auto-gitignore in team mode |
 | packages/cli/src/__tests__/final-writes.test.ts | Updated: +6 team mode tests (gitattributes patch, idempotency, dry-run) |
 | packages/cli/src/cli.ts | Updated: registerMigrateCommand, registerHealthCommand, registerImportCommand registered |
+
+## Chunk 11 — Context Intelligence
+
+| File | Purpose |
+|---|---|
+| packages/core/src/linters/context-linter.ts | ContextLinter — detectDuplicates, detectSoftLanguage, detectDeadReferences; LintResult type |
+| packages/core/src/schemas/trim-overrides.ts | TrimOverrides schema + TrimOverrideEntry type for .session/trim-overrides.json |
+| packages/core/src/managers/trim-overrides-manager.ts | TrimOverridesManager — load/save/clear/addExclusion/removeExclusion/isExcluded |
+| packages/cli/src/commands/preview.ts | preview command — token breakdown table + assembled prompt; --format json, --copy, --no-content |
+| packages/cli/src/commands/trim.ts | trim command — interactive/auto file exclusion; --budget <N>; writes trim-overrides.json |
+| packages/cli/src/commands/lint-context.ts | lint-context command — ContextLinter static analysis, exits 1 on errors, no API key |
+| packages/cli/src/commands/compact.ts | compact <file> command — AI compaction via Haiku, backup to .session/backups/, updates token_cost |
+| packages/cli/src/commands/advance.ts | Updated: clears trim-overrides.json on advance |
+| packages/cli/src/cli.ts | Updated: registers preview, trim, lint-context, compact commands |
+| packages/cli/package.json | Updated: added @anthropic-ai/sdk + clipboardy dependencies |
+| packages/core/src/__tests__/context-linter.test.ts | ContextLinter unit tests (33 tests) |
+| packages/core/src/__tests__/trim-overrides-manager.test.ts | TrimOverridesManager unit tests (17 tests) |
+| packages/cli/src/__tests__/preview.test.ts | renderBreakdownTable unit tests (9 tests) |
+| packages/cli/src/__tests__/trim.test.ts | autoSelectExclusions unit tests (6 tests) |
+| tests/e2e/context-intelligence.e2e.test.ts | E2E tests for preview, trim, lint-context, compact (19 tests) |

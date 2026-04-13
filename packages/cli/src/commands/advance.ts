@@ -23,6 +23,7 @@ import {
 	PlanChunkManager,
 	SessionStateManager,
 	TaskStatus,
+	TrimOverridesManager,
 } from "@dev-session/core";
 import { CliError, PathValidator, type ValidatedPath } from "@dev-session/security";
 import type { Command } from "commander";
@@ -195,7 +196,16 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 	NextPromptWriter.write(sessionDir, promptContent);
 
 	// -----------------------------------------------------------------------
-	// Step 7: Display result
+	// Step 7: Clear trim overrides (session-scoped, reset on advance)
+	// -----------------------------------------------------------------------
+	TrimOverridesManager.clear(sessionDir);
+
+	if (options.verbose) {
+		log.info("Cleared trim overrides for new chunk.");
+	}
+
+	// -----------------------------------------------------------------------
+	// Step 8: Display result
 	// -----------------------------------------------------------------------
 	const tasksRemaining = newChunk.tasks.filter((t) => t.status !== TaskStatus.DONE).length;
 
