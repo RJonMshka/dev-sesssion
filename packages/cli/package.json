@@ -1,10 +1,10 @@
 {
-	"name": "dev-session",
+	"name": "dev-sesssion",
 	"version": "1.0.0",
 	"license": "MIT",
 	"type": "module",
 	"bin": {
-		"dev-session": "./dist/index.cjs"
+		"dev-session": "dist/index.cjs"
 	},
 	"exports": {
 		".": {

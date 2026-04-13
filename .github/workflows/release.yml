@@ -1,8 +1,10 @@
 name: Release
 
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
     branches: [main]
+    types: [completed]
 
 permissions:
   contents: write
@@ -14,8 +16,7 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
-    # Only run if the CI workflow has passed for this commit
-    needs: []
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     steps:
       - name: Checkout
@@ -41,6 +42,6 @@ jobs:
 
       - name: Release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npx semantic-release
