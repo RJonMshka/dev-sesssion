@@ -65,6 +65,7 @@ export { FILE_INDEX_PAGE_SIZE, FileIndexManager } from "./managers/file-index-ma
 export { NextPromptWriter } from "./managers/next-prompt-writer.js";
 export { PlanChunkManager } from "./managers/plan-chunk-manager.js";
 export { RoutinesWriter } from "./managers/routines-writer.js";
+export { SessionMemoryManager } from "./managers/session-memory-manager.js";
 // Managers
 export { SessionStateManager } from "./managers/session-state-manager.js";
 // Trim overrides
@@ -78,6 +79,9 @@ export type {
 	ContextBudget,
 	ContextBudgetBreakdown,
 	ContextBudgetSummary,
+	ContextLog,
+	ContextLogEntry,
+	ContextLogStats,
 	DetectedToolValue,
 	DirectoryGroup,
 	ExternalTokenCounter,
@@ -87,6 +91,7 @@ export type {
 	ProjectInfo,
 	ProjectTypeValue,
 	SessionState,
+	StalenessReport,
 	Task,
 	TaskStatusValue,
 	TokenBudget,
@@ -99,7 +104,10 @@ export type {
 // Schemas and types
 export {
 	AdapterConfigSchema,
+	CONTEXT_LOG_FILENAME,
 	ContextBudgetSummarySchema,
+	ContextLogEntrySchema,
+	ContextLogSchema,
 	DEFAULT_CONTEXT_BUDGET,
 	DetectedTool,
 	FileIndexEntrySchema,

@@ -1,65 +1,32 @@
 ---
 chunk_id: 11
-title: "Session memory & analytics"
+title: "Context Intelligence: preview, trim, lint & compact"
 depends_on: []
 tasks:
-  - text: "`ContextLogEntry` type:"
-    status: todo
-  - text: "`CONTEXT_LOG.md` stored in `.session/` — append-only YAML frontmatter list; always gitignored"
-    status: todo
-  - text: "`SessionMemoryManager` in `packages/core`:"
-    status: todo
-  - text: "Integrate into session lifecycle: `dev-session update` and `dev-session advance` both append to `CONTEXT_LOG.md`"
-    status: todo
-  - text: "`StalenessReport` type: `{ path: string; sessionCount: number; lastModified: string | null; suggestion: 'remove-from-always-include' | 'remove-from-index' | 'investigate' }`"
-    status: todo
-  - text: "`dev-session memory show` — formatted session history (most recent N entries, configurable)"
-    status: todo
-  - text: "`dev-session memory stats` — aggregate stats: avg tokens/session, top 5 most-loaded files, total sessions, date range"
-    status: todo
-  - text: "`dev-session memory stale` — runs `analyzeStaleness()` + `detectPassiveLoads()`, outputs actionable report"
-    status: todo
-  - text: "`dev-session memory prune --older-than <duration>` — removes log entries older than duration (e.g., `30d`, `3mo`)"
-    status: todo
-  - text: "`dev-session status` — add \"Session memory\" section:"
-    status: todo
-  - text: "`dev-session health` — add staleness check:"
-    status: todo
-  - text: "Unit: `SessionMemoryManager.append()` is idempotent on repeated calls with same `sessionId`"
-    status: todo
-  - text: "Unit: `analyzeStaleness()` correctly identifies files not modified across N sessions"
-    status: todo
-  - text: "Unit: `detectPassiveLoads()` returns files in always-include with zero logged modifications"
-    status: todo
-  - text: "Unit: `summarizeStats()` returns correct averages on fixture log data"
-    status: todo
-  - text: "Integration: `dev-session update` appends entry to `CONTEXT_LOG.md`"
-    status: todo
-  - text: "E2e: `dev-session memory stats` on a fixture log file"
-    status: todo
-  - text: "E2e: `dev-session memory stale --threshold 2` flags correct files in fixture"
-    status: todo
+  - text: "`dev-session preview` command — assemble bootstrap context, token breakdown table, full prompt text; --format json, --copy, --no-content flags"
+    status: done
+  - text: "`dev-session trim` command — interactive/auto file exclusion; --budget <N>, --dry-run; writes .session/trim-overrides.json; cleared on advance"
+    status: done
+  - text: "`NextPromptWriter.generateWithFormatter()` respects trim overrides"
+    status: done
+  - text: "`ContextLinter` class in packages/core — detectDuplicates, detectSoftLanguage, detectDeadReferences; LintResult type"
+    status: done
+  - text: "`dev-session lint-context` command — static analysis, exits 1 on errors, no API key required"
+    status: done
+  - text: "`dev-session compact <file>` command — AI compaction via Haiku, backup to .session/backups/, updates FileIndexEntry.token_cost; requires ANTHROPIC_API_KEY"
+    status: done
+  - text: "Tests: unit (ContextLinter methods, trim overrides in NextPromptWriter), E2E (preview --format json, trim --dry-run, lint-context exit 1, compact --dry-run, compact backup)"
+    status: done
 ---
 
-## Chunk 11 — Session memory & analytics
+## Chunk 11 — Context Intelligence: preview, trim, lint & compact
 
 ### Tasks
 
-- [ ] `ContextLogEntry` type:
-- [ ] `CONTEXT_LOG.md` stored in `.session/` — append-only YAML frontmatter list; always gitignored
-- [ ] `SessionMemoryManager` in `packages/core`:
-- [ ] Integrate into session lifecycle: `dev-session update` and `dev-session advance` both append to `CONTEXT_LOG.md`
-- [ ] `StalenessReport` type: `{ path: string; sessionCount: number; lastModified: string | null; suggestion: 'remove-from-always-include' | 'remove-from-index' | 'investigate' }`
-- [ ] `dev-session memory show` — formatted session history (most recent N entries, configurable)
-- [ ] `dev-session memory stats` — aggregate stats: avg tokens/session, top 5 most-loaded files, total sessions, date range
-- [ ] `dev-session memory stale` — runs `analyzeStaleness()` + `detectPassiveLoads()`, outputs actionable report
-- [ ] `dev-session memory prune --older-than <duration>` — removes log entries older than duration (e.g., `30d`, `3mo`)
-- [ ] `dev-session status` — add "Session memory" section:
-- [ ] `dev-session health` — add staleness check:
-- [ ] Unit: `SessionMemoryManager.append()` is idempotent on repeated calls with same `sessionId`
-- [ ] Unit: `analyzeStaleness()` correctly identifies files not modified across N sessions
-- [ ] Unit: `detectPassiveLoads()` returns files in always-include with zero logged modifications
-- [ ] Unit: `summarizeStats()` returns correct averages on fixture log data
-- [ ] Integration: `dev-session update` appends entry to `CONTEXT_LOG.md`
-- [ ] E2e: `dev-session memory stats` on a fixture log file
-- [ ] E2e: `dev-session memory stale --threshold 2` flags correct files in fixture
+- [x] `dev-session preview` command — assemble bootstrap context, token breakdown table, full prompt text; --format json, --copy, --no-content flags
+- [x] `dev-session trim` command — interactive/auto file exclusion; --budget <N>, --dry-run; writes .session/trim-overrides.json; cleared on advance
+- [x] `NextPromptWriter.generateWithFormatter()` respects trim overrides
+- [x] `ContextLinter` class in packages/core — detectDuplicates, detectSoftLanguage, detectDeadReferences; LintResult type
+- [x] `dev-session lint-context` command — static analysis, exits 1 on errors, no API key required
+- [x] `dev-session compact <file>` command — AI compaction via Haiku, backup to .session/backups/, updates FileIndexEntry.token_cost; requires ANTHROPIC_API_KEY
+- [x] Tests: unit (ContextLinter methods, trim overrides in NextPromptWriter), E2E (preview --format json, trim --dry-run, lint-context exit 1, compact --dry-run, compact backup)

@@ -17,6 +17,7 @@ import { registerImportCommand } from "./commands/import.js";
 import { registerIndexCommand } from "./commands/index-cmd.js";
 import { registerInitCommand } from "./commands/init.js";
 import { registerLintContextCommand } from "./commands/lint-context.js";
+import { registerMemoryCommand } from "./commands/memory.js";
 import { registerMigrateCommand } from "./commands/migrate.js";
 import { registerPreviewCommand } from "./commands/preview.js";
 import { registerPromptCommand } from "./commands/prompt.js";
@@ -64,6 +65,7 @@ export function createProgram(): Command {
 	registerTrimCommand(program);
 	registerLintContextCommand(program);
 	registerCompactCommand(program);
+	registerMemoryCommand(program);
 
 	return program;
 }

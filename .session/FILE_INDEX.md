@@ -262,3 +262,18 @@ last_updated: "2026-04-08"
 | packages/cli/src/__tests__/preview.test.ts | renderBreakdownTable unit tests (9 tests) |
 | packages/cli/src/__tests__/trim.test.ts | autoSelectExclusions unit tests (6 tests) |
 | tests/e2e/context-intelligence.e2e.test.ts | E2E tests for preview, trim, lint-context, compact (19 tests) |
+
+## Chunk 12 — Session memory & analytics
+
+| File | Purpose |
+|---|---|
+| packages/core/src/schemas/context-log.ts | ContextLogEntry schema + ContextLog + ContextLogStats + StalenessReport types |
+| packages/core/src/managers/session-memory-manager.ts | SessionMemoryManager — append/load/summarizeStats/analyzeStaleness/detectPassiveLoads/prune/parseDuration |
+| packages/cli/src/commands/memory.ts | memory subcommand group — show/stats/stale/prune |
+| packages/cli/src/commands/update.ts | Updated: appends ContextLogEntry to CONTEXT_LOG.md after each update |
+| packages/cli/src/commands/advance.ts | Updated: appends ContextLogEntry to CONTEXT_LOG.md on advance |
+| packages/cli/src/commands/status.ts | Updated: added "Session memory" section to output |
+| packages/cli/src/commands/health.ts | Updated: added staleness check from session memory |
+| packages/cli/src/cli.ts | Updated: registers memory command group |
+| packages/core/src/__tests__/session-memory-manager.test.ts | SessionMemoryManager unit tests (31 tests) |
+| tests/e2e/memory.e2e.test.ts | E2E tests for memory show/stats/stale/prune (12 tests) |

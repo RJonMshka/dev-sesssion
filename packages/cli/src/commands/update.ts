@@ -19,10 +19,12 @@ import { cancel, isCancel, log, multiselect, text } from "@clack/prompts";
 import {
 	type BootstrapContext,
 	ContextBudgetCalculator,
+	type ContextLogEntry,
 	FileIndexManager,
 	NextPromptWriter,
 	type PlanChunk,
 	PlanChunkManager,
+	SessionMemoryManager,
 	SessionStateManager,
 	type Task,
 	TaskStatus,
@@ -215,6 +217,19 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 	if (!options.yes) {
 		log.success("Session updated and NEXT_PROMPT.md regenerated.");
 	}
+
+	// -----------------------------------------------------------------------
+	// Step 8: Append context log entry
+	// -----------------------------------------------------------------------
+	const logEntry: ContextLogEntry = {
+		session_id: state.session_id,
+		timestamp: new Date().toISOString(),
+		active_chunk: state.active_chunk,
+		files_loaded: [...alwaysInclude.map((e) => e.filepath), ...chunkFiles.map((e) => e.filepath)],
+		total_tokens: budget.totalTokens,
+		modifications: [...state.last_worked_files],
+	};
+	SessionMemoryManager.append(sessionDir, logEntry);
 
 	return {
 		tasksUpdated,

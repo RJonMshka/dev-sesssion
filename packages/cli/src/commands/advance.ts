@@ -17,10 +17,12 @@ import { cancel, confirm, isCancel, log } from "@clack/prompts";
 import {
 	type BootstrapContext,
 	ContextBudgetCalculator,
+	type ContextLogEntry,
 	FileIndexManager,
 	NextPromptWriter,
 	type PlanChunk,
 	PlanChunkManager,
+	SessionMemoryManager,
 	SessionStateManager,
 	TaskStatus,
 	TrimOverridesManager,
@@ -203,6 +205,19 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 	if (options.verbose) {
 		log.info("Cleared trim overrides for new chunk.");
 	}
+
+	// -----------------------------------------------------------------------
+	// Step 7b: Append context log entry for the completed chunk
+	// -----------------------------------------------------------------------
+	const logEntry: ContextLogEntry = {
+		session_id: state.session_id,
+		timestamp: new Date().toISOString(),
+		active_chunk: newChunk.chunk_id,
+		files_loaded: [...alwaysInclude.map((e) => e.filepath), ...chunkFiles.map((e) => e.filepath)],
+		total_tokens: budget.totalTokens,
+		modifications: [...state.last_worked_files],
+	};
+	SessionMemoryManager.append(sessionDir, logEntry);
 
 	// -----------------------------------------------------------------------
 	// Step 8: Display result
