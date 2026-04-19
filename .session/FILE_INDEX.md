@@ -277,3 +277,106 @@ last_updated: "2026-04-08"
 | packages/cli/src/cli.ts | Updated: registers memory command group |
 | packages/core/src/__tests__/session-memory-manager.test.ts | SessionMemoryManager unit tests (31 tests) |
 | tests/e2e/memory.e2e.test.ts | E2E tests for memory show/stats/stale/prune (12 tests) |
+
+## Chunk 13A — Auto-extract ai-index (zero-config) [COMPLETE 2026-04-14]
+
+| File | Purpose |
+|---|---|
+| packages/core/src/annotation/types.ts | ParsedSymbol, ParsedFile, AiIndex, FileEntry, SymbolEntry, SymbolSurface types |
+| packages/core/src/annotation/yaml-utils.ts | Minimal YAML serializer/deserializer (no external dep, deterministic, sorted keys) |
+| packages/core/src/annotation/auto-extractor.ts | AutoExtractor — extractFile (AST via @typescript-eslint/typescript-estree), extractDirectory; extracts all exported symbols + existing JSDoc summaries |
+| packages/core/src/annotation/ai-index-builder.ts | AiIndexBuilder — build, merge (mtime-based), serialize (deterministic YAML, sorted keys), deserialize |
+| packages/core/src/annotation/ai-index-manager.ts | AiIndexManager — load, save (atomic + SecretScanner), queryByLayer, queryByTag, queryByChunk, renderLayer0/1/2, stats |
+| packages/core/src/annotation/index.ts | Annotation module barrel export |
+| packages/core/src/index.ts | Updated: exports AutoExtractor, AiIndexBuilder, AiIndexManager, AiIndex, FileEntry, SymbolEntry, ParsedFile, ParsedSymbol |
+| packages/cli/src/commands/index-cmd.ts | Updated: dev-session index — full regen, --update (mtime-based), --dry-run, --file, --show, stats subcommand |
+| packages/cli/src/commands/final-writes.ts | Updated: ai-index.yaml added to .gitignore (personal); team mode keeps it committed |
+| packages/core/src/formatters/bootstrap-formatter.ts | Updated: formatAiIndex(index, layer) added to BootstrapFormatter interface |
+| packages/core/src/formatters/plain-text-formatter.ts | Updated: formatAiIndex() — plain text layer 0/1/2 rendering |
+| packages/adapters/src/claude-bootstrap-formatter.ts | Updated: formatAiIndex() — prose instruction block + Layer 0/1 content |
+| packages/adapters/src/opencode-bootstrap-formatter.ts | Updated: formatAiIndex() — opencode style rendering |
+| packages/adapters/src/cursor-bootstrap-formatter.ts | Updated: formatAiIndex() — cursor style rendering |
+| packages/core/src/__tests__/auto-extractor.test.ts | AutoExtractor unit tests (all export kinds, existing JSDoc, parse error handling) — 14 tests |
+| packages/core/src/__tests__/ai-index-builder.test.ts | AiIndexBuilder unit tests (build, merge add/remove/modify, serialize determinism) — 20 tests |
+| packages/core/src/__tests__/ai-index-manager.test.ts | AiIndexManager unit tests (renderLayer0/1, queryByChunk, stats) — 12 tests |
+| tests/e2e/ai-index.e2e.test.ts | E2e: dev-session index on fixture, --update, --dry-run, stats, --show — 8 tests |
+| tests/fixtures/ts-project/ | Fixture TypeScript project with existing JSDoc for E2e tests |
+
+## Chunk 13B — @ai-* annotation refinement
+
+| File | Purpose |
+|---|---|
+| packages/core/src/annotation/annotation-parser.ts | AnnotationParser — parseFile extracts @ai-* tags via AST; mergeInto(ParsedFile, FileAnnotations): ParsedFile |
+| packages/core/src/annotation/auto-extractor.ts | Updated: calls AnnotationParser internally; callers get merged ParsedFile transparently |
+| packages/core/src/index.ts | Updated: exports AnnotationParser, FileAnnotations |
+| packages/core/src/__tests__/annotation-parser.test.ts | AnnotationParser tests (@ai-surface private, @ai-summary override, @ai-layer-hint, @ai-layer-default, unknown tag, adversarial YAML injection, malformed values) |
+| tests/e2e/ai-index.e2e.test.ts | Updated: mixed annotated+unannotated fixture; annotation coverage report |
+
+## Chunk 14 — MCP server (basic, v1-compatible)
+
+| File | Purpose |
+|---|---|
+| packages/mcp/package.json | MCP package manifest |
+| packages/mcp/tsconfig.json | MCP TypeScript config |
+| packages/mcp/tsup.config.ts | MCP build config |
+| packages/mcp/server.ts | MCP server entry point — stdio transport, --cwd flag, mcp.pid management, SIGINT cleanup |
+| packages/mcp/tools/session.ts | get_session_context tool — returns task list + NEXT_PROMPT content + budget summary |
+| packages/mcp/tools/tasks.ts | list_tasks, mark_task_done, mark_task_in_progress tools (session_token auth) |
+| packages/mcp/tools/index.ts | query_ai_index tool — symbol/file/@ai-tag lookup; 404-style error if no ai-index.yaml |
+| packages/mcp/tools/budget.ts | get_context_budget tool — breakdown by component |
+| packages/cli/src/commands/mcp.ts | mcp command group — start, config, ping subcommands |
+| packages/cli/src/cli.ts | Updated: registers mcp command |
+| packages/adapters/src/claude-bootstrap-formatter.ts | Updated: formatMcpBlock(mcpConfig) — CLAUDE.md MCP section |
+| packages/cli/src/commands/update.ts | Updated: auto-appends MCP block when mcp-token.txt exists |
+| packages/mcp/__tests__/tools.test.ts | MCP tool unit tests (session_token auth, path traversal, rate limiter, no-index 404) |
+| packages/mcp/__tests__/server.test.ts | MCP server integration tests (start, register tools, list-tools) |
+| tests/e2e/mcp.e2e.test.ts | E2e: mcp config valid JSON; mcp start writes pid, SIGINT cleanup |
+
+## Chunk 15 — Layered context loading
+
+| File | Purpose |
+|---|---|
+| packages/core/src/schemas/session-yaml.ts | SessionYaml type + SessionYamlSchema (Zod strict) — context_budget, active_adapter, files layer map, excludes[] (absorbs trim-overrides.json) |
+| packages/core/src/managers/layer-manager.ts | LayerManager — load, save, getLayer (declared→hint→2), promote, demote, setLayer, resolveContextContent |
+| packages/core/src/schemas/resolved-context.ts | ResolvedContext — files[], totalTokens, budgetUsed, overBudget |
+| packages/core/src/index.ts | Updated: exports LayerManager, SessionYaml, ResolvedContext |
+| packages/cli/src/commands/layers.ts | layers command — table display + layers init + layers inspect subcommands |
+| packages/cli/src/commands/expand.ts | expand command — promote layer, save session.yaml, print diff, regen NEXT_PROMPT.md |
+| packages/cli/src/commands/collapse.ts | collapse command — demote layer, save, print diff, regen NEXT_PROMPT.md |
+| packages/cli/src/commands/layer-set.ts | layer <path> --set <0|1|2> — explicit override |
+| packages/cli/src/commands/advance.ts | Updated: migrates trim-overrides.json → session.yaml excludes; resets layers to hints on advance |
+| packages/cli/src/commands/status.ts | Updated: layer-aware token breakdown |
+| packages/cli/src/cli.ts | Updated: registers layers, expand, collapse, layer commands |
+| packages/core/src/formatters/bootstrap-formatter.ts | Updated: formatLayeredContext(resolved) added to interface |
+| packages/adapters/src/claude-bootstrap-formatter.ts | Updated: formatLayeredContext() — Layer 0 inline, Layer 1 @path + note, Layer 2 plain @path |
+| packages/adapters/src/opencode-bootstrap-formatter.ts | Updated: formatLayeredContext() for opencode |
+| packages/core/src/managers/next-prompt-writer.ts | Updated: generateWithFormatter() accepts optional ResolvedContext |
+| packages/core/src/calculators/context-budget-calculator.ts | Updated: estimate() accepts optional ResolvedContext |
+| packages/mcp/tools/index.ts | Updated: get_file_at_layer tool added (layer 0/1 via AiIndexManager, layer 2 full read) |
+| packages/core/src/__tests__/layer-manager.test.ts | LayerManager unit tests (getLayer priority, promote/demote clamping, resolveContextContent, overBudget, trim-overrides migration) |
+| tests/e2e/layers.e2e.test.ts | E2e: expand updates session.yaml + NEXT_PROMPT; layers init with mixed hints; advance resets |
+
+## Chunk 16 — Adapters: Cursor + Windsurf
+
+| File | Purpose |
+|---|---|
+| packages/core/src/schemas/context-budget.ts | Updated: CONTEXT_BUDGET_DEFAULTS with cursor: 6_000, windsurf: 6_000 |
+| packages/adapters/src/cursor-adapter.ts | CursorAdapter — detect .cursor/, setup .mdc (YAML frontmatter), transformState, onSessionStart/End |
+| packages/adapters/src/cursor-bootstrap-formatter.ts | CursorBootstrapFormatter — @File syntax, formatLayeredContext (Layer 0 inline, Layer 1/2 @File), @Docs excludes |
+| packages/adapters/src/windsurf-adapter.ts | WindsurfAdapter — detect .windsurfrules, setup (append-only), onSessionEnd |
+| packages/adapters/src/windsurf-bootstrap-formatter.ts | WindsurfBootstrapFormatter — plain-text formatLayeredContext (no YAML frontmatter) |
+| packages/adapters/src/registry.ts | Updated: Cursor + Windsurf in detection order; dual-adapter CliError; no shared base class |
+| packages/adapters/src/index.ts | Updated: exports Cursor + Windsurf adapters |
+| packages/adapters/src/__tests__/cursor-adapter.test.ts | Cursor tests (.mdc valid frontmatter, formatLayeredContext @File syntax) |
+| packages/adapters/src/__tests__/windsurf-adapter.test.ts | Windsurf tests (plain-text formatLayeredContext) |
+| packages/adapters/src/__tests__/registry.test.ts | Updated: detection order determinism, dual-detect CliError |
+| tests/e2e/cursor-adapter.e2e.test.ts | E2e: init --adapter cursor; update regenerates .mdc |
+| tests/e2e/windsurf-adapter.e2e.test.ts | E2e: init --adapter windsurf |
+
+## Chunk 17 — BACKLOG: Cross-session intelligence (deferred)
+
+See `.session/PLAN_17.md` for rationale and original spec reference. Do not start until 13A–16 complete.
+
+## Chunk 18 — BACKLOG: Open ecosystem (deferred)
+
+See `.session/PLAN_18.md` for rationale and original spec reference. Do not start until v2 is battle-tested.

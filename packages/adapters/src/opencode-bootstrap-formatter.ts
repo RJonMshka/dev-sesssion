@@ -10,8 +10,14 @@
  * @packageDocumentation
  */
 
-import type { BootstrapContext, BootstrapFormatter, FileIndexEntry } from "@dev-session/core";
+import type {
+	AiIndex,
+	BootstrapContext,
+	BootstrapFormatter,
+	FileIndexEntry,
+} from "@dev-session/core";
 import {
+	AiIndexManager,
 	DEFAULT_MAX_NEXT_TASKS,
 	DEFAULT_MAX_NOTES,
 	DEFAULT_MAX_PROMPT_LINES,
@@ -139,5 +145,26 @@ export const OpencodeBootstrapFormatter: BootstrapFormatter = {
 		// Trim to max lines
 		const trimmed = trimToMaxLines(lines, DEFAULT_MAX_PROMPT_LINES);
 		return `${trimmed.join("\n")}\n`;
+	},
+
+	/**
+	 * Formats ai-index content for opencode bootstrap prompts.
+	 *
+	 * @param index - The ai-index.
+	 * @param layer - Context layer (0, 1, or 2).
+	 * @returns Formatted string for the opencode prompt.
+	 */
+	formatAiIndex(index: AiIndex, layer: 0 | 1 | 2): string {
+		const entries = Object.entries(index.files).sort(([a], [b]) => a.localeCompare(b));
+		if (entries.length === 0) return "";
+		if (layer === 2) {
+			return `Exclude: ${entries.map(([p]) => p).join(", ")}`;
+		}
+		const blocks = entries.map(([relPath, entry]) =>
+			layer === 0
+				? AiIndexManager.renderLayer0(relPath, entry)
+				: AiIndexManager.renderLayer1(relPath, entry),
+		);
+		return blocks.join("\n\n");
 	},
 } as const;

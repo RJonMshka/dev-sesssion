@@ -14,6 +14,8 @@
  * @packageDocumentation
  */
 
+import { AiIndexManager } from "../annotation/ai-index-manager.js";
+import type { AiIndex } from "../annotation/types.js";
 import type { FileIndexEntry } from "../schemas/index.js";
 import type { BootstrapContext, BootstrapFormatter } from "./bootstrap-formatter.js";
 import {
@@ -135,5 +137,29 @@ export const PlainTextFormatter: BootstrapFormatter = {
 		// Trim to max lines
 		const trimmed = trimToMaxLines(lines, DEFAULT_MAX_PROMPT_LINES);
 		return `${trimmed.join("\n")}\n`;
+	},
+
+	/**
+	 * Formats ai-index content at the specified layer as plain text.
+	 *
+	 * @param index - The ai-index.
+	 * @param layer - Context layer (0, 1, or 2).
+	 * @returns Formatted plain-text block.
+	 */
+	formatAiIndex(index: AiIndex, layer: 0 | 1 | 2): string {
+		const entries = Object.entries(index.files).sort(([a], [b]) => a.localeCompare(b));
+		if (entries.length === 0) return "";
+
+		if (layer === 2) {
+			// Layer 2: just list the files (full source not inlined in prompts)
+			return `Files (full source):\n${entries.map(([p]) => `  ${p}`).join("\n")}`;
+		}
+
+		const blocks = entries.map(([relPath, entry]) =>
+			layer === 0
+				? AiIndexManager.renderLayer0(relPath, entry)
+				: AiIndexManager.renderLayer1(relPath, entry),
+		);
+		return blocks.join("\n\n");
 	},
 } as const;

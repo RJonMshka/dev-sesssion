@@ -23,6 +23,21 @@ export type {
 	SessionLifecycleContext,
 	TransformStateContext,
 } from "./adapters/adapter.js";
+export type {
+	AiIndex,
+	FileEntry,
+	ParsedFile,
+	ParsedSymbol,
+	SymbolEntry,
+	SymbolSurface,
+} from "./annotation/index.js";
+// Annotation: ai-index auto-extraction (Chunk 13A)
+export {
+	AI_INDEX_FILENAME,
+	AiIndexBuilder,
+	AiIndexManager,
+	AutoExtractor,
+} from "./annotation/index.js";
 // Calculators
 export { ContextBudgetCalculator } from "./calculators/context-budget-calculator.js";
 export type {

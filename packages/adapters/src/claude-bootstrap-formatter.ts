@@ -12,8 +12,14 @@
  * @packageDocumentation
  */
 
-import type { BootstrapContext, BootstrapFormatter, FileIndexEntry } from "@dev-session/core";
+import type {
+	AiIndex,
+	BootstrapContext,
+	BootstrapFormatter,
+	FileIndexEntry,
+} from "@dev-session/core";
 import {
+	AiIndexManager,
 	DEFAULT_MAX_NEXT_TASKS,
 	DEFAULT_MAX_NOTES,
 	DEFAULT_MAX_PROMPT_LINES,
@@ -135,5 +141,41 @@ export const ClaudeBootstrapFormatter: BootstrapFormatter = {
 		// Trim to max lines
 		const trimmed = trimToMaxLines(lines, DEFAULT_MAX_PROMPT_LINES);
 		return `${trimmed.join("\n")}\n`;
+	},
+
+	/**
+	 * Formats ai-index content for Claude Code bootstrap prompts.
+	 *
+	 * Layer 0 renders a prose instruction block followed by symbol-level
+	 * summaries — replacing the manual file list in NEXT_PROMPT.md when
+	 * an index exists.
+	 *
+	 * @param index - The ai-index.
+	 * @param layer - Context layer (0, 1, or 2).
+	 * @returns Formatted string for the Claude Code prompt.
+	 */
+	formatAiIndex(index: AiIndex, layer: 0 | 1 | 2): string {
+		const entries = Object.entries(index.files).sort(([a], [b]) => a.localeCompare(b));
+		if (entries.length === 0) return "";
+
+		if (layer === 2) {
+			// Layer 2: reference files by @-mention (Claude Code loads them)
+			const mentions = entries.map(([p]) => `@${p}`).join(", ");
+			return `Full source: ${mentions}`;
+		}
+
+		// Layer 0 and 1: render a prose header + symbol blocks
+		const header =
+			layer === 0
+				? "## AI Index (Layer 0 — symbol names)\nDo NOT read these files unless instructed; use the index below:\n"
+				: "## AI Index (Layer 1 — signatures)\nDo NOT read these files unless instructed; use the index below:\n";
+
+		const blocks = entries.map(([relPath, entry]) =>
+			layer === 0
+				? AiIndexManager.renderLayer0(relPath, entry)
+				: AiIndexManager.renderLayer1(relPath, entry),
+		);
+
+		return `${header}\n${blocks.join("\n\n")}`;
 	},
 } as const;

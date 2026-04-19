@@ -58,8 +58,18 @@ export interface FinalWriteResult {
 // Constants
 // ---------------------------------------------------------------------------
 
-/** Lines to add to .gitignore for session files. */
-const GITIGNORE_ENTRIES = [
+/** Lines to add to .gitignore in personal mode (generated artifacts). */
+const GITIGNORE_ENTRIES_PERSONAL = [
+	"",
+	"# dev-session (ephemeral session state)",
+	".session/SESSION_STATE.md",
+	".session/NEXT_PROMPT.md",
+	".session/DONE_LOG.md",
+	".session/ai-index.yaml",
+] as const;
+
+/** Lines to add to .gitignore in team mode (only truly ephemeral files). */
+const GITIGNORE_ENTRIES_TEAM = [
 	"",
 	"# dev-session (ephemeral session state)",
 	".session/SESSION_STATE.md",
@@ -369,7 +379,12 @@ async function patchGitignore(options: FinalWriteOptions): Promise<boolean> {
 		// No .gitignore — we'll create one
 	}
 
-	const alreadyPatched = GITIGNORE_ENTRIES.some(
+	// In team mode, ai-index.yaml is committed (not gitignored).
+	// In personal mode, ai-index.yaml is a generated artifact → gitignored.
+	const entriesToAdd =
+		options.teamMode === true ? GITIGNORE_ENTRIES_TEAM : GITIGNORE_ENTRIES_PERSONAL;
+
+	const alreadyPatched = entriesToAdd.some(
 		(entry) => entry.trim().length > 0 && existingContent.includes(entry),
 	);
 
@@ -381,7 +396,7 @@ async function patchGitignore(options: FinalWriteOptions): Promise<boolean> {
 	}
 
 	if (options.dryRun) {
-		dryRunGitignorePatch(gitignorePath, [...GITIGNORE_ENTRIES], options.cwd);
+		dryRunGitignorePatch(gitignorePath, [...entriesToAdd], options.cwd);
 		return false;
 	}
 
@@ -402,7 +417,7 @@ async function patchGitignore(options: FinalWriteOptions): Promise<boolean> {
 	}
 
 	if (shouldPatch) {
-		const newContent = `${existingContent}${GITIGNORE_ENTRIES.join("\n")}\n`;
+		const newContent = `${existingContent}${entriesToAdd.join("\n")}\n`;
 		const validatedPath = PathValidator.safeResolvePath(".gitignore", options.cwd);
 		AtomicWriter.writeFile(validatedPath, newContent, { skipGuard: true });
 		log.success("Patched .gitignore with session entries.");
