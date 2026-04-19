@@ -1,73 +1,100 @@
 # dev-session
 
-**Self-managing context architecture for AI-assisted coding sessions.**
+**Keep your AI coding assistant oriented across sessions — a `.session/` directory tracks tasks and state, and generates a ≤15-line prompt for every new conversation.**
 
-AI assistants forget everything between conversations. `dev-session` fixes that by maintaining a structured `.session/` directory — a living document set that keeps the AI oriented, tracks task progress, and generates a ready-to-paste prompt for each new session.
-
+```bash
+npx dev-sesssion@latest init
 ```
-npx dev-session@latest init
-```
-
----
-
-## How it works
-
-`dev-session init` sets up a `.session/` directory in your project root:
-
-```
-.session/
-├── SESSION_STATE.md   # Active chunk, tasks, notes, last-worked files
-├── FILE_INDEX.md      # Annotated list of files the AI should read
-├── NEXT_PROMPT.md     # ≤15-line prompt to paste at session start
-├── PLAN_1.md          # Chunk 1 of your project plan
-├── PLAN_2.md          # Chunk 2 ...
-└── ROUTINES.md        # Session start/end checklist
-```
-
-At the start of each coding session, paste `NEXT_PROMPT.md` into Claude, Cursor, or opencode. It tells the AI exactly what chunk you're on, which files to load, and what tasks are in progress — nothing more.
-
-After the session, run `dev-session update` to mark tasks done and regenerate the prompt for next time.
 
 ---
 
 ## Installation
 
-**One-time setup (no global install):**
-
 ```bash
-npx dev-session@latest init
-```
+# No global install needed
+npx dev-sesssion@latest init
 
-**Global install:**
-
-```bash
-npm install -g dev-session
+# Or install globally
+npm install -g dev-sesssion
 dev-session init
 ```
 
-**Requirements:** Node.js ≥ 20, any package manager.
+**Requires:** Node.js ≥ 20.
 
 ---
 
 ## Quick start
 
 ```bash
-# 1. Initialize in your project root
-npx dev-session@latest init
+# 1. Initialize — wizard splits your plan into chunks and indexes your codebase
+npx dev-sesssion@latest init
 
-# 2. Follow the wizard:
-#    - Name your project and define phases (or split an existing PLAN.md)
-#    - Choose personal or team mode
-#    - The AI index is auto-generated from your codebase
+# 2. At the start of each coding session, paste the generated prompt
+dev-session prompt          # print NEXT_PROMPT.md
+# paste into Claude, Cursor, opencode, or any AI chat
 
-# 3. Paste .session/NEXT_PROMPT.md into your AI chat to begin
-
-# 4. After the session — mark tasks done
+# 3. After the session — mark tasks done and regenerate the prompt
 dev-session update
 
-# 5. When all tasks in a chunk are done — move to the next chunk
+# 4. When a chunk is fully done — archive it and move to the next
 dev-session advance
+
+# Check progress anytime
+dev-session status          # task %, token budget, health warnings
 ```
+
+---
+
+## Core concepts
+
+### Context snapshot
+
+Every session starts with `NEXT_PROMPT.md` — a ≤15-line file that tells the AI exactly what chunk is active, which files to load, which tasks are pending, and how much context budget is available. `dev-session prompt` prints it; you paste it. The AI is fully oriented in under a minute.
+
+The underlying data lives in `SESSION_STATE.md`: task statuses, notes from the session, and the last-touched files. `dev-session update` writes back to it interactively. Nothing accumulates in your AI tool's global config — the session brain is entirely in `.session/`.
+
+### File registry
+
+`FILE_INDEX.md` is an annotated table of every file the AI should know about, tagged by plan chunk. It tracks each file's purpose and a token-cost estimate. `dev-session index add <files>` appends entries; `dev-session index audit` flags stale ones when files are deleted or moved.
+
+The registry keeps context budgets honest. `dev-session status` shows a per-file breakdown so you know exactly how many tokens you're handing to the AI before the session starts — not mid-conversation when it's too late.
+
+### Plan chunks
+
+Your project plan lives in numbered `PLAN_*.md` files — one chunk per meaningful slice of work. Chunking is what keeps context permanently lean: the AI loads only the active chunk's plan, files, and state. Everything prior is archived.
+
+`dev-session advance` closes the current chunk automatically: marks it complete, rotates the FILE_INDEX to the next chunk's files, and regenerates `NEXT_PROMPT.md` for chunk N+1. The session brain resets with zero manual intervention.
+
+---
+
+## Toy example
+
+You're building a payments service. After `init`, your `.session/` looks like:
+
+```
+.session/
+├── SESSION_STATE.md   ← active chunk, task list, notes
+├── FILE_INDEX.md      ← 12 files tagged to chunks 1-3
+├── NEXT_PROMPT.md     ← ≤15 lines to paste at session start
+├── PLAN_1.md          ← "Stripe integration" — 5 tasks
+├── PLAN_2.md          ← "Webhooks" — not started yet
+└── ROUTINES.md        ← session start/end checklist
+```
+
+Paste `NEXT_PROMPT.md` into Claude. It loads `src/payments/stripe-client.ts` and `src/payments/types.ts` — nothing else. After the session:
+
+```bash
+dev-session update    # ✓ mark 3 of 5 tasks done, add a note
+dev-session status    # 3/5 tasks · 14,200/200,000 tokens (7%)
+```
+
+When chunk 1 is fully done:
+
+```bash
+dev-session advance   # archives chunk 1 → activates chunk 2 → new NEXT_PROMPT.md written
+```
+
+The next session opens on the Webhooks chunk. No manual file wrangling, no stale context.
 
 ---
 
@@ -75,28 +102,28 @@ dev-session advance
 
 | Command | Description |
 |---|---|
-| `dev-session init` | Initialize `.session/` in the current project |
-| `dev-session status` | Show task progress, context budget, and health warnings |
-| `dev-session update` | Interactively mark tasks done and add notes |
-| `dev-session advance` | Archive the current chunk and move to the next |
-| `dev-session prompt` | Print `NEXT_PROMPT.md` to stdout (pipe or copy) |
+| `dev-session init` | Initialize `.session/` — wizard: plan, mode, file index |
+| `dev-session status` | Task progress, context budget, health warnings |
+| `dev-session update` | Mark tasks done interactively, add notes |
+| `dev-session advance` | Archive current chunk, move to next, regenerate prompt |
+| `dev-session prompt` | Print `NEXT_PROMPT.md` to stdout |
 | `dev-session index add <files>` | Add files to `FILE_INDEX.md` |
-| `dev-session index audit` | Find stale or missing FILE_INDEX entries |
+| `dev-session index audit` | Detect stale or missing FILE_INDEX entries |
 | `dev-session health` | Full session audit — staleness, budget, missing files |
-| `dev-session health --fix` | Auto-remediate stale FILE_INDEX entries |
-| `dev-session import --from claude` | Import CLAUDE.md sections as session notes |
-| `dev-session import --from cursor` | Import .cursor/rules globs into FILE_INDEX |
+| `dev-session health --fix` | Auto-remove stale FILE_INDEX entries |
+| `dev-session import --from claude` | Pull CLAUDE.md sections into session notes |
+| `dev-session import --from cursor` | Pull `.cursor/rules` globs into FILE_INDEX |
 | `dev-session export --to claude` | Sync session state back to CLAUDE.md |
-| `dev-session export --to cursor` | Sync FILE_INDEX tags to .cursor/rules |
-| `dev-session migrate` | Initialize dev-session in each package of a monorepo |
+| `dev-session export --to cursor` | Sync FILE_INDEX tags to `.cursor/rules` |
+| `dev-session migrate` | Initialize dev-session in each monorepo package |
 
-**Global flags** (available on every command):
+**Global flags:**
 
 | Flag | Description |
 |---|---|
 | `--cwd <path>` | Run in a different directory |
 | `-y, --yes` | Skip prompts, use defaults |
-| `--dry-run` | Show what would be written without writing |
+| `--dry-run` | Preview writes without writing |
 | `-v, --verbose` | Detailed output |
 | `--strict` | Block on secret detection instead of warning |
 | `--adapter <name>` | Override adapter detection (`claude`, `opencode`, `cursor`) |
@@ -105,38 +132,42 @@ dev-session advance
 
 ## Adapters
 
-`dev-session` generates adapter-specific output so the AI gets context in the format it expects:
+`dev-session` auto-detects your AI tool and generates output in the format it expects:
 
-| Adapter | Detection | Output |
+| Tool | Detected by | Output |
 |---|---|---|
 | **Claude Code** | `CLAUDE.md` present | `@`-file mentions in `NEXT_PROMPT.md` |
 | **opencode** | `AGENTS.md` present | `Exclude:` directives |
 | **Cursor** | `.cursorrules` present | `Ignore:` directives |
 
-The adapter is auto-detected from your project root. Override with `--adapter <name>`.
+Override detection with `--adapter <name>`.
 
 ---
 
 ## Team mode
 
-Run `dev-session init --team` to enable team mode:
+```bash
+dev-session init --team
+```
 
-- `SESSION_STATE.md` and `NEXT_PROMPT.md` are added to `.gitignore` (ephemeral, per-developer)
-- `FILE_INDEX.md` gets `merge=ours` in `.gitattributes` (no merge conflicts on the index)
-- `PLAN_*.md` and `ROUTINES.md` are committed and shared
+In team mode:
 
-Team members each run `dev-session init` once. The shared plan files keep everyone on the same chunk; each developer has their own session state.
+- `SESSION_STATE.md` and `NEXT_PROMPT.md` → `.gitignore` (per-developer, ephemeral)
+- `FILE_INDEX.md` → `.gitattributes` with `merge=ours` (no merge conflicts)
+- `PLAN_*.md` and `ROUTINES.md` → committed and shared
+
+Everyone runs `init` once. The shared plan keeps the team on the same chunk; each developer maintains their own session state.
 
 ---
 
 ## Monorepo support
 
-`dev-session migrate` detects pnpm, npm, Yarn, Nx, and Turborepo workspaces and runs `init` in each selected package:
-
 ```bash
 dev-session migrate          # interactive package selection
 dev-session migrate --yes    # initialize all packages with defaults
 ```
+
+Detects pnpm, npm, Yarn, Nx, and Turborepo workspaces.
 
 ---
 
@@ -144,59 +175,10 @@ dev-session migrate --yes    # initialize all packages with defaults
 
 `dev-session` is built with defense-in-depth:
 
-- **Secret scanning** — 10 regex patterns (AWS keys, GitHub tokens, private keys, etc.) on every file write. Warns by default; blocks in `--strict` mode.
-- **Atomic writes** — all file writes go through a `.tmp` → `rename()` pipeline. No partial writes.
-- **Path validation** — every file path from external sources is validated with `PathValidator.safeResolvePath()`. Path traversal attacks are rejected.
-- **Safe frontmatter** — YAML parsing uses `@11ty/gray-matter` (not `gray-matter`) with the JS engine disabled. No `eval()` RCE.
-- **No `exec()` with user data** — all subprocess calls use `execFile()` or `spawn()` with argument arrays.
-
----
-
-## Context budget
-
-`dev-session status` shows a context budget estimate for your current chunk:
-
-```
-Context budget: 12,400 / 200,000 tokens (6%)
-  SESSION_STATE.md   1,200 tok
-  FILE_INDEX.md      4,800 tok
-  PLAN_3.md            900 tok
-  src/core/...       5,500 tok
-```
-
-The budget helps you decide when to advance to the next chunk or trim the FILE_INDEX.
-
----
-
-## Health checks
-
-`dev-session health` audits your session and reports:
-
-- Stale FILE_INDEX entries (file deleted or moved)
-- SESSION_STATE last updated more than 7 days ago
-- NEXT_PROMPT.md exceeding the 15-line limit
-- Missing PLAN files for the active chunk
-- Context budget over 80% of the limit
-
-```bash
-dev-session health        # view report
-dev-session health --fix  # auto-remove stale FILE_INDEX entries
-dev-session health --json # machine-readable output
-```
-
----
-
-## Import from existing tools
-
-Already using CLAUDE.md or Cursor rules? Import them:
-
-```bash
-# Pull CLAUDE.md H2 sections into SESSION_STATE notes
-dev-session import --from claude
-
-# Pull .cursor/rules/*.mdc file globs into FILE_INDEX
-dev-session import --from cursor
-```
+- **Secret scanning** — 10 regex patterns (AWS keys, GitHub tokens, private keys, etc.) on every write. Warns by default; blocks in `--strict` mode.
+- **Atomic writes** — all writes go `.tmp` → `rename()`. No partial files ever reach disk.
+- **Path validation** — every external path goes through `PathValidator.safeResolvePath()`. Path traversal attacks rejected at the boundary.
+- **Safe YAML** — uses `@11ty/gray-matter` with the JS engine disabled. No `eval()` RCE possible.
 
 ---
 
@@ -204,22 +186,16 @@ dev-session import --from cursor
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup, conventions, and the pull request process.
 
-The project uses a pnpm monorepo with four packages:
+```bash
+pnpm install && pnpm build && pnpm test
+```
 
 | Package | Role |
 |---|---|
 | `packages/security` | Path validation, secret scanning, atomic writes, error types |
-| `packages/core` | Session managers, plan parser, project detector, formatters |
+| `packages/core` | Session managers, plan parser, formatters, project detector |
 | `packages/cli` | Commander commands, `@clack/prompts` wizard flows |
 | `packages/adapters` | Claude Code, opencode, and Cursor adapter implementations |
-
-```bash
-pnpm install          # install dependencies
-pnpm build            # build all packages
-pnpm test             # run all tests (769 passing)
-pnpm typecheck        # TypeScript strict mode check
-pnpm lint             # Biome linter
-```
 
 ---
 
