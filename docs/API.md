@@ -1,9 +1,9 @@
 # API Reference — dev-sesssion/core v1.0.0
 
-`@dev-sesssion/core` is the library package underlying the `dev-session` CLI. Use it to build custom integrations, companion tools, or alternative UIs on top of the session state model.
+`dev-sesssion` exposes a `core` library you can use to build custom integrations, companion tools, or alternative UIs on top of the session state model.
 
 ```bash
-npm install @dev-sesssion/core
+npm install dev-sesssion
 ```
 
 ```ts
@@ -12,7 +12,7 @@ import {
   FileIndexManager,
   NextPromptWriter,
   PlainTextFormatter,
-} from "@dev-sesssion/core";
+} from "dev-sesssion";
 ```
 
 ---
@@ -30,7 +30,7 @@ import {
 
 ## SessionStateManager
 
-Manages `SESSION_STATE.md`. All I/O uses `AtomicWriter` and `FrontmatterParser` from `@dev-sesssion/security`. State-transition helpers are pure functions with no side effects.
+Manages `SESSION_STATE.md`. All I/O uses `AtomicWriter` and `FrontmatterParser` from `dev-sesssion/security`. State-transition helpers are pure functions with no side effects.
 
 | Method | Signature | Returns | Description |
 |---|---|---|---|
@@ -55,7 +55,7 @@ SessionStateManager.save(sessionDir, updated);
 
 ## PlainTextFormatter
 
-Formats a `BootstrapContext` into a structured prompt string. Implements `BootstrapFormatter`. For tool-specific formatting (Claude Code `@`-mentions, opencode directives) use the adapter formatters from `@dev-sesssion/adapters`.
+Formats a `BootstrapContext` into a structured prompt string. Implements `BootstrapFormatter`. For tool-specific formatting (Claude Code `@`-mentions, opencode directives) use the adapter formatters from `dev-sesssion/adapters`.
 
 | Method | Signature | Returns | Description |
 |---|---|---|---|
