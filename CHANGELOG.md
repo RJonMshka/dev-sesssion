@@ -1,3 +1,9 @@
+## [1.0.2](https://github.com/RJonMshka/dev-sesssion/compare/v1.0.1...v1.0.2) (2026-04-19)
+
+### Documentation
+
+* **README:** v1.0.0 rewrite, API reference, fix package name to dev-sesssion ([b0b8491](https://github.com/RJonMshka/dev-sesssion/commit/b0b8491541c72244bfaf9d48aa2cd05e8e441943))
+
 ## [1.0.1](https://github.com/RJonMshka/dev-sesssion/compare/v1.0.0...v1.0.1) (2026-04-19)
 
 ### Documentation
