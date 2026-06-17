@@ -84,6 +84,13 @@ export { FILE_INDEX_PAGE_SIZE, FileIndexManager } from "./managers/file-index-ma
 export { NextPromptWriter } from "./managers/next-prompt-writer.js";
 export { PlanChunkManager } from "./managers/plan-chunk-manager.js";
 export { RoutinesWriter } from "./managers/routines-writer.js";
+export type {
+	ActiveChunkInfo,
+	IndexQuery,
+	MarkTaskResult,
+} from "./managers/session-manager.js";
+// Session facade (composes the individual managers for transport layers)
+export { SessionManager } from "./managers/session-manager.js";
 export { SessionMemoryManager } from "./managers/session-memory-manager.js";
 // Managers
 export { SessionStateManager } from "./managers/session-state-manager.js";

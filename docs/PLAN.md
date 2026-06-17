@@ -915,17 +915,22 @@ Chunk 12 requires zero annotations, but auto-extraction occasionally guesses wro
 > **Goal:** Expose session state to the agent directly over MCP, so context is *pulled on demand* instead of front-loaded via a pasted `NEXT_PROMPT`.
 > **Depends on:** Chunks 6, 12
 > **Est. sessions:** 2–3
-> **Status:** ⬜ planned (promoted from the original backlog)
+> **Status:** ✅ complete (2026-06-16)
 
 ### Rationale
 The paste-`NEXT_PROMPT` flow front-loads a fixed context budget. An MCP server inverts this: the agent calls tools to fetch the active chunk, query the ai-index by layer, and mark tasks done — loading the full body of a file only when it decides it needs it. This is the natural end state of the "context as a reducible, pull-based asset" thesis.
 
 ### Tasks
-- [ ] MCP server entrypoint (`dev-session mcp`) built on the official MCP SDK; reads `.session/` via the `SessionManager` facade (no new business logic in the server layer)
-- [ ] Tools: `get_active_chunk`, `list_context_files`, `read_file_layer(path, layer)`, `query_index(tag|chunk|layer)`, `mark_task_done(text)`, `get_next_prompt`
-- [ ] All writes go through `AtomicWriter` + `WriteGuard`; all paths through `PathValidator` — the MCP boundary is treated as untrusted external input
-- [ ] Read-only mode flag for shared/team setups
-- [ ] Tests: tool I/O contract tests; path-traversal attempt via a tool argument is rejected
+- [x] MCP server entrypoint (`dev-session mcp`) built on the official MCP SDK; reads `.session/` via the new `SessionManager` facade in core (no business logic in the server layer)
+- [x] Tools: `get_active_chunk`, `list_context_files`, `read_file_layer(path, layer)`, `query_index(tag|chunk|layer)`, `mark_task_done(text)`, `get_next_prompt`
+- [x] All writes go through `AtomicWriter` + `WriteGuard` (via the managers); all paths through `PathValidator` — the MCP boundary is treated as untrusted external input
+- [x] Read-only mode flag (`--read-only`) for shared/team setups
+- [x] Tests: tool I/O contract tests (facade unit + in-memory MCP boundary); path-traversal attempt via a tool argument is rejected
+
+### Implementation notes
+- Built **facade-in-core**, not a separate `packages/mcp`: new `SessionManager` (`packages/core/src/managers/session-manager.ts`) composes the existing managers and is the single surface the MCP layer (and future transports) call. This also resolves the `SessionManager` export named in CLAUDE.md's package contract, which previously did not exist.
+- MCP wiring lives in `packages/cli/src/mcp/` (`server.ts` + `tools.ts`); `@modelcontextprotocol/sdk` (1.29.0) + `zod` added to `packages/cli` only.
+- 6 tools map 1:1 to facade methods; args are zod-validated and errors sanitized (typed-error messages only, never absolute paths).
 
 ---
 

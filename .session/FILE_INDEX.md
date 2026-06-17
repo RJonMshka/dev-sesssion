@@ -1,6 +1,6 @@
 ---
 version: 1
-last_updated: "2026-04-08"
+last_updated: "2026-06-16"
 ---
 
 # File Index
@@ -313,25 +313,24 @@ last_updated: "2026-04-08"
 | packages/core/src/__tests__/annotation-parser.test.ts | AnnotationParser unit + adversarial tests (valid tags, malformed values, YAML injection, prototype pollution, determinism) — 24 tests |
 | packages/core/src/__tests__/auto-extractor-annotations.test.ts | AutoExtractor×AnnotationParser integration: mixed annotated/unannotated fixture + annotation-coverage check — 5 tests |
 
-## Chunk 14 — MCP server (basic, v1-compatible)
+## Chunk 14 — MCP server (basic, v1-compatible) [COMPLETE 2026-06-16]
+
+> Built facade-in-core, not a separate `packages/mcp`. The original speculative
+> file list (a standalone package with session_token auth + pid management) was
+> superseded: the MCP layer reuses the existing managers via a `SessionManager`
+> facade, and the server is a thin `dev-session mcp` CLI command over stdio.
 
 | File | Purpose |
 |---|---|
-| packages/mcp/package.json | MCP package manifest |
-| packages/mcp/tsconfig.json | MCP TypeScript config |
-| packages/mcp/tsup.config.ts | MCP build config |
-| packages/mcp/server.ts | MCP server entry point — stdio transport, --cwd flag, mcp.pid management, SIGINT cleanup |
-| packages/mcp/tools/session.ts | get_session_context tool — returns task list + NEXT_PROMPT content + budget summary |
-| packages/mcp/tools/tasks.ts | list_tasks, mark_task_done, mark_task_in_progress tools (session_token auth) |
-| packages/mcp/tools/index.ts | query_ai_index tool — symbol/file/@ai-tag lookup; 404-style error if no ai-index.yaml |
-| packages/mcp/tools/budget.ts | get_context_budget tool — breakdown by component |
-| packages/cli/src/commands/mcp.ts | mcp command group — start, config, ping subcommands |
+| packages/core/src/managers/session-manager.ts | SessionManager facade — composes state/plan/file-index/ai-index managers; 6 ops; validates untrusted paths; read-only flag |
+| packages/core/src/index.ts | Updated: exports SessionManager + ActiveChunkInfo/IndexQuery/MarkTaskResult types |
+| packages/cli/src/mcp/server.ts | MCP server — createMcpServer(manager) + startStdioServer(); stdio transport |
+| packages/cli/src/mcp/tools.ts | registerSessionTools — 6 tools mapped 1:1 to the facade; zod-validated args; sanitized errors |
+| packages/cli/src/commands/mcp.ts | `dev-session mcp [--read-only]` command |
 | packages/cli/src/cli.ts | Updated: registers mcp command |
-| packages/adapters/src/claude-bootstrap-formatter.ts | Updated: formatMcpBlock(mcpConfig) — CLAUDE.md MCP section |
-| packages/cli/src/commands/update.ts | Updated: auto-appends MCP block when mcp-token.txt exists |
-| packages/mcp/__tests__/tools.test.ts | MCP tool unit tests (session_token auth, path traversal, rate limiter, no-index 404) |
-| packages/mcp/__tests__/server.test.ts | MCP server integration tests (start, register tools, list-tools) |
-| tests/e2e/mcp.e2e.test.ts | E2e: mcp config valid JSON; mcp start writes pid, SIGINT cleanup |
+| packages/cli/package.json | Updated: + @modelcontextprotocol/sdk, zod deps |
+| packages/core/src/__tests__/session-manager.test.ts | Facade unit tests (all 6 ops, path traversal, read-only, query validation) |
+| packages/cli/src/__tests__/mcp.test.ts | MCP boundary tests via in-memory transport (tools/list, calls, traversal + read-only rejection) |
 
 ## Chunk 15 — Layered context loading
 
