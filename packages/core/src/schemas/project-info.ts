@@ -7,6 +7,7 @@ export const DetectedTool = {
 	CLAUDE: "claude",
 	OPENCODE: "opencode",
 	CURSOR: "cursor",
+	WINDSURF: "windsurf",
 	UNKNOWN: "unknown",
 } as const;
 
@@ -32,7 +33,7 @@ export type ProjectTypeValue = (typeof ProjectType)[keyof typeof ProjectType];
 export const ProjectInfoSchema = z
 	.object({
 		/** The detected AI coding tool. */
-		tool: z.enum(["claude", "opencode", "cursor", "unknown"]),
+		tool: z.enum(["claude", "opencode", "cursor", "windsurf", "unknown"]),
 		/** The detected project framework type. */
 		project_type: z.enum(["vite", "next", "node", "unknown"]),
 		/** Existing notable files found in the project root. */

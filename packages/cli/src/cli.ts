@@ -45,7 +45,10 @@ export function createProgram(): Command {
 		.option("--dry-run", "Show what would be written without writing", false)
 		.option("-v, --verbose", "Show detailed output", false)
 		.option("--strict", "Block on secret detection instead of warning", false)
-		.option("--adapter <name>", "Override adapter auto-detection (claude, opencode, cursor)");
+		.option(
+			"--adapter <name>",
+			"Override adapter auto-detection (claude, opencode, cursor, windsurf)",
+		);
 
 	// Use exitOverride so Commander throws instead of calling process.exit
 	// directly — lets our global error handler manage exit codes.

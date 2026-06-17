@@ -38,6 +38,18 @@ describe("ProjectDetector", () => {
 			expect(info.tool).toBe("cursor");
 		});
 
+		it("detects windsurf tool from .windsurfrules file", () => {
+			fs.writeFileSync(path.join(tmpDir, ".windsurfrules"), "# rules");
+			const info = ProjectDetector.detect(tmpDir);
+			expect(info.tool).toBe("windsurf");
+		});
+
+		it("detects windsurf tool from .windsurf/ directory", () => {
+			fs.mkdirSync(path.join(tmpDir, ".windsurf"));
+			const info = ProjectDetector.detect(tmpDir);
+			expect(info.tool).toBe("windsurf");
+		});
+
 		it("returns unknown for no tool indicators", () => {
 			const info = ProjectDetector.detect(tmpDir);
 			expect(info.tool).toBe("unknown");

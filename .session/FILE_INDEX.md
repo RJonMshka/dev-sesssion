@@ -357,22 +357,22 @@ last_updated: "2026-06-16"
 
 **Design note:** Built as a pure decision layer (`LayerResolver`) reusing existing managers — no separate `LayerManager`/`session.yaml`/new commands. NEXT_PROMPT communicates which layer per file; the MCP `read_file_layer` tool (Chunk 14) serves content on demand. Layering activates only when `ai-index.yaml` exists; otherwise whole-file cost (unchanged behavior).
 
-## Chunk 16 — Adapters: Cursor + Windsurf
+## Chunk 16 — Windsurf adapter
 
 | File | Purpose |
 |---|---|
-| packages/core/src/schemas/context-budget.ts | Updated: CONTEXT_BUDGET_DEFAULTS with cursor: 6_000, windsurf: 6_000 |
-| packages/adapters/src/cursor-adapter.ts | CursorAdapter — detect .cursor/, setup .mdc (YAML frontmatter), transformState, onSessionStart/End |
-| packages/adapters/src/cursor-bootstrap-formatter.ts | CursorBootstrapFormatter — @File syntax, formatLayeredContext (Layer 0 inline, Layer 1/2 @File), @Docs excludes |
-| packages/adapters/src/windsurf-adapter.ts | WindsurfAdapter — detect .windsurfrules, setup (append-only), onSessionEnd |
-| packages/adapters/src/windsurf-bootstrap-formatter.ts | WindsurfBootstrapFormatter — plain-text formatLayeredContext (no YAML frontmatter) |
-| packages/adapters/src/registry.ts | Updated: Cursor + Windsurf in detection order; dual-adapter CliError; no shared base class |
-| packages/adapters/src/index.ts | Updated: exports Cursor + Windsurf adapters |
-| packages/adapters/src/__tests__/cursor-adapter.test.ts | Cursor tests (.mdc valid frontmatter, formatLayeredContext @File syntax) |
-| packages/adapters/src/__tests__/windsurf-adapter.test.ts | Windsurf tests (plain-text formatLayeredContext) |
-| packages/adapters/src/__tests__/registry.test.ts | Updated: detection order determinism, dual-detect CliError |
-| tests/e2e/cursor-adapter.e2e.test.ts | E2e: init --adapter cursor; update regenerates .mdc |
-| tests/e2e/windsurf-adapter.e2e.test.ts | E2e: init --adapter windsurf |
+| packages/core/src/schemas/project-info.ts | Updated: WINDSURF added to DetectedTool enum; Zod schema includes "windsurf" |
+| packages/core/src/detectors/project-detector.ts | Updated: detects .windsurfrules and .windsurf/ markers |
+| packages/adapters/src/windsurf-adapter.ts | WindsurfAdapter — .windsurfrules section management with # dev-session:start/end markers |
+| packages/adapters/src/windsurf-bootstrap-formatter.ts | WindsurfBootstrapFormatter — plain paths, Ignore directive (mirrors CursorBootstrapFormatter) |
+| packages/adapters/src/registry.ts | Updated: WINDSURF → WindsurfAdapter in ADAPTER_MAP |
+| packages/adapters/src/index.ts | Updated: exports WindsurfAdapter + WindsurfBootstrapFormatter |
+| packages/adapters/src/__tests__/windsurf-adapter.test.ts | Windsurf adapter lifecycle tests (16 tests) |
+| packages/adapters/src/__tests__/windsurf-bootstrap-formatter.test.ts | Windsurf formatter tests |
+| packages/adapters/src/__tests__/registry.test.ts | Updated: Windsurf resolution + 5 registered tools |
+| packages/core/src/__tests__/project-detector.test.ts | Updated: Windsurf detection from .windsurfrules and .windsurf/ |
+
+**Design note:** Windsurf adapter mirrors the Cursor adapter pattern (.cursorrules → .windsurfrules, same comment-style section markers). WindsurfBootstrapFormatter is identical to CursorBootstrapFormatter in behavior (plain paths, Ignore directive) — Windsurf reads .windsurfrules natively. +35 tests; 1102 total.
 
 ## Chunk 17 — BACKLOG: Cross-session intelligence (deferred)
 

@@ -42,7 +42,7 @@ export interface ToolFileDetectionResult {
 	readonly hasClaude: boolean;
 	/** Whether AGENTS.md exists. */
 	readonly hasAgents: boolean;
-	/** The detected tool from ProjectDetector (claude | opencode | cursor | unknown). */
+	/** The detected tool from ProjectDetector (claude | opencode | cursor | windsurf | unknown). */
 	readonly detectedTool: string;
 }
 
