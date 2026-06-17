@@ -108,6 +108,97 @@ describe("PlanParser", () => {
 		});
 	});
 
+	describe("fromMarkdown — chunk-splitting drift (explicit mode)", () => {
+		it("skips non-'Chunk N' prose sections when the plan uses Chunk N headings", () => {
+			const plan = `# Project Plan
+
+## Project metadata
+
+Some table of metadata.
+
+## Architecture overview
+
+Prose about architecture.
+
+## Chunk 1 — Foundation
+
+- [ ] Task A
+
+## Chunk 2 — Security
+
+- [ ] Task B
+
+## Risks and open questions
+
+Prose about risks.
+
+## Success metrics
+
+More prose.
+`;
+			const chunks = PlanParser.fromMarkdown(plan);
+
+			expect(chunks).toHaveLength(2);
+			expect(chunks.map((c) => c.chunk_id)).toEqual([1, 2]);
+			expect(chunks.map((c) => c.title)).toEqual(["Foundation", "Security"]);
+		});
+
+		it("does not let prose-section content bleed into the previous chunk", () => {
+			const plan = `## Chunk 1 — Foundation
+
+- [ ] Real task
+
+## Cross-cutting mandates
+
+- [ ] This should NOT be counted as a chunk-1 task
+`;
+			const chunks = PlanParser.fromMarkdown(plan);
+
+			expect(chunks).toHaveLength(1);
+			expect(chunks[0]?.tasks).toHaveLength(1);
+			expect(chunks[0]?.tasks[0]?.text).toBe("Real task");
+		});
+
+		it("preserves a fractional chunk ID distinct from its integer neighbour", () => {
+			const plan = `## Chunk 3 — Core data model
+
+- [ ] Build schemas
+
+## Chunk 3.5 — Token counting infrastructure
+
+- [ ] Add TokenCounter
+
+## Chunk 4 — CLI
+
+- [ ] Wire commander
+`;
+			const chunks = PlanParser.fromMarkdown(plan);
+
+			expect(chunks.map((c) => c.chunk_id)).toEqual([3, 3.5, 4]);
+			expect(chunks[1]?.title).toBe("Token counting infrastructure");
+		});
+
+		it("parses fractional dependencies (e.g. 'Depends on: Chunks 5, 7, 3.5')", () => {
+			const plan = `## Chunk 10 — Context Intelligence
+
+> Depends on: Chunks 5, 7, 3.5
+
+- [ ] Build preview
+`;
+			const chunks = PlanParser.fromMarkdown(plan);
+
+			expect(chunks[0]?.depends_on).toEqual([5, 7, 3.5]);
+		});
+
+		it("still uses sequential IDs when no heading names a chunk (prose plan)", () => {
+			const plan = "## Introduction\n\n- [ ] A\n\n## Implementation\n\n- [ ] B\n";
+			const chunks = PlanParser.fromMarkdown(plan);
+
+			expect(chunks).toHaveLength(2);
+			expect(chunks.map((c) => c.chunk_id)).toEqual([1, 2]);
+		});
+	});
+
 	describe("detectBoundaries", () => {
 		it("detects ## headings with confidence 1.0", () => {
 			const boundaries = PlanParser.detectBoundaries(SAMPLE_PLAN);
