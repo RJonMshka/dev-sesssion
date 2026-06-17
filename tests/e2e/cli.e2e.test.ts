@@ -146,6 +146,60 @@ describe("dev-session init", () => {
 });
 
 // ---------------------------------------------------------------------------
+// init --adapter override
+// ---------------------------------------------------------------------------
+
+describe("dev-session init --adapter windsurf", () => {
+	it("runs the Windsurf adapter and writes a dev-session section to .windsurfrules", async () => {
+		writePackageJson(tmpDir);
+		writePlan(tmpDir);
+
+		const result = await runCli(["init", "--yes", "--adapter", "windsurf", "--cwd", tmpDir]);
+
+		expect(result.exitCode).toBe(0);
+
+		const rulesPath = path.join(tmpDir, ".windsurfrules");
+		expect(fs.existsSync(rulesPath)).toBe(true);
+
+		const rules = fs.readFileSync(rulesPath, "utf-8");
+		expect(rules).toContain("# dev-session:start");
+		expect(rules).toContain("# dev-session:end");
+		expect(rules).toContain("## dev-session");
+		expect(rules).toContain("This project uses dev-session");
+	});
+
+	it("forces the Windsurf adapter even with no Windsurf markers present", async () => {
+		// No .windsurfrules / .windsurf marker — auto-detect would not pick Windsurf,
+		// so a written .windsurfrules proves the flag overrode detection.
+		writePackageJson(tmpDir);
+		writePlan(tmpDir);
+
+		const result = await runCli(["init", "--yes", "--adapter", "windsurf", "--cwd", tmpDir]);
+
+		expect(result.exitCode).toBe(0);
+		expect(fs.existsSync(path.join(tmpDir, ".windsurfrules"))).toBe(true);
+	});
+
+	it("exits non-zero for an unknown --adapter value", async () => {
+		writePackageJson(tmpDir);
+		writePlan(tmpDir);
+
+		const result = await runCli([
+			"init",
+			"--yes",
+			"--adapter",
+			"not-a-real-adapter",
+			"--cwd",
+			tmpDir,
+		]);
+
+		expect(result.exitCode).not.toBe(0);
+		// CliError is rendered via @clack/prompts to stdout, not stderr.
+		expect(result.stdout + result.stderr).toContain("Unknown adapter");
+	});
+});
+
+// ---------------------------------------------------------------------------
 // status (requires an initialised session)
 // ---------------------------------------------------------------------------
 
