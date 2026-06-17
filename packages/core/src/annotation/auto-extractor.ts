@@ -6,7 +6,8 @@
  * `.ts`, `.tsx`, `.js`, `.jsx`, `.mts`, `.mjs`. Skips `.vue`, `.svelte`.
  *
  * Any existing `/** * /` JSDoc summary blocks are captured automatically.
- * The `@ai-*` tag system (Chunk 13B) builds on top of this foundation.
+ * Optional `@ai-*` override tags (Chunk 13) are parsed transparently via
+ * {@link AnnotationParser} — see {@link resolveOverrides}.
  *
  * @packageDocumentation
  */
@@ -19,7 +20,11 @@ import type { TSESTree } from "@typescript-eslint/typescript-estree";
 import { parse } from "@typescript-eslint/typescript-estree";
 import { TokenCounter } from "../counters/token-counter.js";
 import { GitignoreAwareWalker } from "../walkers/gitignore-aware-walker.js";
-import type { ParsedFile, ParsedSymbol } from "./types.js";
+import { AnnotationParser } from "./annotation-parser.js";
+import type { ParsedFile, ParsedSymbol, SymbolSurface } from "./types.js";
+
+/** Shared, stateless parser for the optional `@ai-*` override tags (Chunk 13). */
+const annotationParser = new AnnotationParser();
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -200,7 +205,7 @@ function handleNamedExport(
 	}
 
 	const jsdoc = findLeadingJsdoc(ast, node, source);
-	const summary = extractFirstSentence(jsdoc ?? "");
+	const overrides = resolveOverrides(jsdoc);
 
 	switch (declaration.type) {
 		case "FunctionDeclaration":
@@ -208,9 +213,9 @@ function handleNamedExport(
 				return [
 					makeSymbol(
 						declaration.id.name,
-						summary,
 						extractSignature(source, declaration.range?.[0] ?? 0, declaration.range?.[1] ?? 0),
 						declaration.loc?.start.line ?? 0,
+						overrides,
 					),
 				];
 			}
@@ -221,9 +226,9 @@ function handleNamedExport(
 				return [
 					makeSymbol(
 						declaration.id.name,
-						summary,
 						extractSignature(source, declaration.range?.[0] ?? 0, declaration.range?.[1] ?? 0),
 						declaration.loc?.start.line ?? 0,
+						overrides,
 					),
 				];
 			}
@@ -236,9 +241,9 @@ function handleNamedExport(
 					syms.push(
 						makeSymbol(
 							declarator.id.name,
-							summary,
 							extractSignature(source, declaration.range?.[0] ?? 0, declaration.range?.[1] ?? 0),
 							declaration.loc?.start.line ?? 0,
+							overrides,
 						),
 					);
 				}
@@ -250,9 +255,9 @@ function handleNamedExport(
 			return [
 				makeSymbol(
 					declaration.id.name,
-					summary,
 					extractSignature(source, declaration.range?.[0] ?? 0, declaration.range?.[1] ?? 0),
 					declaration.loc?.start.line ?? 0,
+					overrides,
 				),
 			];
 
@@ -260,9 +265,9 @@ function handleNamedExport(
 			return [
 				makeSymbol(
 					declaration.id.name,
-					summary,
 					extractSignature(source, declaration.range?.[0] ?? 0, declaration.range?.[1] ?? 0),
 					declaration.loc?.start.line ?? 0,
+					overrides,
 				),
 			];
 
@@ -286,15 +291,15 @@ function handleDefaultExport(
 ): ParsedSymbol | null {
 	const { declaration } = node;
 	const jsdoc = findLeadingJsdoc(ast, node, source);
-	const summary = extractFirstSentence(jsdoc ?? "");
+	const overrides = resolveOverrides(jsdoc);
 
 	if (declaration.type === "FunctionDeclaration" || declaration.type === "ClassDeclaration") {
 		const name = declaration.id?.name ?? "default";
 		return makeSymbol(
 			name,
-			summary,
 			extractSignature(source, declaration.range?.[0] ?? 0, declaration.range?.[1] ?? 0),
 			declaration.loc?.start.line ?? 0,
+			overrides,
 		);
 	}
 
@@ -399,22 +404,59 @@ function extractSignature(source: string, start: number, _end: number): string {
 // ---------------------------------------------------------------------------
 
 /**
- * Construct a `ParsedSymbol` with default values.
+ * Resolved `@ai-*` overrides for a symbol, merged with auto-extracted defaults.
+ *
+ * `surface` and `tags` always have a value; `summary` is the override when
+ * present, otherwise the first sentence of the JSDoc (possibly `""`).
+ */
+interface SymbolOverrides {
+	readonly surface: SymbolSurface;
+	readonly summary: string;
+	readonly tags: readonly string[];
+	readonly layerHint?: 0 | 1 | 2;
+}
+
+/**
+ * Parse the leading JSDoc into the effective symbol metadata, applying any
+ * `@ai-*` overrides on top of the auto-extracted summary.
+ *
+ * @param jsdoc - The leading JSDoc comment body, or `null` if none.
+ * @returns The merged overrides for the symbol.
+ */
+function resolveOverrides(jsdoc: string | null): SymbolOverrides {
+	const block = jsdoc ?? "";
+	const ann = annotationParser.parse(block);
+	const base: SymbolOverrides = {
+		surface: ann.surface ?? "public",
+		summary: ann.summary ?? extractFirstSentence(block),
+		tags: ann.tags,
+	};
+	// `layerHint` is parsed and surfaced now; consumed by layered loading in Chunk 15.
+	return ann.layerHint === undefined ? base : { ...base, layerHint: ann.layerHint };
+}
+
+/**
+ * Construct a `ParsedSymbol`, applying resolved `@ai-*` overrides.
  *
  * @param name - Symbol name.
- * @param summary - One-line JSDoc summary (may be `""`).
  * @param signature - Declaration header.
  * @param line - 1-based source line.
+ * @param overrides - Resolved surface/summary/tags from {@link resolveOverrides}.
  * @returns The parsed symbol.
  */
-function makeSymbol(name: string, summary: string, signature: string, line: number): ParsedSymbol {
+function makeSymbol(
+	name: string,
+	signature: string,
+	line: number,
+	overrides: SymbolOverrides,
+): ParsedSymbol {
 	return {
 		name,
-		surface: "public",
-		summary,
+		surface: overrides.surface,
+		summary: overrides.summary,
 		signature,
 		line,
-		tags: [],
+		tags: overrides.tags,
 	};
 }
 

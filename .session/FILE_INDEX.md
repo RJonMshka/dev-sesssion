@@ -306,11 +306,12 @@ last_updated: "2026-04-08"
 
 | File | Purpose |
 |---|---|
-| packages/core/src/annotation/annotation-parser.ts | AnnotationParser — parseFile extracts @ai-* tags via AST; mergeInto(ParsedFile, FileAnnotations): ParsedFile |
-| packages/core/src/annotation/auto-extractor.ts | Updated: calls AnnotationParser internally; callers get merged ParsedFile transparently |
-| packages/core/src/index.ts | Updated: exports AnnotationParser, FileAnnotations |
-| packages/core/src/__tests__/annotation-parser.test.ts | AnnotationParser tests (@ai-surface private, @ai-summary override, @ai-layer-hint, @ai-layer-default, unknown tag, adversarial YAML injection, malformed values) |
-| tests/e2e/ai-index.e2e.test.ts | Updated: mixed annotated+unannotated fixture; annotation coverage report |
+| packages/core/src/annotation/annotation-parser.ts | AnnotationParser — parse(commentBlock): SymbolAnnotations (@ai-surface/-summary/-layer-hint/-layer-default/-tag); collect() → FileAnnotations; allowlist-validated, null-proto, never throws |
+| packages/core/src/annotation/auto-extractor.ts | Updated: resolveOverrides() calls AnnotationParser per JSDoc block; surface/summary/tags overrides applied transparently to ParsedSymbol |
+| packages/core/src/annotation/index.ts | Updated: exports AnnotationParser + SymbolAnnotations/FileAnnotations/LayerHint types |
+| packages/core/src/index.ts | Updated: re-exports AnnotationParser, SymbolAnnotations, FileAnnotations, LayerHint |
+| packages/core/src/__tests__/annotation-parser.test.ts | AnnotationParser unit + adversarial tests (valid tags, malformed values, YAML injection, prototype pollution, determinism) — 24 tests |
+| packages/core/src/__tests__/auto-extractor-annotations.test.ts | AutoExtractor×AnnotationParser integration: mixed annotated/unannotated fixture + annotation-coverage check — 5 tests |
 
 ## Chunk 14 — MCP server (basic, v1-compatible)
 

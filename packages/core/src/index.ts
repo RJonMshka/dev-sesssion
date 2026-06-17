@@ -25,17 +25,21 @@ export type {
 } from "./adapters/adapter.js";
 export type {
 	AiIndex,
+	FileAnnotations,
 	FileEntry,
+	LayerHint,
 	ParsedFile,
 	ParsedSymbol,
+	SymbolAnnotations,
 	SymbolEntry,
 	SymbolSurface,
 } from "./annotation/index.js";
-// Annotation: ai-index auto-extraction (Chunk 13A)
+// Annotation: ai-index auto-extraction (Chunk 12) + @ai-* refinement (Chunk 13)
 export {
 	AI_INDEX_FILENAME,
 	AiIndexBuilder,
 	AiIndexManager,
+	AnnotationParser,
 	AutoExtractor,
 } from "./annotation/index.js";
 // Calculators
