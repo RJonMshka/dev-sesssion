@@ -939,14 +939,19 @@ The paste-`NEXT_PROMPT` flow front-loads a fixed context budget. An MCP server i
 > **Goal:** Wire the Chunk 12 layered index into the actual bootstrap so sessions start at layer 0 and escalate only as needed.
 > **Depends on:** Chunks 12, 14
 > **Est. sessions:** 1–2
-> **Status:** ⬜ planned
+> **Status:** ✅ complete (2026-06-17)
 
 ### Tasks
-- [ ] `NextPromptWriter` / `BootstrapFormatter` default to **layer 0** for chunk-tagged files (path + module summary), layer 1 for always-include
-- [ ] Escalation rule: a file referenced by an active task loads at layer 2; everything else stays at the lowest useful layer
-- [ ] `dev-session preview` shows per-file layer and the token delta of escalating each file
-- [ ] Budget calculator accounts for layered cost, not whole-file cost
-- [ ] Tests: layered assembly respects budget; escalation rule selects the right files
+- [x] `BootstrapFormatter` defaults to **layer 0** for chunk-tagged files (path + module summary), layer 1 for always-include — driven by the new `LayerResolver` and surfaced via `resolvedLayers` on `BootstrapContext`
+- [x] Escalation rule: a file referenced by an active (non-done) task loads at layer 2; everything else stays at the lowest useful layer (`@ai-layer-default` raises the floor but never lowers it)
+- [x] `dev-session preview` shows per-file layer and the escalation token delta (`+N full`), plus a layered-savings summary; both text and `--format json`
+- [x] Budget calculator accounts for layered cost, not whole-file cost (`ContextBudgetCalculator.estimateLayered`); wired into `preview`, `update`, `advance`, and `init` final-writes
+- [x] Tests: `LayerResolver` (escalation, layer floor, dedup, costs), `estimateLayered`, `formatLayeredContextLines`, plain-formatter layered section, preview table markers
+
+### Implementation notes
+- New `LayerResolver` (`packages/core/src/calculators/layer-resolver.ts`) is the pure decision layer; it reuses `AiIndexManager.renderLayer0/1` + `ContextBudgetCalculator.estimateFromString` to cost reduced layers. Building blocks `read_file_layer` (Chunk 14) and `renderLayer*` (Chunk 12) are unchanged.
+- NEXT_PROMPT now communicates the *plan* (which layer per file; escalated files marked "Load full"); the MCP `read_file_layer` tool serves the *content* on demand — small prompts, pull-based detail.
+- Layered loading only activates when an `ai-index.yaml` exists; without one, every file is charged at whole-file cost (graceful fallback, behavior unchanged).
 
 ---
 

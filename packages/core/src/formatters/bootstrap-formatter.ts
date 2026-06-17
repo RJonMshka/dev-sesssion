@@ -16,6 +16,7 @@
  */
 
 import type { AiIndex } from "../annotation/types.js";
+import type { ResolvedFileLayer } from "../calculators/layer-resolver.js";
 import type { ContextBudget } from "../schemas/context-budget.js";
 import type { FileIndexEntry, PlanChunk, SessionState } from "../schemas/index.js";
 
@@ -37,6 +38,13 @@ export interface BootstrapContext {
 	readonly excludePatterns: readonly string[];
 	/** Human-readable project name. */
 	readonly projectName: string;
+	/**
+	 * Per-file resolved context layers (Chunk 15). When present, formatters emit
+	 * a layered "Load" section that distinguishes full-source files (layer 2,
+	 * escalated by an active task) from summary-only files (layers 0–1). When
+	 * absent, formatters fall back to the flat `Load:` line.
+	 */
+	readonly resolvedLayers?: readonly ResolvedFileLayer[];
 }
 
 /**

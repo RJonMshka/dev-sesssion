@@ -24,6 +24,7 @@ import {
 	formatBudgetLine,
 	formatChunkProgress,
 	formatCompletedChunksSummary,
+	formatLayeredContextLines,
 	getPendingTasks,
 	trimToMaxLines,
 } from "@dev-session/core";
@@ -97,8 +98,15 @@ export const OpencodeBootstrapFormatter: BootstrapFormatter = {
 		lines.push(formatBudgetLine(budget));
 
 		// -- Context section (up to 4 lines) --
-		const allFiles = [...alwaysIncludeFiles, ...chunkFiles];
-		lines.push(`Load: ${this.formatFilesToLoad(allFiles)}`);
+		const resolvedLayers = context.resolvedLayers;
+		if (resolvedLayers !== undefined && resolvedLayers.length > 0) {
+			for (const line of formatLayeredContextLines(resolvedLayers, (f) => f, MAX_FILES_TO_SHOW)) {
+				lines.push(line);
+			}
+		} else {
+			const allFiles = [...alwaysIncludeFiles, ...chunkFiles];
+			lines.push(`Load: ${this.formatFilesToLoad(allFiles)}`);
+		}
 
 		const excludeStr = this.formatExcludes(excludePatterns);
 		if (excludeStr.length > 0) {

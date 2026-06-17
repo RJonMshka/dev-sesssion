@@ -1,13 +1,27 @@
 import { describe, expect, it } from "vitest";
+import type { ResolvedFileLayer } from "../calculators/layer-resolver.js";
 import {
 	formatBudgetLine,
 	formatChunkProgress,
 	formatCompletedChunksSummary,
+	formatLayeredContextLines,
 	getPendingTasks,
 	trimToMaxLines,
 } from "../formatters/formatter-utils.js";
 import type { ContextBudget, ContextBudgetBreakdown } from "../schemas/context-budget.js";
 import type { PlanChunk, SessionState } from "../schemas/index.js";
+
+function makeResolved(filepath: string, layer: 0 | 1 | 2, escalated = false): ResolvedFileLayer {
+	return {
+		filepath,
+		role: layer === 1 ? "always-include" : "chunk",
+		baseLayer: escalated ? 0 : layer,
+		layer,
+		escalated,
+		fullTokenCost: 500,
+		layeredTokenCost: layer === 2 ? 500 : 40,
+	};
+}
 
 function makeState(overrides?: Partial<SessionState>): SessionState {
 	return {
@@ -157,5 +171,50 @@ describe("trimToMaxLines", () => {
 	it("returns exact cap when equal", () => {
 		const lines = ["a", "b", "c"];
 		expect(trimToMaxLines(lines, 3)).toEqual(["a", "b", "c"]);
+	});
+});
+
+describe("formatLayeredContextLines", () => {
+	it("splits full (layer 2) and summary (layer 0/1) files into separate lines", () => {
+		const lines = formatLayeredContextLines(
+			[
+				makeResolved("src/full.ts", 2, true),
+				makeResolved("src/sum.ts", 0),
+				makeResolved("CLAUDE.md", 1),
+			],
+			(f) => f,
+			6,
+		);
+
+		expect(lines[0]).toBe("Load full: src/full.ts");
+		expect(lines[1]).toContain("Summaries (read_file_layer for detail):");
+		expect(lines[1]).toContain("src/sum.ts·L0");
+		expect(lines[1]).toContain("CLAUDE.md·L1");
+	});
+
+	it("applies the ref callback (e.g. @-mentions)", () => {
+		const lines = formatLayeredContextLines(
+			[makeResolved("src/full.ts", 2, true)],
+			(f) => `@${f}`,
+			6,
+		);
+		expect(lines[0]).toBe("Load full: @src/full.ts");
+	});
+
+	it("omits the full line when no files are escalated", () => {
+		const lines = formatLayeredContextLines([makeResolved("src/a.ts", 0)], (f) => f, 6);
+		expect(lines.some((l) => l.startsWith("Load full:"))).toBe(false);
+		expect(lines[0]).toContain("Summaries");
+	});
+
+	it("truncates each line at maxFiles with a +N more suffix", () => {
+		const summaries = Array.from({ length: 8 }, (_, i) => makeResolved(`src/f${String(i)}.ts`, 0));
+		const lines = formatLayeredContextLines(summaries, (f) => f, 6);
+		expect(lines[0]).toContain("+2 more");
+	});
+
+	it("falls back to an empty Load line when given no files", () => {
+		const lines = formatLayeredContextLines([], (f) => f, 6);
+		expect(lines).toEqual(["Load: (none)"]);
 	});
 });

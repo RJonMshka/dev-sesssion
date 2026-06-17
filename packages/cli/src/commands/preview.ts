@@ -19,12 +19,15 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { log } from "@clack/prompts";
 import {
+	AiIndexManager,
 	type BootstrapContext,
 	ContextBudgetCalculator,
 	DEFAULT_CONTEXT_BUDGET,
 	FileIndexManager,
+	LayerResolver,
 	NextPromptWriter,
 	PlanChunkManager,
+	type ResolvedFileLayer,
 	SessionStateManager,
 	TokenCounter,
 	TrimOverridesManager,
@@ -55,12 +58,25 @@ export interface PreviewOptions {
 	readonly adapter?: string;
 }
 
+/** Per-file token info, including its resolved context layer. */
+export interface FileTokenInfo {
+	readonly path: string;
+	/** Effective token cost at the file's resolved layer. */
+	readonly tokens: number;
+	/** Whole-file token cost (what loading the full source would add). */
+	readonly fullTokens: number;
+	/** Resolved layer (0/1/2), or `null` when no ai-index is available. */
+	readonly layer: 0 | 1 | 2 | null;
+	/** Whether an active task escalated this file to full source. */
+	readonly escalated: boolean;
+}
+
 /** Per-component token info. */
 export interface TokenBreakdownEntry {
 	readonly label: string;
 	readonly tokens: number;
 	readonly percent: number;
-	readonly files?: ReadonlyArray<{ path: string; tokens: number }>;
+	readonly files?: readonly FileTokenInfo[];
 }
 
 /** Full JSON output for --format json. */
@@ -74,14 +90,16 @@ export interface PreviewJson {
 		readonly plan_chunk: { tokens: number; file: string };
 		readonly always_include: {
 			tokens: number;
-			files: ReadonlyArray<{ path: string; tokens: number }>;
+			files: readonly FileTokenInfo[];
 		};
 		readonly context_files: {
 			tokens: number;
-			files: ReadonlyArray<{ path: string; tokens: number }>;
+			files: readonly FileTokenInfo[];
 		};
 		readonly excluded_files: readonly string[];
 	};
+	/** Tokens saved by layered loading vs. loading every file in full. */
+	readonly layered_savings: number;
 	readonly prompt_text: string;
 	readonly heuristic_warning: boolean;
 }
@@ -168,10 +186,15 @@ export function renderBreakdownTable(
 			for (const f of entry.files) {
 				const filePct =
 					totalTokens > 0 ? `${String(Math.round((f.tokens / totalTokens) * 100))}%` : "—";
-				const shortPath =
-					f.path.length > LABEL_WIDTH - 4 ? `…${f.path.slice(-(LABEL_WIDTH - 5))}` : f.path;
+				// Layer marker: "L0"/"L1"/"L2", with "*" when escalated by a task.
+				const layerMark = f.layer === null ? "  " : `L${String(f.layer)}${f.escalated ? "*" : " "}`;
+				// Escalation delta: extra tokens a full (layer-2) load would add.
+				const delta = f.fullTokens - f.tokens;
+				const deltaStr = delta > 0 ? ` (+${String(delta)} full)` : "";
+				const pathWidth = LABEL_WIDTH - 5;
+				const shortPath = f.path.length > pathWidth ? `…${f.path.slice(-(pathWidth - 1))}` : f.path;
 				lines.push(
-					`  ${shortPath.padEnd(LABEL_WIDTH - 2)} ${(prefix + String(f.tokens)).padStart(TOKEN_WIDTH)} ${filePct.padStart(PCT_WIDTH)}`,
+					`  ${layerMark} ${shortPath.padEnd(pathWidth)} ${(prefix + String(f.tokens)).padStart(TOKEN_WIDTH)} ${filePct.padStart(PCT_WIDTH)}${deltaStr}`,
 				);
 			}
 		}
@@ -236,33 +259,54 @@ export async function runPreview(options: PreviewOptions): Promise<void> {
 	const sessionStateTokens = (await counter.countString(sessionStateContent)).tokens;
 	const planChunkTokens = (await counter.countString(planChunkContent)).tokens;
 
-	// Token counts for always-include files
-	const alwaysIncludeFileCosts = await Promise.all(
-		alwaysInclude.map(async (entry) => {
-			const content = safeReadFile(path.join(options.cwd, entry.filepath));
-			const tokens = (await counter.countString(content)).tokens;
-			return { path: entry.filepath, tokens };
-		}),
-	);
-	const alwaysIncludeTotal = alwaysIncludeFileCosts.reduce((s, f) => s + f.tokens, 0);
+	// Resolve the effective layer for every bootstrap file. Files default to
+	// layer 0 (chunk) / layer 1 (always-include) and escalate to full source
+	// (layer 2) when an active task references them. Layered costs require an
+	// ai-index; without one every file is charged at its whole-file cost.
+	const aiIndex = AiIndexManager.load(sessionDir);
+	const resolved = LayerResolver.resolve({
+		chunkFiles,
+		alwaysIncludeFiles: alwaysInclude,
+		tasks: chunk.tasks,
+		index: aiIndex,
+	});
 
-	// Token counts for context files
-	const contextFileCosts = await Promise.all(
-		chunkFiles.map(async (entry) => {
-			const content = safeReadFile(path.join(options.cwd, entry.filepath));
-			const tokens = (await counter.countString(content)).tokens;
-			return { path: entry.filepath, tokens };
+	// Read each file once to derive its whole-file ("full") cost, then charge
+	// the effective layered cost from the resolver.
+	const allCosts = await Promise.all(
+		resolved.map(async (r): Promise<FileTokenInfo & { role: ResolvedFileLayer["role"] }> => {
+			const content = safeReadFile(path.join(options.cwd, r.filepath));
+			const fullTokens = (await counter.countString(content)).tokens;
+			const hasLayer = aiIndex !== null;
+			const tokens = !hasLayer || r.layer === 2 ? fullTokens : r.layeredTokenCost;
+			return {
+				path: r.filepath,
+				tokens,
+				fullTokens,
+				layer: hasLayer ? r.layer : null,
+				escalated: r.escalated,
+				role: r.role,
+			};
 		}),
 	);
+
+	const alwaysIncludeFileCosts: FileTokenInfo[] = allCosts.filter(
+		(c) => c.role === "always-include",
+	);
+	const contextFileCosts: FileTokenInfo[] = allCosts.filter((c) => c.role === "chunk");
+	const alwaysIncludeTotal = alwaysIncludeFileCosts.reduce((s, f) => s + f.tokens, 0);
 	const contextFilesTotal = contextFileCosts.reduce((s, f) => s + f.tokens, 0);
+
+	// Tokens saved by loading reduced layers instead of full source.
+	const layeredSavings = allCosts.reduce((s, f) => s + (f.fullTokens - f.tokens), 0);
 
 	const totalTokens = sessionStateTokens + planChunkTokens + alwaysIncludeTotal + contextFilesTotal;
 	const budgetCap = DEFAULT_CONTEXT_BUDGET;
 	const overBudget = totalTokens > budgetCap;
 	const accurate = false; // heuristic only
 
-	// Build bootstrap context for prompt generation
-	const budget = ContextBudgetCalculator.estimate(state, chunk, chunkFiles, alwaysInclude);
+	// Build bootstrap context for prompt generation (layered cost).
+	const budget = ContextBudgetCalculator.estimateLayered(state, chunk, resolved);
 	const projectName = detectProjectName(options.cwd);
 
 	const {
@@ -289,6 +333,7 @@ export async function runPreview(options: PreviewOptions): Promise<void> {
 		budget,
 		excludePatterns,
 		projectName,
+		...(aiIndex !== null ? { resolvedLayers: resolved } : {}),
 	};
 
 	const promptText = NextPromptWriter.generateWithFormatter(adapter.formatter, bootstrapContext);
@@ -308,13 +353,13 @@ export async function runPreview(options: PreviewOptions): Promise<void> {
 			percent: Math.round((planChunkTokens / totalTokens) * 100),
 		},
 		{
-			label: `Always-include files (${String(alwaysInclude.length)})`,
+			label: `Always-include files (${String(alwaysIncludeFileCosts.length)})`,
 			tokens: alwaysIncludeTotal,
 			percent: Math.round((alwaysIncludeTotal / totalTokens) * 100),
 			files: alwaysIncludeFileCosts,
 		},
 		{
-			label: `Context files (${String(chunkFiles.length)})`,
+			label: `Context files (${String(contextFileCosts.length)})`,
 			tokens: contextFilesTotal,
 			percent: Math.round((contextFilesTotal / totalTokens) * 100),
 			files: contextFileCosts,
@@ -340,6 +385,7 @@ export async function runPreview(options: PreviewOptions): Promise<void> {
 				context_files: { tokens: contextFilesTotal, files: contextFileCosts },
 				excluded_files: excludedPaths,
 			},
+			layered_savings: layeredSavings,
 			prompt_text: options.noContent ? "" : promptText,
 			heuristic_warning: !accurate,
 		};
@@ -362,6 +408,17 @@ export async function runPreview(options: PreviewOptions): Promise<void> {
 
 	const table = renderBreakdownTable(breakdown, totalTokens, budgetCap, overBudget, accurate);
 	process.stdout.write(`\n${table}\n`);
+
+	if (aiIndex === null) {
+		log.info(
+			"No ai-index.yaml — files counted at full size. Run `dev-session index` to enable layered loading.",
+		);
+	} else if (layeredSavings > 0) {
+		log.info(
+			`Layered loading saves ~${String(layeredSavings)} tokens vs. full source. ` +
+				"Files marked Ln load at a reduced layer; * = escalated by an active task.",
+		);
+	}
 
 	if (overBudget) {
 		log.warn(

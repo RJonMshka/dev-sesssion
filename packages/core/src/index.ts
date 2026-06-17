@@ -45,6 +45,12 @@ export {
 // Calculators
 export { ContextBudgetCalculator } from "./calculators/context-budget-calculator.js";
 export type {
+	FileLayerRole,
+	LayerResolverInput,
+	ResolvedFileLayer,
+} from "./calculators/layer-resolver.js";
+export { LayerResolver } from "./calculators/layer-resolver.js";
+export type {
 	HealthIssue,
 	HealthReport,
 	HealthSeverityValue,
@@ -72,6 +78,7 @@ export {
 	formatBudgetLine,
 	formatChunkProgress,
 	formatCompletedChunksSummary,
+	formatLayeredContextLines,
 	getPendingTasks,
 	trimToMaxLines,
 } from "./formatters/formatter-utils.js";

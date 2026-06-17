@@ -15,10 +15,12 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { cancel, confirm, isCancel, log } from "@clack/prompts";
 import {
+	AiIndexManager,
 	type BootstrapContext,
 	ContextBudgetCalculator,
 	type ContextLogEntry,
 	FileIndexManager,
+	LayerResolver,
 	NextPromptWriter,
 	type PlanChunk,
 	PlanChunkManager,
@@ -161,7 +163,20 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 	const alwaysInclude = FileIndexManager.alwaysInclude(allEntries);
 	const chunkFiles = FileIndexManager.queryByChunk(allEntries, state.active_chunk);
 
-	const budget = ContextBudgetCalculator.estimate(state, newChunk, chunkFiles, alwaysInclude);
+	// Resolve per-file context layers (Chunk 15); charge layered budget when an
+	// ai-index is present.
+	const aiIndex = AiIndexManager.load(sessionDir);
+	const resolvedLayers = LayerResolver.resolve({
+		chunkFiles,
+		alwaysIncludeFiles: alwaysInclude,
+		tasks: newChunk.tasks,
+		index: aiIndex,
+	});
+
+	const budget =
+		aiIndex !== null
+			? ContextBudgetCalculator.estimateLayered(state, newChunk, resolvedLayers)
+			: ContextBudgetCalculator.estimate(state, newChunk, chunkFiles, alwaysInclude);
 
 	const excludePatterns = buildExcludePatterns(state.active_chunk, allChunks);
 	const projectName = detectProjectName(options.cwd);
@@ -191,6 +206,7 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 		budget,
 		excludePatterns,
 		projectName,
+		...(aiIndex !== null ? { resolvedLayers } : {}),
 	};
 
 	const promptContent = NextPromptWriter.generateWithFormatter(adapter.formatter, bootstrapContext);

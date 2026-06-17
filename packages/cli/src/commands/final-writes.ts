@@ -12,9 +12,11 @@ import * as path from "node:path";
 import { confirm, isCancel, log } from "@clack/prompts";
 import type { BootstrapContext, FileIndexEntry, PlanChunk, SessionState } from "@dev-session/core";
 import {
+	AiIndexManager,
 	ContextBudgetCalculator,
 	DEFAULT_CONTEXT_BUDGET,
 	FileIndexManager,
+	LayerResolver,
 	NextPromptWriter,
 	RoutinesWriter,
 	SessionStateManager,
@@ -145,13 +147,32 @@ export async function runFinalWrites(
 	const chunkFiles = FileIndexManager.queryByChunk(entries, activeChunk.chunk_id);
 	const alwaysIncludeFiles = FileIndexManager.alwaysInclude(entries);
 
-	const budget = ContextBudgetCalculator.estimate(
-		sessionState,
-		activeChunk,
+	// Resolve per-file context layers (Chunk 15). Files default to layer 0/1 and
+	// escalate to full source when referenced by an active task. The budget is
+	// charged at the layered cost when an ai-index is available.
+	const aiIndex = AiIndexManager.load(sessionDir);
+	const resolvedLayers = LayerResolver.resolve({
 		chunkFiles,
 		alwaysIncludeFiles,
-		DEFAULT_CONTEXT_BUDGET,
-	);
+		tasks: activeChunk.tasks,
+		index: aiIndex,
+	});
+
+	const budget =
+		aiIndex !== null
+			? ContextBudgetCalculator.estimateLayered(
+					sessionState,
+					activeChunk,
+					resolvedLayers,
+					DEFAULT_CONTEXT_BUDGET,
+				)
+			: ContextBudgetCalculator.estimate(
+					sessionState,
+					activeChunk,
+					chunkFiles,
+					alwaysIncludeFiles,
+					DEFAULT_CONTEXT_BUDGET,
+				);
 
 	const excludePatterns = buildExcludePatterns(activeChunk.chunk_id, chunks);
 
@@ -195,6 +216,7 @@ export async function runFinalWrites(
 		budget,
 		excludePatterns,
 		projectName,
+		...(aiIndex !== null ? { resolvedLayers } : {}),
 	};
 
 	const promptContent = NextPromptWriter.generateWithFormatter(adapter.formatter, bootstrapContext);

@@ -332,29 +332,30 @@ last_updated: "2026-06-16"
 | packages/core/src/__tests__/session-manager.test.ts | Facade unit tests (all 6 ops, path traversal, read-only, query validation) |
 | packages/cli/src/__tests__/mcp.test.ts | MCP boundary tests via in-memory transport (tools/list, calls, traversal + read-only rejection) |
 
-## Chunk 15 — Layered context loading
+## Chunk 15 — Layered context loading (wiring) [COMPLETE 2026-06-17]
 
 | File | Purpose |
 |---|---|
-| packages/core/src/schemas/session-yaml.ts | SessionYaml type + SessionYamlSchema (Zod strict) — context_budget, active_adapter, files layer map, excludes[] (absorbs trim-overrides.json) |
-| packages/core/src/managers/layer-manager.ts | LayerManager — load, save, getLayer (declared→hint→2), promote, demote, setLayer, resolveContextContent |
-| packages/core/src/schemas/resolved-context.ts | ResolvedContext — files[], totalTokens, budgetUsed, overBudget |
-| packages/core/src/index.ts | Updated: exports LayerManager, SessionYaml, ResolvedContext |
-| packages/cli/src/commands/layers.ts | layers command — table display + layers init + layers inspect subcommands |
-| packages/cli/src/commands/expand.ts | expand command — promote layer, save session.yaml, print diff, regen NEXT_PROMPT.md |
-| packages/cli/src/commands/collapse.ts | collapse command — demote layer, save, print diff, regen NEXT_PROMPT.md |
-| packages/cli/src/commands/layer-set.ts | layer <path> --set <0|1|2> — explicit override |
-| packages/cli/src/commands/advance.ts | Updated: migrates trim-overrides.json → session.yaml excludes; resets layers to hints on advance |
-| packages/cli/src/commands/status.ts | Updated: layer-aware token breakdown |
-| packages/cli/src/cli.ts | Updated: registers layers, expand, collapse, layer commands |
-| packages/core/src/formatters/bootstrap-formatter.ts | Updated: formatLayeredContext(resolved) added to interface |
-| packages/adapters/src/claude-bootstrap-formatter.ts | Updated: formatLayeredContext() — Layer 0 inline, Layer 1 @path + note, Layer 2 plain @path |
-| packages/adapters/src/opencode-bootstrap-formatter.ts | Updated: formatLayeredContext() for opencode |
-| packages/core/src/managers/next-prompt-writer.ts | Updated: generateWithFormatter() accepts optional ResolvedContext |
-| packages/core/src/calculators/context-budget-calculator.ts | Updated: estimate() accepts optional ResolvedContext |
-| packages/mcp/tools/index.ts | Updated: get_file_at_layer tool added (layer 0/1 via AiIndexManager, layer 2 full read) |
-| packages/core/src/__tests__/layer-manager.test.ts | LayerManager unit tests (getLayer priority, promote/demote clamping, resolveContextContent, overBudget, trim-overrides migration) |
-| tests/e2e/layers.e2e.test.ts | E2e: expand updates session.yaml + NEXT_PROMPT; layers init with mixed hints; advance resets |
+| packages/core/src/calculators/layer-resolver.ts | LayerResolver.resolve — per-file effective layer (chunk→0, always-include→1, @ai-layer-default raises floor, active-task reference escalates to 2); ResolvedFileLayer/LayerResolverInput/FileLayerRole types |
+| packages/core/src/calculators/context-budget-calculator.ts | Updated: estimateLayered(state, chunk, resolved[, cap]) — totals from layered file costs (chunk vs always-include split) |
+| packages/core/src/formatters/formatter-utils.ts | Updated: formatLayeredContextLines(resolved, ref, maxFiles) — "Load full" + "Summaries (Ln)" lines |
+| packages/core/src/formatters/bootstrap-formatter.ts | Updated: BootstrapContext.resolvedLayers? optional field |
+| packages/core/src/formatters/plain-text-formatter.ts | Updated: layered Context section when resolvedLayers present |
+| packages/core/src/index.ts | Updated: exports LayerResolver, formatLayeredContextLines + ResolvedFileLayer/LayerResolverInput/FileLayerRole |
+| packages/adapters/src/claude-bootstrap-formatter.ts | Updated: layered Context section (@-mention refs) |
+| packages/adapters/src/cursor-bootstrap-formatter.ts | Updated: layered Context section |
+| packages/adapters/src/opencode-bootstrap-formatter.ts | Updated: layered Context section |
+| packages/cli/src/commands/preview.ts | Updated: per-file layer marker + escalation delta (FileTokenInfo), layered budget, layered_savings, info line |
+| packages/cli/src/commands/update.ts | Updated: resolves layers, layered budget, passes resolvedLayers |
+| packages/cli/src/commands/advance.ts | Updated: resolves layers, layered budget, passes resolvedLayers |
+| packages/cli/src/commands/final-writes.ts | Updated: resolves layers, layered budget, passes resolvedLayers (init) |
+| packages/core/src/__tests__/layer-resolver.test.ts | LayerResolver unit tests (8) |
+| packages/core/src/__tests__/context-budget-calculator.test.ts | Updated: estimateLayered tests (4) |
+| packages/core/src/__tests__/formatter-utils.test.ts | Updated: formatLayeredContextLines tests (5) |
+| packages/core/src/__tests__/plain-text-formatter.test.ts | Updated: layered Context section tests (2) |
+| packages/cli/src/__tests__/preview.test.ts | Updated: layer marker + escalation delta tests (3) |
+
+**Design note:** Built as a pure decision layer (`LayerResolver`) reusing existing managers — no separate `LayerManager`/`session.yaml`/new commands. NEXT_PROMPT communicates which layer per file; the MCP `read_file_layer` tool (Chunk 14) serves content on demand. Layering activates only when `ai-index.yaml` exists; otherwise whole-file cost (unchanged behavior).
 
 ## Chunk 16 — Adapters: Cursor + Windsurf
 

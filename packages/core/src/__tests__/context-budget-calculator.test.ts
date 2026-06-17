@@ -174,6 +174,93 @@ describe("ContextBudgetCalculator", () => {
 		});
 	});
 
+	describe("estimateLayered", () => {
+		it("charges layered file costs, splitting chunk vs always-include", () => {
+			const resolved = [
+				{
+					filepath: "src/a.ts",
+					role: "chunk" as const,
+					baseLayer: 0 as const,
+					layer: 0 as const,
+					escalated: false,
+					fullTokenCost: 1000,
+					layeredTokenCost: 80,
+				},
+				{
+					filepath: "CLAUDE.md",
+					role: "always-include" as const,
+					baseLayer: 1 as const,
+					layer: 1 as const,
+					escalated: false,
+					fullTokenCost: 400,
+					layeredTokenCost: 120,
+				},
+			];
+
+			const budget = ContextBudgetCalculator.estimateLayered(makeState(), makeChunk(), resolved);
+
+			expect(budget.breakdown.files.size).toBe(1);
+			expect(budget.breakdown.files.get("src/a.ts")).toBe(80);
+			expect(budget.breakdown.alwaysInclude).toBe(120);
+		});
+
+		it("costs less than the whole-file estimate when files are not escalated", () => {
+			const resolved = [
+				{
+					filepath: "src/a.ts",
+					role: "chunk" as const,
+					baseLayer: 0 as const,
+					layer: 0 as const,
+					escalated: false,
+					fullTokenCost: 5000,
+					layeredTokenCost: 90,
+				},
+			];
+
+			const layered = ContextBudgetCalculator.estimateLayered(makeState(), makeChunk(), resolved);
+			const whole = ContextBudgetCalculator.estimate(
+				makeState(),
+				makeChunk(),
+				[makeFiles(1, 5000)[0] as FileIndexEntry],
+				[],
+			);
+
+			expect(layered.totalTokens).toBeLessThan(whole.totalTokens);
+		});
+
+		it("honors a custom budget cap and reports overBudget", () => {
+			const resolved = [
+				{
+					filepath: "src/a.ts",
+					role: "chunk" as const,
+					baseLayer: 2 as const,
+					layer: 2 as const,
+					escalated: true,
+					escalatedBy: "work on src/a.ts",
+					fullTokenCost: 9000,
+					layeredTokenCost: 9000,
+				},
+			];
+
+			const budget = ContextBudgetCalculator.estimateLayered(
+				makeState(),
+				makeChunk(),
+				resolved,
+				1000,
+			);
+
+			expect(budget.budgetCap).toBe(1000);
+			expect(budget.overBudget).toBe(true);
+		});
+
+		it("handles an empty resolved list", () => {
+			const budget = ContextBudgetCalculator.estimateLayered(makeState(), makeChunk(), []);
+			expect(budget.breakdown.files.size).toBe(0);
+			expect(budget.breakdown.alwaysInclude).toBe(0);
+			expect(budget.totalTokens).toBeGreaterThan(0);
+		});
+	});
+
 	describe("estimateFromString", () => {
 		it("estimates tokens from a string", () => {
 			// ~100 chars ≈ 25 tokens (1 token per 4 bytes)
