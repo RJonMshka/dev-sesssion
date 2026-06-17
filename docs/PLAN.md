@@ -35,6 +35,26 @@ The CLI is a thin layer over the programmatic API. All business logic lives in `
 
 ---
 
+## Build status (as of 2026-06-16)
+
+> Legend: ✅ **shipped** (on `main`, released in v1.x) · 🟡 **on `dev/post-v1-features`** (built, WIP, not merged) · ⬜ **planned** (not yet built)
+
+| Chunk | Title | Status | Notes |
+|---|---|---|---|
+| 1–9 | Foundation → adapters → polish/OSS prep | ✅ | Released in v1.0.x. The Cursor adapter landed here (Chunk 7), so it is **not** a future item. |
+| 3.5 | Token counting infrastructure | ✅ | Shipped with the v1 core. |
+| 10 | Context Intelligence (preview/trim/lint/compact) | 🟡 | Implemented on `dev/post-v1-features`; CLI commands not on `main`. |
+| 11 | Session memory & analytics | 🟡 | `SessionMemoryManager` + `CONTEXT_LOG.md` on the branch. |
+| 12 | ai-index auto-extraction & layered loading | 🟡 | `packages/core/src/annotation/` on the branch; **was missing from this plan entirely**. |
+| 13 | `@ai-*` annotation refinement | 🟡 | `AnnotationParser` — partially in progress on the branch. |
+| 14 | MCP server | ⬜ | Promoted from the original backlog. |
+| 15 | Layered context loading (wiring) | ⬜ | Bootstrap/adapters escalate layer 0 → 1 → 2 on demand. |
+| 16 | Windsurf adapter | ⬜ | Cursor already shipped in Chunk 7; only Windsurf remains. |
+
+**Source-of-truth caveat:** the `.session/` brain on `main` currently tracks the *branch's* progress (it references an `annotation/` dir that does not exist on `main`) and its chunk numbering has drifted from this document. Reconciling those is tracked separately; this table reflects what is actually committed where.
+
+---
+
 ## Cross-cutting mandates (apply to every chunk)
 
 ### Security (non-negotiable)
@@ -539,7 +559,7 @@ In team mode, `PLAN_N.md` and `FILE_INDEX.md` are committed. `SESSION_STATE.md` 
 #### Team mode init
 - [ ] `dev-session init --team` — prompts for team vs personal mode
 - [ ] Generates `.gitignore` patch: adds `SESSION_STATE.md`, `NEXT_PROMPT.md`, `DONE_LOG.md`
-- [ ] Generates `.gitattributes` entry: mark `FILE_INDEX.md` as merge=ours to reduce conflicts
+- [ ] Generates `.gitattributes` entry: mark `FILE_INDEX.md` with a **union merge driver** (`merge=union`) so concurrent index additions from different developers are both kept — NEVER `merge=ours` (which would silently discard teammates' entries on a shared file). Document that union merge can produce duplicate lines; `dev-session index audit` deduplicates after merge.
 
 #### Migration tooling
 - [ ] `dev-session migrate` — handles monorepos: auto-detect `pnpm-workspace.yaml` / `nx.json` / `turborepo`
@@ -629,6 +649,7 @@ The original plan listed `tiktoken-node` as a v0.2 backlog item. This is incorre
   - `countFiles(paths: ValidatedPath[]): Promise<TokenCostMap>` — batch count for budget display
   - Offline fallback: character-based heuristic (`Math.ceil(chars / 4)`) when `ANTHROPIC_API_KEY` is absent
   - Exposes `isAccurate: boolean` on each result — consumers can warn when using heuristic
+- [ ] **Content-hash cache** (mandatory for feasibility): `TokenCounter` caches results in `.session/.token-cache.json` keyed by `sha256(file content)` → `{ tokens, accurate }`. `countFile`/`countFiles` only call the API for files whose hash is absent or changed; unchanged files are served from cache. Without this, per-file API calls on every `preview`/`index`/`status` blow the latency budgets and hit rate limits on non-trivial repos. Cache is gitignored, invalidated by hash mismatch, and bounded (LRU eviction at a configurable max entry count).
 - [ ] `TokenCostMap` type: `Map<ValidatedPath, { tokens: number; accurate: boolean }>`
 - [ ] `TokenBudget` type: `{ limit: number; used: number; remaining: number; overBudget: boolean; accurate: boolean }`
 - [ ] Update `GitignoreAwareWalker.estimateTokenCost()` to delegate to `TokenCounter` (real API) with heuristic fallback — rename to `measureTokenCost()` to reflect accuracy upgrade
@@ -717,16 +738,21 @@ Existing tools (Claude Code, Cursor, opencode) suffer from shared failure modes:
 
 ### Feature D — `dev-session compact <file>`
 
+> ⚠ **Highest-blast-radius feature.** LLM compression is lossy and non-deterministic. Auto-rewriting a developer's rule files is the single most dangerous operation in the project, so this command is **dry-run by default and never writes without an explicit, reviewed diff approval.** The safe, deterministic overlap (dedup, soft-language, dead refs) is already covered by `lint-context` (Feature C) — prefer it first.
+
 - [ ] Accepts a single file path (validated via `PathValidator`)
 - [ ] Supported targets: any file in FILE_INDEX or always-include list; rejects files outside project
-- [ ] Backup original to `.session/backups/<filename>.<timestamp>` via `AtomicWriter` before modifying
+- [ ] **Refuses hard-rule files by default** — files matching a protected-glob list (`CLAUDE.md`, `AGENTS.md`, `**/HARD_RULES*`, `SECURITY.md`, anything tagged `protected` in FILE_INDEX) are rejected unless `--force-protected` is passed with an interactive confirmation. Constraint files must never be silently rewritten.
+- [ ] **Dry-run is the default.** Writing requires `--write` AND an interactive, line-level **diff approval** (show unified diff, prompt to accept) — there is no non-interactive write path except `--yes --write` which still prints the full diff to the log first.
+- [ ] Backup original to `.session/backups/<filename>.<timestamp>` via `AtomicWriter` before any write
 - [ ] Calls `messages.create` with a compact system prompt:
-  - "You are a context compressor. Reduce this file to its essential information only. Preserve all hard constraints, rules, and facts. Remove redundancy, soft language, examples that can be inferred, and formatting prose. Output only the compacted content, no commentary."
-- [ ] Shows before/after token count and line count diff for confirmation before writing
-- [ ] `--dry-run` flag: print compacted version to stdout without writing
-- [ ] `--model <id>` flag: override model used for compaction (default: cheapest available Haiku/Flash class model)
+  - "You are a context compressor. Reduce this file to its essential information only. Preserve all hard constraints, rules, and facts verbatim. Remove redundancy, soft language, examples that can be inferred, and formatting prose. Output only the compacted content, no commentary."
+- [ ] **Post-compaction safety check**: re-run `SecretScanner` on the output, and warn if any line that looked like a hard rule in the original (`NEVER`, `MUST`, `ALWAYS`, `do not`) is absent from the compacted output — surfaces dropped constraints before the diff prompt.
+- [ ] Shows before/after token count and line count diff
+- [ ] `--write` flag: opt in to writing (default is print-to-stdout dry-run)
+- [ ] `--model <id>` flag: override model used for compaction (default: cheapest available Haiku-class model)
 - [ ] Explicit `ANTHROPIC_API_KEY` required — clear `CliError` with suggestion if absent
-- [ ] Updates `FileIndexEntry.token_cost` after writing compacted file
+- [ ] Updates `FileIndexEntry.token_cost` only after a confirmed write
 
 ### Tests (Chunk 10)
 - [ ] Unit: `ContextLinter.detectDuplicates` finds normalized duplicates across two files
@@ -813,13 +839,133 @@ export { SessionMemoryManager, ContextLogEntry, StalenessReport, PassiveLoad, Me
 
 ---
 
+## Chunk 12 — ai-index: auto-extraction & layered loading
+
+> **Goal:** Surface a compact, structured map of the codebase's API to the model instead of whole files — the highest-leverage context-reduction feature.
+> **Depends on:** Chunks 3.5, 10
+> **Est. sessions:** 2–3
+> **Status:** 🟡 built on `dev/post-v1-features` (WIP)
+
+### Rationale
+Loading whole source files into context is the dominant source of token waste. This chunk extracts each file's *public surface* — module summary, exported symbols, signatures, one-line JSDoc summaries — into a serialized `.session/ai-index.yaml`, with **zero source annotations required**. The model can then load a layered view (names → signatures → full file) and pull the full file only when it actually needs the body.
+
+### Tasks
+
+#### 12a — Extraction model and parser
+- [ ] `ParsedSymbol` type — `{ name, surface, summary, signature, line, tags }`; `surface` defaults to `"public"` for exports; `summary` auto-extracted from existing `/** */` JSDoc
+- [ ] `ParsedFile` type — `{ path, moduleSummary, exports, tokenCost, tokenCostAccurate }`; `moduleSummary` from the `@packageDocumentation` block
+- [ ] `AutoExtractor` class in `packages/core/src/annotation/` — `extractFile(path)` via `@typescript-eslint/typescript-estree`; handles exported functions, classes, consts, type aliases, interfaces
+- [ ] `AutoExtractor.extractDirectory(root, options)` — walks via `GitignoreAwareWalker`; graceful empty-result on parse errors (never throws on a malformed file)
+
+#### 12b — Index build, serialize, query
+- [ ] `AiIndex` + `FileEntry` + `SymbolEntry` types — the serialized `ai-index.yaml` shape
+- [ ] `AiIndexBuilder` — `build`, `merge` (mtime-based incremental), `serialize` (deterministic YAML, sorted keys), `deserialize`
+- [ ] Hand-rolled YAML serializer/deserializer (`yaml-utils.ts`) — **no new YAML runtime dep**; JSON-style string quoting
+- [ ] `AiIndexManager` — `load`, `save` (atomic + `SecretScanner`), `queryByLayer`, `queryByTag`, `queryByChunk`, `renderLayer0`, `renderLayer1`, `renderLayer2`
+  - Layer 0: file path + module summary only
+  - Layer 1: + exported symbol names and one-line summaries
+  - Layer 2: full file (escalation path via `ValidatedPath`)
+
+#### 12c — CLI + adapter integration
+- [ ] `dev-session index` — full regen pipeline + reports + over-budget warning
+- [ ] `dev-session index --update` — incremental via mtime; `--dry-run`, `--file`, `--show`; `index stats` subcommand
+- [ ] Add `ai-index.yaml` to gitignore (personal) / commit (team) in `init`
+- [ ] `BootstrapFormatter.formatAiIndex()` + implementations for all four formatters (plain, claude, opencode, cursor)
+- [ ] Export `AutoExtractor`, `AiIndexBuilder`, `AiIndexManager`, and the new types from `packages/core`
+
+#### 12d — Tests
+- [ ] Unit: `AutoExtractor.extractFile` — all export kinds, existing JSDoc, parse-error handling
+- [ ] Unit: `AiIndexBuilder.merge` (add/remove/modify), `serialize` determinism
+- [ ] Unit: `AiIndexManager.renderLayer0/1`, `queryByChunk`
+- [ ] E2e: `dev-session index` on fixture; `--update` skips unchanged; `--dry-run` writes nothing
+
+### Key exports added to `packages/core`
+```typescript
+export { AutoExtractor, AiIndexBuilder, AiIndexManager }
+export type { ParsedFile, ParsedSymbol, AiIndex, FileEntry, SymbolEntry, SymbolSurface }
+```
+
+---
+
+## Chunk 13 — `@ai-*` annotation refinement
+
+> **Goal:** Optional inline annotations to override auto-extracted index data when the heuristic is wrong.
+> **Depends on:** Chunk 12
+> **Est. sessions:** 1
+> **Status:** 🟡 in progress on `dev/post-v1-features`
+
+### Rationale
+Chunk 12 requires zero annotations, but auto-extraction occasionally guesses wrong (an export that is technically public but not part of the intended surface, or a missing summary). `@ai-*` tags let an author correct the index at the source, parsed transparently by `AutoExtractor`.
+
+### Tasks
+- [ ] `AnnotationParser` class — parses JSDoc tags from a comment block:
+  - `@ai-surface <public|private>` — override visibility
+  - `@ai-summary <text>` — override the one-line summary
+  - `@ai-layer-hint <0|1|2>` / `@ai-layer-default <0|1|2>` — preferred load layer
+  - **Dropped** (derivable, not hand-maintained): `@ai-deps`, `@ai-context-cost`
+- [ ] `AutoExtractor` calls `AnnotationParser` internally — transparent to callers; `ParsedSymbol.tags` populated from parsed annotations
+- [ ] Export `AnnotationParser`, `FileAnnotations` from `packages/core`
+- [ ] **Adversarial tests required**: YAML injection via annotation values, malformed values, unknown tags ignored safely, prototype-pollution keys in tag values
+- [ ] E2e: mixed annotated + unannotated fixture; annotation-coverage report
+
+---
+
+## Chunk 14 — MCP server (basic, v1-compatible)
+
+> **Goal:** Expose session state to the agent directly over MCP, so context is *pulled on demand* instead of front-loaded via a pasted `NEXT_PROMPT`.
+> **Depends on:** Chunks 6, 12
+> **Est. sessions:** 2–3
+> **Status:** ⬜ planned (promoted from the original backlog)
+
+### Rationale
+The paste-`NEXT_PROMPT` flow front-loads a fixed context budget. An MCP server inverts this: the agent calls tools to fetch the active chunk, query the ai-index by layer, and mark tasks done — loading the full body of a file only when it decides it needs it. This is the natural end state of the "context as a reducible, pull-based asset" thesis.
+
+### Tasks
+- [ ] MCP server entrypoint (`dev-session mcp`) built on the official MCP SDK; reads `.session/` via the `SessionManager` facade (no new business logic in the server layer)
+- [ ] Tools: `get_active_chunk`, `list_context_files`, `read_file_layer(path, layer)`, `query_index(tag|chunk|layer)`, `mark_task_done(text)`, `get_next_prompt`
+- [ ] All writes go through `AtomicWriter` + `WriteGuard`; all paths through `PathValidator` — the MCP boundary is treated as untrusted external input
+- [ ] Read-only mode flag for shared/team setups
+- [ ] Tests: tool I/O contract tests; path-traversal attempt via a tool argument is rejected
+
+---
+
+## Chunk 15 — Layered context loading (wiring)
+
+> **Goal:** Wire the Chunk 12 layered index into the actual bootstrap so sessions start at layer 0 and escalate only as needed.
+> **Depends on:** Chunks 12, 14
+> **Est. sessions:** 1–2
+> **Status:** ⬜ planned
+
+### Tasks
+- [ ] `NextPromptWriter` / `BootstrapFormatter` default to **layer 0** for chunk-tagged files (path + module summary), layer 1 for always-include
+- [ ] Escalation rule: a file referenced by an active task loads at layer 2; everything else stays at the lowest useful layer
+- [ ] `dev-session preview` shows per-file layer and the token delta of escalating each file
+- [ ] Budget calculator accounts for layered cost, not whole-file cost
+- [ ] Tests: layered assembly respects budget; escalation rule selects the right files
+
+---
+
+## Chunk 16 — Windsurf adapter
+
+> **Goal:** Round out first-party adapter coverage.
+> **Depends on:** Chunk 7
+> **Est. sessions:** 1
+> **Status:** ⬜ planned (Cursor already shipped in Chunk 7)
+
+### Tasks
+- [ ] Detect Windsurf project markers; implement the `Adapter` interface and a `WindsurfBootstrapFormatter`
+- [ ] Register in `AdapterRegistry`; `--adapter windsurf` override
+- [ ] Tests: fixture project, formatter output, registry resolution
+
+---
+
 ## Risks and open questions
 
 | Question | Status | Decision |
 |---|---|---|
 | Commit `.session/PLAN_N.md` to git? | Decided | Team mode yes, personal mode no |
 | `@11ty/gray-matter` vs upstream `gray-matter` | Decided | Use `@11ty/gray-matter` — JS engine RCE risk |
-| MCP server mode for session state | Backlog | Post-v1 — expose session as MCP tool |
+| MCP server mode for session state | Chunk 14 | Promoted from backlog — pull-based context delivery over MCP |
 | Token counting in FILE_INDEX | Decided | Use `@anthropic-ai/sdk messages.countTokens` API (free, Claude-native); `tiktoken-node` is wrong — uses OpenAI BPE encoding, incompatible with Claude |
 | Multiple concurrent users same repo | Chunk 8 | Handled via team mode + `.gitattributes` |
 | Plugin system beyond adapters | Backlog | Not before v1 — keep scope tight |
