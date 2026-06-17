@@ -30,13 +30,15 @@ export default defineConfig({
 			},
 		],
 		coverage: {
+			// In-process coverage only (unit + integration). Subprocess-tested
+			// CLI code is collected separately via c8 over NODE_V8_COVERAGE and
+			// merged by tests/coverage/merge-coverage.mjs, which enforces the
+			// 80% statement / 75% branch thresholds on the combined map.
 			provider: "v8",
 			include: ["packages/*/src/**/*.ts"],
 			exclude: ["**/*.test.ts", "**/__tests__/**", "**/index.ts", "**/*.d.ts"],
-			thresholds: {
-				statements: 80,
-				branches: 75,
-			},
+			reporter: ["text-summary", "json"],
+			reportsDirectory: "coverage/unit",
 		},
 	},
 });

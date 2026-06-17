@@ -5,8 +5,8 @@ node_modules/
 dist/
 *.tsbuildinfo
 
-# Coverage
-coverage/
+# Coverage (root output dir only — keep tests/coverage/ scripts tracked)
+/coverage/
 *.lcov
 
 # Logs

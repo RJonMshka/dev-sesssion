@@ -43,11 +43,16 @@ jobs:
         run: npm audit --omit=dev
         continue-on-error: true
 
+      - name: Secret scan (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITLEAKS_CONFIG: .gitleaks.toml
+
       - name: Build
         run: pnpm build
 
-      - name: Test
-        run: pnpm test
+      - name: Test + coverage gate
+        run: pnpm test:coverage
 
       - name: Publint
         run: pnpm publint

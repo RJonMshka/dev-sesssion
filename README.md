@@ -182,6 +182,20 @@ Detects pnpm, npm, Yarn, Nx, and Turborepo workspaces.
 
 ---
 
+## Documentation
+
+| Doc | What's in it |
+|---|---|
+| [docs/getting-started.md](./docs/getting-started.md) | Installation, `.session/` structure, first-session walkthrough |
+| [docs/commands.md](./docs/commands.md) | Full command reference + global flags |
+| [docs/adapters.md](./docs/adapters.md) | Using the Claude Code / opencode / Cursor / Windsurf adapters |
+| [docs/authoring-adapters.md](./docs/authoring-adapters.md) | How to write a new adapter |
+| [docs/team-mode.md](./docs/team-mode.md) | Shared vs personal files, gitattributes, monorepos |
+| [PROTOCOL.md](./PROTOCOL.md) | The Session Protocol v1.0 spec (the `.session/` format) |
+| [SECURITY.md](./SECURITY.md) | Threat model and vulnerability disclosure |
+
+---
+
 ## Contributing
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup, conventions, and the pull request process.
@@ -197,7 +211,7 @@ The project is a pnpm monorepo:
 | `packages/security` | Path validation, secret scanning, atomic writes, error types |
 | `packages/core` | Session managers, plan parser, formatters, project detector |
 | `packages/cli` | Commander commands, `@clack/prompts` wizard flows |
-| `packages/adapters` | Claude Code, opencode, and Cursor adapter implementations |
+| `packages/adapters` | Claude Code, opencode, Cursor, and Windsurf adapter implementations |
 
 ---
 

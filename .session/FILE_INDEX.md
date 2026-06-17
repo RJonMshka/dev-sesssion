@@ -223,6 +223,24 @@ last_updated: "2026-06-16"
 | docs/adapters.md | Claude Code / opencode / Cursor — detection, NEXT_PROMPT format, setup, export |
 | docs/team-mode.md | Shared vs personal files, gitignore/gitattributes, team workflow, monorepo teams |
 
+### Chunk 9 follow-up (2026-06-17) — audits, subprocess coverage, docs
+
+| File | Purpose |
+|---|---|
+| .gitleaks.toml | gitleaks config — extends default + allowlists secret-scanner test fixtures |
+| tests/coverage/collect-e2e-coverage.mjs | Runs e2e under NODE_V8_COVERAGE; c8 remaps CLI-bundle dumps → coverage/e2e/coverage-final.json |
+| tests/coverage/merge-coverage.mjs | DISJOINT merge of vitest (in-process) + c8 (subprocess) coverage; per-pkg summary; enforces 80/75 gate |
+| tests/e2e/lifecycle.e2e.test.ts | E2e for update/advance/export/import/health/status/prompt + status warning states (33 tests) — closed the CLI coverage gap |
+| packages/adapters/src/__tests__/formatters-ai-index.test.ts | formatAiIndex across all 4 formatters: layers 0/1/2 + empty (20 tests) |
+| tests/benchmarks/status-latency.ts | `status` latency benchmark — 200-file project, median < 500ms budget |
+| vitest.config.ts | Updated: coverage reporter=json, reportsDirectory=coverage/unit, in-config threshold removed (merge script enforces) |
+| package.json | Updated: test:coverage (build→unit→e2e→merge), test:coverage:unit/:e2e, benchmark:status; +devDeps c8, istanbul-lib-coverage |
+| .github/workflows/ci.yml | Updated: gitleaks step (GITLEAKS_CONFIG=.gitleaks.toml); Test step runs `pnpm test:coverage` gate |
+| AUTHORS | Project authors file |
+| PROTOCOL.md | Session Protocol v1.0 spec — the `.session/` format for community adoption |
+| docs/authoring-adapters.md | Guide for writing a new adapter (interface, formatter, hooks, registration, tests) |
+| README.md | Updated: Documentation index section; Windsurf added to package table |
+
 ## Chunk 8 — Team mode & enterprise features
 
 | File | Purpose |
