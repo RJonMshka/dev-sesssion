@@ -1,9 +1,9 @@
-# API Reference — dev-sesssion/core v1.0.0
+# API Reference — @dev-session/core v1.0.0
 
-`dev-sesssion` exposes a `core` library you can use to build custom integrations, companion tools, or alternative UIs on top of the session state model.
+`@dev-session/core` is the library package underlying the `dev-sesssion` CLI. Use it to build custom integrations, companion tools, or alternative UIs on top of the session state model.
 
 ```bash
-npm install dev-sesssion
+npm install @dev-session/core
 ```
 
 ```ts
@@ -12,7 +12,7 @@ import {
   FileIndexManager,
   NextPromptWriter,
   PlainTextFormatter,
-} from "dev-sesssion";
+} from "@dev-session/core";
 ```
 
 ---
@@ -30,7 +30,7 @@ import {
 
 ## SessionStateManager
 
-Manages `SESSION_STATE.md`. All I/O uses `AtomicWriter` and `FrontmatterParser` from `dev-sesssion/security`. State-transition helpers are pure functions with no side effects.
+Manages `SESSION_STATE.md`. All I/O uses `AtomicWriter` and `FrontmatterParser` from `@dev-session/security`. State-transition helpers are pure functions with no side effects.
 
 | Method | Signature | Returns | Description |
 |---|---|---|---|
@@ -43,7 +43,7 @@ Manages `SESSION_STATE.md`. All I/O uses `AtomicWriter` and `FrontmatterParser` 
 | `compact` | `(state) => SessionState` | `SessionState` | Pure — trim completed-chunk detail, add summary note |
 
 ```ts
-import { PathValidator, SessionStateManager } from "@dev-sesssion/core";
+import { PathValidator, SessionStateManager } from "@dev-session/core";
 
 const sessionDir = PathValidator.safeResolvePath(root, ".session");
 const state = SessionStateManager.load(sessionDir);
@@ -55,7 +55,7 @@ SessionStateManager.save(sessionDir, updated);
 
 ## PlainTextFormatter
 
-Formats a `BootstrapContext` into a structured prompt string. Implements `BootstrapFormatter`. For tool-specific formatting (Claude Code `@`-mentions, opencode directives) use the adapter formatters from `dev-sesssion/adapters`.
+Formats a `BootstrapContext` into a structured prompt string. Implements `BootstrapFormatter`. For tool-specific formatting (Claude Code `@`-mentions, opencode directives) use the adapter formatters from `@dev-session/adapters`.
 
 | Method | Signature | Returns | Description |
 |---|---|---|---|
@@ -77,7 +77,7 @@ interface BootstrapContext {
 ```
 
 ```ts
-import { PlainTextFormatter } from "@dev-sesssion/core";
+import { PlainTextFormatter } from "@dev-session/core";
 
 const prompt = PlainTextFormatter.generatePrompt({
   state,
@@ -100,10 +100,10 @@ Manages `FILE_INDEX.md`. Parses the markdown table format and provides query hel
 |---|---|---|---|
 | `load` | `(sessionDir: ValidatedPath) => FileIndexEntry[]` | `FileIndexEntry[]` | Parse `FILE_INDEX.md` |
 | `save` | `(sessionDir: ValidatedPath, entries: FileIndexEntry[]) => void` | `void` | Atomic write |
-| `add` | `(entries, entry: FileIndexEntry) => FileIndexEntry[]` | `FileIndexEntry[]` | Pure — append entry, deduplicates by path |
+| `add` | `(entries, entry: FileIndexEntry) => FileIndexEntry[]` | `FileIndexEntry[]` | Pure — append entry (deduplicates by path) |
 | `queryByChunk` | `(entries, chunkId: number) => FileIndexEntry[]` | `FileIndexEntry[]` | Filter to a specific chunk |
 | `alwaysInclude` | `(entries) => FileIndexEntry[]` | `FileIndexEntry[]` | Return entries tagged "Always Include" |
-| `audit` | `(entries, sessionDir: ValidatedPath) => AuditResult` | `AuditResult` | Detect stale (deleted) and ok files |
+| `audit` | `(entries, sessionDir: ValidatedPath) => AuditResult` | `AuditResult` | Detect stale (deleted) and missing (unindexed) files |
 
 ```ts
 interface FileIndexEntry {
@@ -120,7 +120,7 @@ interface AuditResult {
 ```
 
 ```ts
-import { FileIndexManager } from "@dev-sesssion/core";
+import { FileIndexManager } from "@dev-session/core";
 
 const entries = FileIndexManager.load(sessionDir);
 const chunkFiles = FileIndexManager.queryByChunk(entries, 3);
@@ -135,8 +135,8 @@ Generates `NEXT_PROMPT.md` content. Use `generateWithFormatter` for adapter-awar
 
 | Method | Signature | Returns | Description |
 |---|---|---|---|
-| `generate` | `(state, chunk, files) => string` | `string` | Plain-text prompt (no adapter formatting) |
-| `generateWithFormatter` | `(ctx: BootstrapContext, formatter: BootstrapFormatter) => string` | `string` | Prompt via formatter — recommended |
+| `generate` | `(state, chunk, files) => string` | `string` | Plain-text prompt (legacy; no adapter formatting) |
+| `generateWithFormatter` | `(ctx: BootstrapContext, formatter: BootstrapFormatter) => string` | `string` | Prompt via formatter — recommended path |
 | `write` | `(sessionDir, content: string) => void` | `void` | Atomic write to `NEXT_PROMPT.md` |
 | `validate` | `(content: string) => ValidationResult` | `ValidationResult` | Check line count against the 15-line cap |
 
@@ -149,10 +149,13 @@ interface ValidationResult {
 ```
 
 ```ts
-import { NextPromptWriter, PlainTextFormatter } from "@dev-sesssion/core";
+import { NextPromptWriter, PlainTextFormatter } from "@dev-session/core";
 
 const content = NextPromptWriter.generateWithFormatter(ctx, PlainTextFormatter);
 const result = NextPromptWriter.validate(content);
+if (!result.valid) {
+  console.warn(`Prompt is ${result.lineCount} lines — trimming to ${result.maxLines}`);
+}
 NextPromptWriter.write(sessionDir, content);
 ```
 
@@ -160,7 +163,7 @@ NextPromptWriter.write(sessionDir, content);
 
 ## Error types
 
-All errors thrown by `@dev-sesssion/core` are typed:
+All errors thrown by `@dev-session/core` are typed. Import them from the same package:
 
 | Class | When thrown |
 |---|---|
@@ -169,7 +172,7 @@ All errors thrown by `@dev-sesssion/core` are typed:
 | `SecurityError` | Path traversal, secret detected in output, or JS frontmatter engine invoked |
 
 ```ts
-import { CliError, ParseError, SecurityError } from "@dev-sesssion/core";
+import { CliError, ParseError, SecurityError } from "@dev-session/core";
 
 try {
   const state = SessionStateManager.load(sessionDir);
@@ -189,10 +192,10 @@ try {
 All file paths from external sources must go through `PathValidator` before being passed to any manager. Managers accept `ValidatedPath` (a branded string type), not raw `string`.
 
 ```ts
-import { PathValidator } from "@dev-sesssion/core";
+import { PathValidator } from "@dev-session/core";
 
 // Throws SecurityError if path escapes the project root
 const safe = PathValidator.safeResolvePath(projectRoot, userProvidedPath);
 ```
 
-See `packages/security` for the full security surface (`AtomicWriter`, `SecretScanner`, `WriteGuard`, `FrontmatterParser`).
+See `packages/security` for the full security API (`AtomicWriter`, `SecretScanner`, `WriteGuard`, `FrontmatterParser`).

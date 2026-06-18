@@ -5,8 +5,8 @@ node_modules/
 dist/
 *.tsbuildinfo
 
-# Coverage
-coverage/
+# Coverage (root output dir only — keep tests/coverage/ scripts tracked)
+/coverage/
 *.lcov
 
 # Logs
@@ -31,7 +31,7 @@ Thumbs.db
 # Package output
 *.tgz
 
-# dev-session — personal session files (never committed)
+# dev-sesssion — personal session files (never committed)
 .session/SESSION_STATE.md
 .session/NEXT_PROMPT.md
 .session/DONE_LOG.md

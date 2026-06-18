@@ -1,0 +1,21 @@
+# gitleaks configuration for dev-sesssion
+#
+# Extends the upstream default ruleset, then allowlists the security
+# package's adversarial test fixtures. Those files INTENTIONALLY embed
+# fake credentials (placeholder PEM keys, ghp_1234…, sk-ABC…, npm_1234…)
+# to verify that SecretScanner detects them. They contain no real secrets.
+#
+# Run:  gitleaks detect --source .        (full history)
+#       gitleaks protect --staged         (pre-commit, per CONTRIBUTING)
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Secret-scanner test fixtures contain planted fake credentials by design"
+paths = [
+  '''packages/security/src/__tests__/secret-scanner\.test\.ts''',
+  '''packages/security/src/__tests__/secret-scanner\.adversarial\.test\.ts''',
+  '''packages/security/src/__tests__/write-guard\.adversarial\.test\.ts''',
+  '''packages/security/src/__tests__/atomic-writer\.adversarial\.test\.ts''',
+]

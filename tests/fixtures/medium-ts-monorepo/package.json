@@ -2,7 +2,7 @@
 	"name": "medium-ts-monorepo",
 	"version": "0.0.0",
 	"private": true,
-	"description": "A medium TypeScript monorepo — dev-session benchmark fixture",
+	"description": "A medium TypeScript monorepo — dev-sesssion benchmark fixture",
 	"type": "module",
 	"scripts": {
 		"build": "pnpm -r run build",

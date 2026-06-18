@@ -19,7 +19,7 @@ tasks:
     status: todo
   - text: "Warn if `accurate: false` (no API key) — show heuristic caveat"
     status: todo
-  - text: "Warn if total exceeds `DEFAULT_CONTEXT_BUDGET` — suggest `dev-session trim`"
+  - text: "Warn if total exceeds `DEFAULT_CONTEXT_BUDGET` — suggest `dev-sesssion trim`"
     status: todo
   - text: "Read current context file list (same source as `preview`)"
     status: todo
@@ -31,7 +31,7 @@ tasks:
     status: todo
   - text: "Does NOT require `ANTHROPIC_API_KEY` — all operations are local"
     status: todo
-  - text: "Session-scoped skips/truncations written to a `.session/trim-overrides.json` file (gitignored); cleared on `dev-session advance`"
+  - text: "Session-scoped skips/truncations written to a `.session/trim-overrides.json` file (gitignored); cleared on `dev-sesssion advance`"
     status: todo
   - text: "`NextPromptWriter.generateWithFormatter()` respects trim overrides when assembling NEXT_PROMPT"
     status: todo
@@ -39,7 +39,7 @@ tasks:
     status: todo
   - text: "`LintResult` type: `{ severity: 'error' | 'warning' | 'info'; rule: string; file: string; line?: number; message: string }`"
     status: todo
-  - text: "`dev-session lint-context` command:"
+  - text: "`dev-sesssion lint-context` command:"
     status: todo
   - text: "No `ANTHROPIC_API_KEY` required — fully local static analysis"
     status: todo
@@ -69,15 +69,15 @@ tasks:
     status: todo
   - text: "Unit: trim overrides are respected by `NextPromptWriter`"
     status: todo
-  - text: "E2e: `dev-session preview --format json` on a fixture project parses correctly"
+  - text: "E2e: `dev-sesssion preview --format json` on a fixture project parses correctly"
     status: todo
-  - text: "E2e: `dev-session trim --budget 3000 --dry-run` on a fixture over-budget project"
+  - text: "E2e: `dev-sesssion trim --budget 3000 --dry-run` on a fixture over-budget project"
     status: todo
-  - text: "E2e: `dev-session lint-context` exits 1 on fixture with injected duplicate rules"
+  - text: "E2e: `dev-sesssion lint-context` exits 1 on fixture with injected duplicate rules"
     status: todo
-  - text: "E2e: `dev-session compact --dry-run` on a large fixture file (no write, output to stdout)"
+  - text: "E2e: `dev-sesssion compact --dry-run` on a large fixture file (no write, output to stdout)"
     status: todo
-  - text: "Integration: `dev-session compact` backup file appears in `.session/backups/`"
+  - text: "Integration: `dev-sesssion compact` backup file appears in `.session/backups/`"
     status: todo
 ---
 
@@ -93,17 +93,17 @@ tasks:
 - [ ] `--copy` flag: copies assembled prompt to clipboard via `clipboardy`
 - [ ] `--no-content` flag: show breakdown only, suppress full prompt text
 - [ ] Warn if `accurate: false` (no API key) — show heuristic caveat
-- [ ] Warn if total exceeds `DEFAULT_CONTEXT_BUDGET` — suggest `dev-session trim`
+- [ ] Warn if total exceeds `DEFAULT_CONTEXT_BUDGET` — suggest `dev-sesssion trim`
 - [ ] Read current context file list (same source as `preview`)
 - [ ] Interactive mode: for each file, show token cost and prompt action:
 - [ ] `--budget <N>` flag: auto-suggest skipping files until under budget (largest-first)
 - [ ] `--dry-run` flag: show what would be excluded without modifying anything
 - [ ] Does NOT require `ANTHROPIC_API_KEY` — all operations are local
-- [ ] Session-scoped skips/truncations written to a `.session/trim-overrides.json` file (gitignored); cleared on `dev-session advance`
+- [ ] Session-scoped skips/truncations written to a `.session/trim-overrides.json` file (gitignored); cleared on `dev-sesssion advance`
 - [ ] `NextPromptWriter.generateWithFormatter()` respects trim overrides when assembling NEXT_PROMPT
 - [ ] `ContextLinter` class in `packages/core`:
 - [ ] `LintResult` type: `{ severity: 'error' | 'warning' | 'info'; rule: string; file: string; line?: number; message: string }`
-- [ ] `dev-session lint-context` command:
+- [ ] `dev-sesssion lint-context` command:
 - [ ] No `ANTHROPIC_API_KEY` required — fully local static analysis
 - [ ] Accepts a single file path (validated via `PathValidator`)
 - [ ] Supported targets: any file in FILE_INDEX or always-include list; rejects files outside project
@@ -118,8 +118,8 @@ tasks:
 - [ ] Unit: `ContextLinter.detectSoftLanguage` returns correct ratio and line numbers
 - [ ] Unit: `ContextLinter.detectDeadReferences` flags non-existent `@mention` paths
 - [ ] Unit: trim overrides are respected by `NextPromptWriter`
-- [ ] E2e: `dev-session preview --format json` on a fixture project parses correctly
-- [ ] E2e: `dev-session trim --budget 3000 --dry-run` on a fixture over-budget project
-- [ ] E2e: `dev-session lint-context` exits 1 on fixture with injected duplicate rules
-- [ ] E2e: `dev-session compact --dry-run` on a large fixture file (no write, output to stdout)
-- [ ] Integration: `dev-session compact` backup file appears in `.session/backups/`
+- [ ] E2e: `dev-sesssion preview --format json` on a fixture project parses correctly
+- [ ] E2e: `dev-sesssion trim --budget 3000 --dry-run` on a fixture over-budget project
+- [ ] E2e: `dev-sesssion lint-context` exits 1 on fixture with injected duplicate rules
+- [ ] E2e: `dev-sesssion compact --dry-run` on a large fixture file (no write, output to stdout)
+- [ ] Integration: `dev-sesssion compact` backup file appears in `.session/backups/`

@@ -1,5 +1,5 @@
 /**
- * Global error handler for the dev-session CLI.
+ * Global error handler for the dev-sesssion CLI.
  *
  * Catches typed errors (CliError, ParseError, SecurityError) and formats
  * them for terminal output. Unrecognized errors get a generic message.

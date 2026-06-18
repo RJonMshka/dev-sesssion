@@ -1,5 +1,5 @@
 /**
- * Manages plan chunk files (PLAN_N.md) within a dev-session directory.
+ * Manages plan chunk files (PLAN_N.md) within a dev-sesssion directory.
  *
  * Handles loading, querying, advancing, and archiving plan chunks.
  * All file reads use {@link FrontmatterParser} for safe parsing;
@@ -106,7 +106,7 @@ function readExistingLog(logPath: string): string {
 }
 
 /**
- * Manages plan chunk files (PLAN_N.md) in a dev-session directory.
+ * Manages plan chunk files (PLAN_N.md) in a dev-sesssion directory.
  *
  * Provides methods to load, query, advance, and archive plan chunks.
  * Pure functions (`advance`, `isComplete`) perform no I/O; I/O functions

@@ -77,14 +77,14 @@ describe("handleError", () => {
 		const { log } = await import("@clack/prompts");
 		const error = new CliError({
 			message: "no .session/ directory found",
-			suggestion: "Run `npx dev-session init` to create one",
+			suggestion: "Run `npx dev-sesssion init` to create one",
 		});
 
 		const code = handleError(error, { exit: false });
 
 		expect(code).toBe(1);
 		expect(log.error).toHaveBeenCalledWith("no .session/ directory found");
-		expect(log.info).toHaveBeenCalledWith("Suggestion: Run `npx dev-session init` to create one");
+		expect(log.info).toHaveBeenCalledWith("Suggestion: Run `npx dev-sesssion init` to create one");
 	});
 
 	it("handles CliError without suggestion", async () => {

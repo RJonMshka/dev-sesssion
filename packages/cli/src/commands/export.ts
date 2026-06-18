@@ -1,13 +1,13 @@
 /**
- * `dev-session export` command.
+ * `dev-sesssion export` command.
  *
  * Exports the current session state back to external AI tool config files —
- * the inverse of `dev-session import`:
+ * the inverse of `dev-sesssion import`:
  *
  * - `--to claude`  Writes the active chunk's tasks, notes, and file list
- *                  into CLAUDE.md inside `<!-- dev-session:start/end -->` markers.
+ *                  into CLAUDE.md inside `<!-- dev-sesssion:start/end -->` markers.
  * - `--to cursor`  Writes the active chunk's FILE_INDEX entries as glob patterns
- *                  into `.cursor/rules/dev-session.mdc`.
+ *                  into `.cursor/rules/dev-sesssion.mdc`.
  *
  * Business logic for index/state management lives in `@dev-session/core`.
  * This module handles I/O and Commander registration.
@@ -29,12 +29,12 @@ import { handleError } from "../utils/error-handler.js";
 // Constants
 // ---------------------------------------------------------------------------
 
-/** Marker comments that delimit the dev-session section in CLAUDE.md. */
-const CLAUDE_SECTION_START = "<!-- dev-session:start -->";
-const CLAUDE_SECTION_END = "<!-- dev-session:end -->";
+/** Marker comments that delimit the dev-sesssion section in CLAUDE.md. */
+const CLAUDE_SECTION_START = "<!-- dev-sesssion:start -->";
+const CLAUDE_SECTION_END = "<!-- dev-sesssion:end -->";
 
 /** Path where the cursor rule is written (relative to project root). */
-const CURSOR_MDC_PATH = ".cursor/rules/dev-session.mdc";
+const CURSOR_MDC_PATH = ".cursor/rules/dev-sesssion.mdc";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -67,7 +67,7 @@ export interface ExportOptions {
  */
 export async function runExport(options: ExportOptions): Promise<void> {
 	const sessionDir = resolveSessionDir(options.cwd);
-	intro(`dev-session export --to ${options.to}`);
+	intro(`dev-sesssion export --to ${options.to}`);
 
 	switch (options.to) {
 		case "claude":
@@ -95,7 +95,7 @@ export async function runExport(options: ExportOptions): Promise<void> {
  *
  * Reads SESSION_STATE.md (active chunk, tasks, notes) and FILE_INDEX.md
  * (files for the active chunk), builds a summary section, and upserts it
- * into CLAUDE.md between the `<!-- dev-session:start/end -->` markers.
+ * into CLAUDE.md between the `<!-- dev-sesssion:start/end -->` markers.
  *
  * @param sessionDir - Validated path to .session/
  * @param options - CLI options
@@ -133,13 +133,13 @@ async function exportToClaude(sessionDir: ValidatedPath, options: ExportOptions)
 
 	const verb = existing.length > 0 ? "Updated" : "Created";
 	log.success(
-		`${verb} CLAUDE.md with dev-session section (chunk ${String(state.active_chunk)})${options.dryRun ? " (dry run)" : ""}.`,
+		`${verb} CLAUDE.md with dev-sesssion section (chunk ${String(state.active_chunk)})${options.dryRun ? " (dry run)" : ""}.`,
 	);
 	outro("Export to CLAUDE.md complete.");
 }
 
 /**
- * Build the dev-session section content for CLAUDE.md.
+ * Build the dev-sesssion section content for CLAUDE.md.
  *
  * @param chunkId - The active chunk number
  * @param state - Current session state
@@ -197,7 +197,7 @@ function buildClaudeSection(
 }
 
 /**
- * Insert or replace the dev-session section in CLAUDE.md content.
+ * Insert or replace the dev-sesssion section in CLAUDE.md content.
  *
  * @param existing - Existing CLAUDE.md content (may be empty)
  * @param sectionContent - The new section content (without markers)
@@ -228,7 +228,7 @@ function upsertClaudeSection(existing: string, sectionContent: string): string {
  * Export current session FILE_INDEX as a Cursor rule file.
  *
  * Reads FILE_INDEX entries for the active chunk and writes them as
- * glob patterns into `.cursor/rules/dev-session.mdc`.
+ * glob patterns into `.cursor/rules/dev-sesssion.mdc`.
  *
  * @param sessionDir - Validated path to .session/
  * @param options - CLI options
@@ -278,7 +278,7 @@ async function exportToCursor(sessionDir: ValidatedPath, options: ExportOptions)
 }
 
 /**
- * Build the content for the `.cursor/rules/dev-session.mdc` file.
+ * Build the content for the `.cursor/rules/dev-sesssion.mdc` file.
  *
  * Generates a Cursor rule file with frontmatter glob patterns for all
  * active chunk files and always-include files.
@@ -299,7 +299,7 @@ function buildMdcContent(
 	const globsInline = uniqueFiles.map((f) => `"${f}"`).join(", ");
 	const frontmatter = [
 		"---",
-		`description: dev-session active chunk ${String(chunkId)} file index`,
+		`description: dev-sesssion active chunk ${String(chunkId)} file index`,
 		`globs: [${globsInline}]`,
 		"alwaysApply: false",
 		"---",
@@ -307,7 +307,7 @@ function buildMdcContent(
 
 	const body = [
 		"",
-		`# dev-session — Chunk ${String(chunkId)} context`,
+		`# dev-sesssion — Chunk ${String(chunkId)} context`,
 		"",
 		"Load these files at the start of your session. They are the files",
 		`tagged to active chunk ${String(chunkId)} in FILE_INDEX.md.`,
@@ -342,7 +342,7 @@ function resolveSessionDir(cwd: string): ValidatedPath {
 	if (!fs.existsSync(sessionDir)) {
 		throw new CliError({
 			message: "No .session/ directory found",
-			suggestion: "Run `dev-session init` first to initialize the project.",
+			suggestion: "Run `dev-sesssion init` first to initialize the project.",
 		});
 	}
 

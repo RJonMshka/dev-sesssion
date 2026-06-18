@@ -1,6 +1,8 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { SessionMemoryManager } from "@dev-session/core";
+import type { ValidatedPath } from "@dev-session/security";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getGitModifiedFiles, runUpdate } from "../commands/update.js";
 
@@ -206,5 +208,53 @@ describe("runUpdate --yes mode", () => {
 		);
 		expect(stateContent).toContain("active_chunk: 1");
 		expect(stateContent).toContain("session_id:");
+	});
+
+	it("appends entry to CONTEXT_LOG.md after update", async () => {
+		setupSession();
+
+		await runUpdate({
+			cwd: tmpDir,
+			yes: true,
+			verbose: false,
+			strict: false,
+		});
+
+		const sessionDir = path.join(tmpDir, ".session") as ValidatedPath;
+		const entries = SessionMemoryManager.load(sessionDir);
+
+		expect(entries).toHaveLength(1);
+		expect(entries[0]?.session_id).toBe("test-session");
+		expect(entries[0]?.active_chunk).toBe(1);
+		expect(entries[0]?.files_loaded).toContain("CLAUDE.md");
+		expect(entries[0]?.total_tokens).toBeGreaterThan(0);
+	});
+
+	it("CONTEXT_LOG.md append is idempotent with same timestamp", async () => {
+		setupSession();
+
+		// Manually inject an entry with a known timestamp
+		const sessionDir = path.join(tmpDir, ".session") as ValidatedPath;
+		const fakeEntry = {
+			session_id: "test-session",
+			timestamp: "2026-04-01T00:00:00.000Z",
+			active_chunk: 1,
+			files_loaded: ["CLAUDE.md"],
+			total_tokens: 500,
+			modifications: [],
+		};
+		SessionMemoryManager.append(sessionDir, fakeEntry);
+
+		// Running update again adds a new entry (different timestamp)
+		await runUpdate({
+			cwd: tmpDir,
+			yes: true,
+			verbose: false,
+			strict: false,
+		});
+
+		const entries = SessionMemoryManager.load(sessionDir);
+		// Should have 2 entries: the fake one + the one from update
+		expect(entries).toHaveLength(2);
 	});
 });

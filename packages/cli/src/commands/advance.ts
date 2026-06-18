@@ -1,5 +1,5 @@
 /**
- * `dev-session advance` command.
+ * `dev-sesssion advance` command.
  *
  * Archives the current chunk, compacts session state, advances to the
  * next chunk, and regenerates NEXT_PROMPT.md. Warns if not all tasks in
@@ -15,14 +15,19 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { cancel, confirm, isCancel, log } from "@clack/prompts";
 import {
+	AiIndexManager,
 	type BootstrapContext,
 	ContextBudgetCalculator,
+	type ContextLogEntry,
 	FileIndexManager,
+	LayerResolver,
 	NextPromptWriter,
 	type PlanChunk,
 	PlanChunkManager,
+	SessionMemoryManager,
 	SessionStateManager,
 	TaskStatus,
+	TrimOverridesManager,
 } from "@dev-session/core";
 import { CliError, PathValidator, type ValidatedPath } from "@dev-session/security";
 import type { Command } from "commander";
@@ -123,7 +128,7 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 	if (!nextChunkExists) {
 		throw new CliError({
 			message: `No PLAN_${String(nextChunkId)}.md found — cannot advance beyond the last chunk.`,
-			suggestion: "All chunks are complete. Consider running `dev-session status` to review.",
+			suggestion: "All chunks are complete. Consider running `dev-sesssion status` to review.",
 		});
 	}
 
@@ -158,7 +163,20 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 	const alwaysInclude = FileIndexManager.alwaysInclude(allEntries);
 	const chunkFiles = FileIndexManager.queryByChunk(allEntries, state.active_chunk);
 
-	const budget = ContextBudgetCalculator.estimate(state, newChunk, chunkFiles, alwaysInclude);
+	// Resolve per-file context layers (Chunk 15); charge layered budget when an
+	// ai-index is present.
+	const aiIndex = AiIndexManager.load(sessionDir);
+	const resolvedLayers = LayerResolver.resolve({
+		chunkFiles,
+		alwaysIncludeFiles: alwaysInclude,
+		tasks: newChunk.tasks,
+		index: aiIndex,
+	});
+
+	const budget =
+		aiIndex !== null
+			? ContextBudgetCalculator.estimateLayered(state, newChunk, resolvedLayers)
+			: ContextBudgetCalculator.estimate(state, newChunk, chunkFiles, alwaysInclude);
 
 	const excludePatterns = buildExcludePatterns(state.active_chunk, allChunks);
 	const projectName = detectProjectName(options.cwd);
@@ -188,6 +206,7 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 		budget,
 		excludePatterns,
 		projectName,
+		...(aiIndex !== null ? { resolvedLayers } : {}),
 	};
 
 	const promptContent = NextPromptWriter.generateWithFormatter(adapter.formatter, bootstrapContext);
@@ -195,7 +214,29 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 	NextPromptWriter.write(sessionDir, promptContent);
 
 	// -----------------------------------------------------------------------
-	// Step 7: Display result
+	// Step 7: Clear trim overrides (session-scoped, reset on advance)
+	// -----------------------------------------------------------------------
+	TrimOverridesManager.clear(sessionDir);
+
+	if (options.verbose) {
+		log.info("Cleared trim overrides for new chunk.");
+	}
+
+	// -----------------------------------------------------------------------
+	// Step 7b: Append context log entry for the completed chunk
+	// -----------------------------------------------------------------------
+	const logEntry: ContextLogEntry = {
+		session_id: state.session_id,
+		timestamp: new Date().toISOString(),
+		active_chunk: newChunk.chunk_id,
+		files_loaded: [...alwaysInclude.map((e) => e.filepath), ...chunkFiles.map((e) => e.filepath)],
+		total_tokens: budget.totalTokens,
+		modifications: [...state.last_worked_files],
+	};
+	SessionMemoryManager.append(sessionDir, logEntry);
+
+	// -----------------------------------------------------------------------
+	// Step 8: Display result
 	// -----------------------------------------------------------------------
 	const tasksRemaining = newChunk.tasks.filter((t) => t.status !== TaskStatus.DONE).length;
 
@@ -278,7 +319,7 @@ function resolveSessionDir(cwd: string): ValidatedPath {
 	if (!fs.existsSync(sessionDir)) {
 		throw new CliError({
 			message: "No .session/ directory found",
-			suggestion: "Run `dev-session init` first to initialize the project.",
+			suggestion: "Run `dev-sesssion init` first to initialize the project.",
 		});
 	}
 

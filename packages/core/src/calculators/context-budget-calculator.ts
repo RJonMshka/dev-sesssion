@@ -15,6 +15,7 @@
 import type { ContextBudget, ContextBudgetBreakdown } from "../schemas/context-budget.js";
 import { DEFAULT_CONTEXT_BUDGET } from "../schemas/context-budget.js";
 import type { FileIndexEntry, PlanChunk, SessionState } from "../schemas/index.js";
+import type { ResolvedFileLayer } from "./layer-resolver.js";
 
 /** Bytes-per-token heuristic for English text and code. */
 const BYTES_PER_TOKEN = 4;
@@ -155,6 +156,63 @@ export const ContextBudgetCalculator = {
 		let alwaysIncludeTotal = 0;
 		for (const cost of alwaysIncludeBreakdown.values()) {
 			alwaysIncludeTotal += cost;
+		}
+
+		const totalTokens = sessionStateTokens + planChunkTokens + filesTotal + alwaysIncludeTotal;
+
+		const breakdown: ContextBudgetBreakdown = {
+			sessionState: sessionStateTokens,
+			planChunk: planChunkTokens,
+			files: fileBreakdown,
+			alwaysInclude: alwaysIncludeTotal,
+		};
+
+		return {
+			totalTokens,
+			breakdown,
+			overBudget: totalTokens > cap,
+			budgetCap: cap,
+			accurate: false,
+		};
+	},
+
+	/**
+	 * Estimates the total token budget using *layered* file costs.
+	 *
+	 * Unlike {@link estimate}, which charges the whole-file cost for every file,
+	 * this charges each file at its resolved layer (see {@link ResolvedFileLayer}).
+	 * Chunk-tagged files contribute to the per-file breakdown; always-include
+	 * files are summed into `breakdown.alwaysInclude`. SESSION_STATE and the plan
+	 * chunk are estimated exactly as in {@link estimate}.
+	 *
+	 * @param state - The current session state.
+	 * @param chunk - The active plan chunk.
+	 * @param resolved - Per-file resolved layers from `LayerResolver.resolve`.
+	 * @param budgetCap - The maximum token budget (defaults to {@link DEFAULT_CONTEXT_BUDGET}).
+	 * @returns A {@link ContextBudget} computed from layered file costs.
+	 */
+	estimateLayered(
+		state: SessionState,
+		chunk: PlanChunk,
+		resolved: readonly ResolvedFileLayer[],
+		budgetCap?: number,
+	): ContextBudget {
+		const cap = budgetCap ?? DEFAULT_CONTEXT_BUDGET;
+
+		const sessionStateTokens = estimateSessionStateTokens(state);
+		const planChunkTokens = estimatePlanChunkTokens(chunk);
+
+		const fileBreakdown = new Map<string, number>();
+		let filesTotal = 0;
+		let alwaysIncludeTotal = 0;
+
+		for (const file of resolved) {
+			if (file.role === "always-include") {
+				alwaysIncludeTotal += file.layeredTokenCost;
+			} else {
+				fileBreakdown.set(file.filepath, file.layeredTokenCost);
+				filesTotal += file.layeredTokenCost;
+			}
 		}
 
 		const totalTokens = sessionStateTokens + planChunkTokens + filesTotal + alwaysIncludeTotal;

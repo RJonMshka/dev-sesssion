@@ -1,5 +1,5 @@
 /**
- * E2E test helper — run the dev-session CLI binary as a subprocess.
+ * E2E test helper — run the dev-sesssion CLI binary as a subprocess.
  *
  * Uses execa to invoke the compiled CLI via a thin wrapper script so tests
  * exercise the real compiled artifact, not the TypeScript source. ANSI codes
@@ -15,11 +15,10 @@ import stripAnsi from "strip-ansi";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /**
- * Thin CJS wrapper that calls run() directly — bypasses the auto-run
- * heuristic in index.ts which checks process.argv[1].includes("dev-session").
- * IMPORTANT: this file must NOT be named "dev-session.*" or the auto-run
- * check will fire a second time when the module is required, causing double
- * execution.
+ * Thin CJS wrapper that calls run() directly. The repo dir is named
+ * "dev-sesssion", so the wrapper's path matches the auto-run heuristic in
+ * index.ts; the wrapper sets DEV_SESSSION_NO_AUTORUN before requiring the
+ * module so it does not also auto-run, avoiding double execution.
  */
 export const CLI_WRAPPER = path.resolve(__dirname, "./cli-runner.cjs");
 
@@ -38,7 +37,7 @@ export interface RunResult {
 }
 
 /**
- * Run the dev-session CLI with the given arguments.
+ * Run the dev-sesssion CLI with the given arguments.
  *
  * @param args - CLI arguments (e.g. ["init", "--yes", "--cwd", "/tmp/x"])
  * @param options - Optional overrides for cwd and env

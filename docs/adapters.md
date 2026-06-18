@@ -1,12 +1,12 @@
 # Adapters
 
-An adapter controls how `dev-session` formats `NEXT_PROMPT.md` and how it integrates with your AI tool's config files.
+An adapter controls how `dev-sesssion` formats `NEXT_PROMPT.md` and how it integrates with your AI tool's config files.
 
 ---
 
 ## Auto-detection
 
-`dev-session` detects your adapter by looking for tool-specific files in your project root:
+`dev-sesssion` detects your adapter by looking for tool-specific files in your project root:
 
 | File present | Detected adapter |
 |---|---|
@@ -18,8 +18,8 @@ An adapter controls how `dev-session` formats `NEXT_PROMPT.md` and how it integr
 Override detection with `--adapter <name>` on any command:
 
 ```bash
-dev-session init --adapter cursor
-dev-session update --adapter opencode
+dev-sesssion init --adapter cursor
+dev-sesssion update --adapter opencode
 ```
 
 ---
@@ -50,7 +50,7 @@ Do NOT read: **/__tests__/** **/dist/**
 
 **Setup (on init):**
 
-Writes a `# dev-session` section in `CLAUDE.md` with the session configuration instructions for the Claude Code AI.
+Writes a `# dev-sesssion` section in `CLAUDE.md` with the session configuration instructions for the Claude Code AI.
 
 ---
 
@@ -78,7 +78,7 @@ Exclude: **/__tests__/**, **/dist/**
 
 **Setup (on init):**
 
-Writes a `# dev-session` section in `AGENTS.md`.
+Writes a `# dev-sesssion` section in `AGENTS.md`.
 
 ---
 
@@ -106,7 +106,7 @@ Ignore: **/__tests__/**, **/dist/**
 
 **Setup (on init):**
 
-Writes a `# dev-session` section in `.cursorrules`.
+Writes a `# dev-sesssion` section in `.cursorrules`.
 
 ---
 
@@ -116,10 +116,10 @@ You can switch adapters at any time:
 
 ```bash
 # Regenerate NEXT_PROMPT.md for a different adapter
-dev-session update --adapter cursor
+dev-sesssion update --adapter cursor
 
 # Or set it persistently by initializing with the flag
-dev-session init --adapter opencode
+dev-sesssion init --adapter opencode
 ```
 
 The adapter preference is not persisted in `SESSION_STATE.md` — it is re-detected (or overridden via `--adapter`) on each command.
@@ -128,11 +128,11 @@ The adapter preference is not persisted in `SESSION_STATE.md` — it is re-detec
 
 ## Export to adapter config
 
-`dev-session export` writes session state back to your adapter's config file, keeping it in sync with your current chunk:
+`dev-sesssion export` writes session state back to your adapter's config file, keeping it in sync with your current chunk:
 
 ```bash
-dev-session export --to claude    # writes/updates CLAUDE.md section
-dev-session export --to cursor    # writes .cursor/rules/dev-session.mdc
+dev-sesssion export --to claude    # writes/updates CLAUDE.md section
+dev-sesssion export --to cursor    # writes .cursor/rules/dev-sesssion.mdc
 ```
 
 Both operations are idempotent — running them again updates the existing section rather than appending.

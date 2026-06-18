@@ -2,7 +2,7 @@
  * opencode adapter — full lifecycle adapter for opencode integration.
  *
  * Wraps {@link OpencodeBootstrapFormatter} with lifecycle hooks that:
- * - Generate a dev-session section in AGENTS.md during init
+ * - Generate a dev-sesssion section in AGENTS.md during init
  * - Update AGENTS.md session section on session end
  *
  * @packageDocumentation
@@ -23,9 +23,9 @@ import { OpencodeBootstrapFormatter } from "./opencode-bootstrap-formatter.js";
 // Constants
 // ---------------------------------------------------------------------------
 
-/** Marker comments that delimit the dev-session section in AGENTS.md. */
-const SECTION_START = "<!-- dev-session:start -->";
-const SECTION_END = "<!-- dev-session:end -->";
+/** Marker comments that delimit the dev-sesssion section in AGENTS.md. */
+const SECTION_START = "<!-- dev-sesssion:start -->";
+const SECTION_END = "<!-- dev-sesssion:end -->";
 
 // ---------------------------------------------------------------------------
 // Config
@@ -45,7 +45,7 @@ const OPENCODE_CONFIG: AdapterConfig = {
 // ---------------------------------------------------------------------------
 
 /**
- * Generates the dev-session section content for AGENTS.md.
+ * Generates the dev-sesssion section content for AGENTS.md.
  *
  * @param projectName - The project name.
  * @param sessionDir - Relative path to the session directory.
@@ -54,9 +54,9 @@ const OPENCODE_CONFIG: AdapterConfig = {
 function generateSessionSection(_projectName: string, sessionDir: string): string {
 	const lines = [
 		"",
-		"## dev-session",
+		"## dev-sesssion",
 		"",
-		`This project uses dev-session to manage AI coding sessions.`,
+		`This project uses dev-sesssion to manage AI coding sessions.`,
 		"",
 		"### Session workflow",
 		"",
@@ -71,7 +71,7 @@ function generateSessionSection(_projectName: string, sessionDir: string): strin
 }
 
 /**
- * Inserts or replaces the dev-session section in AGENTS.md content.
+ * Inserts or replaces the dev-sesssion section in AGENTS.md content.
  *
  * @param existing - The existing AGENTS.md content (or empty string).
  * @param sectionContent - The new section content.
@@ -101,7 +101,7 @@ function upsertSection(existing: string, sectionContent: string): string {
 /**
  * opencode adapter.
  *
- * Integrates dev-session with opencode by managing an AGENTS.md section
+ * Integrates dev-sesssion with opencode by managing an AGENTS.md section
  * with session workflow instructions and exclude directives.
  */
 export const OpencodeAdapter: Adapter = {
@@ -109,7 +109,7 @@ export const OpencodeAdapter: Adapter = {
 	formatter: OpencodeBootstrapFormatter,
 
 	/**
-	 * Generates or updates the dev-session section in AGENTS.md.
+	 * Generates or updates the dev-sesssion section in AGENTS.md.
 	 *
 	 * @param context - Setup context with project paths and detection info.
 	 * @returns Result describing what was written.
@@ -127,7 +127,7 @@ export const OpencodeAdapter: Adapter = {
 		const verb = existing.length > 0 ? "Updated" : "Created";
 		return {
 			filesWritten: ["AGENTS.md"],
-			summary: `${verb} AGENTS.md with dev-session workflow section`,
+			summary: `${verb} AGENTS.md with dev-sesssion workflow section`,
 		};
 	},
 
@@ -152,7 +152,7 @@ export const OpencodeAdapter: Adapter = {
 	},
 
 	/**
-	 * Updates the AGENTS.md dev-session section with current state.
+	 * Updates the AGENTS.md dev-sesssion section with current state.
 	 *
 	 * @param context - Session lifecycle context.
 	 */

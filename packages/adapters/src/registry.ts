@@ -13,6 +13,7 @@ import { DetectedTool, PlainTextFormatter } from "@dev-session/core";
 import { ClaudeAdapter } from "./claude-adapter.js";
 import { CursorAdapter } from "./cursor-adapter.js";
 import { OpencodeAdapter } from "./opencode-adapter.js";
+import { WindsurfAdapter } from "./windsurf-adapter.js";
 
 /**
  * Minimal fallback adapter for unknown tools.
@@ -42,6 +43,7 @@ const ADAPTER_MAP: Record<string, Adapter> = Object.assign(
 		[DetectedTool.CLAUDE]: ClaudeAdapter,
 		[DetectedTool.OPENCODE]: OpencodeAdapter,
 		[DetectedTool.CURSOR]: CursorAdapter,
+		[DetectedTool.WINDSURF]: WindsurfAdapter,
 		[DetectedTool.UNKNOWN]: FALLBACK_ADAPTER,
 	},
 );

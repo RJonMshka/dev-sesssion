@@ -97,7 +97,7 @@ describe("WriteGuard — adversarial tests", () => {
 
 	describe("bypass comment is respected", () => {
 		it("skips scanning when bypass comment is present", () => {
-			const content = "<!-- dev-session:allow -->\nAKIAIOSFODNN7EXAMPLE";
+			const content = "<!-- dev-sesssion:allow -->\nAKIAIOSFODNN7EXAMPLE";
 			const result = WriteGuard.check(content);
 			expect(result.allowed).toBe(true);
 			expect(result.bypassed).toBe(true);
@@ -105,14 +105,14 @@ describe("WriteGuard — adversarial tests", () => {
 		});
 
 		it("bypass works in strict mode too", () => {
-			const content = "<!-- dev-session:allow -->\n-----BEGIN RSA PRIVATE KEY-----";
+			const content = "<!-- dev-sesssion:allow -->\n-----BEGIN RSA PRIVATE KEY-----";
 			expect(() => WriteGuard.check(content, { strict: true })).not.toThrow();
 			const result = WriteGuard.check(content, { strict: true });
 			expect(result.bypassed).toBe(true);
 		});
 
 		it("bypass comment can be anywhere in content", () => {
-			const content = "AKIAIOSFODNN7EXAMPLE\n<!-- dev-session:allow -->\nMore content";
+			const content = "AKIAIOSFODNN7EXAMPLE\n<!-- dev-sesssion:allow -->\nMore content";
 			const result = WriteGuard.check(content);
 			expect(result.bypassed).toBe(true);
 			expect(result.results).toEqual([]);
@@ -120,12 +120,12 @@ describe("WriteGuard — adversarial tests", () => {
 
 		it("does not bypass with similar but incorrect comment", () => {
 			const cases = [
-				"<!-- dev-session:allowed -->",
-				"<!-- dev-session allow -->",
-				"<!-- dev-session:ALLOW -->",
+				"<!-- dev-sesssion:allowed -->",
+				"<!-- dev-sesssion allow -->",
+				"<!-- dev-sesssion:ALLOW -->",
 				"<!-- devsession:allow -->",
-				"<!-- dev-session:allow",
-				"dev-session:allow -->",
+				"<!-- dev-sesssion:allow",
+				"dev-sesssion:allow -->",
 			];
 			for (const bypass of cases) {
 				const content = `${bypass}\nAKIAIOSFODNN7EXAMPLE`;
@@ -136,7 +136,7 @@ describe("WriteGuard — adversarial tests", () => {
 		});
 
 		it("exact bypass comment string is accessible via bypassComment getter", () => {
-			expect(WriteGuard.bypassComment).toBe("<!-- dev-session:allow -->");
+			expect(WriteGuard.bypassComment).toBe("<!-- dev-sesssion:allow -->");
 		});
 	});
 

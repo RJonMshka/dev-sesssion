@@ -5,7 +5,7 @@ import { TaskSchema } from "./task.js";
 /**
  * Zod schema for SESSION_STATE.md frontmatter.
  *
- * Represents the current state of a dev-session: which chunk is active,
+ * Represents the current state of a dev-sesssion: which chunk is active,
  * what tasks exist, which files were last worked on, and session metadata.
  */
 export const SessionStateSchema = z

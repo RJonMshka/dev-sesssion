@@ -83,7 +83,7 @@ describe("CursorAdapter", () => {
 	});
 
 	describe("setup", () => {
-		it("creates .cursorrules with dev-session section", async () => {
+		it("creates .cursorrules with dev-sesssion section", async () => {
 			const ctx = makeSetupContext();
 			const result = await CursorAdapter.setup?.(ctx);
 

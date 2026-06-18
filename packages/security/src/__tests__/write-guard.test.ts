@@ -6,7 +6,7 @@ import { WriteGuard } from "../guards/write-guard.js";
 describe("WriteGuard", () => {
 	describe("bypassComment", () => {
 		it("exposes the bypass comment string", () => {
-			expect(WriteGuard.bypassComment).toBe("<!-- dev-session:allow -->");
+			expect(WriteGuard.bypassComment).toBe("<!-- dev-sesssion:allow -->");
 		});
 	});
 
@@ -85,7 +85,7 @@ describe("WriteGuard", () => {
 
 	describe("check — bypass comment", () => {
 		it("bypasses scanning when content contains bypass comment", () => {
-			const content = "<!-- dev-session:allow -->\nAKIAIOSFODNN7EXAMPLE";
+			const content = "<!-- dev-sesssion:allow -->\nAKIAIOSFODNN7EXAMPLE";
 			const result = WriteGuard.check(content);
 			expect(result.allowed).toBe(true);
 			expect(result.bypassed).toBe(true);
@@ -93,7 +93,7 @@ describe("WriteGuard", () => {
 		});
 
 		it("bypasses even in strict mode", () => {
-			const content = "<!-- dev-session:allow -->\nAKIAIOSFODNN7EXAMPLE";
+			const content = "<!-- dev-sesssion:allow -->\nAKIAIOSFODNN7EXAMPLE";
 			const result = WriteGuard.check(content, { strict: true });
 			expect(result.allowed).toBe(true);
 			expect(result.bypassed).toBe(true);
@@ -101,7 +101,7 @@ describe("WriteGuard", () => {
 		});
 
 		it("does not bypass with a partial comment", () => {
-			const content = "<!-- dev-session -->\nAKIAIOSFODNN7EXAMPLE";
+			const content = "<!-- dev-sesssion -->\nAKIAIOSFODNN7EXAMPLE";
 			const result = WriteGuard.check(content);
 			expect(result.bypassed).toBe(false);
 			expect(result.results.length).toBeGreaterThan(0);

@@ -1,9 +1,9 @@
 /**
- * Types for the dev-session token savings benchmark framework.
+ * Types for the dev-sesssion token savings benchmark framework.
  *
  * The framework compares:
  * - WITHOUT tool: tokens to load every non-ignored file in a project
- * - WITH tool:    tokens dev-session exposes for the active chunk
+ * - WITH tool:    tokens dev-sesssion exposes for the active chunk
  */
 
 /** A project to benchmark against. */
@@ -14,7 +14,7 @@ export interface BenchmarkTarget {
 	path: string;
 	/** Optional description shown in the report. */
 	description?: string;
-	/** If true, skip running `dev-session init` (project is already initialized). */
+	/** If true, skip running `dev-sesssion init` (project is already initialized). */
 	skipInit?: boolean;
 }
 
@@ -62,10 +62,10 @@ export interface DeveloperPattern {
 
 /**
  * Comparison between how a developer would manually load context for the next
- * phase versus the compact NEXT_PROMPT that dev-session generates.
+ * phase versus the compact NEXT_PROMPT that dev-sesssion generates.
  */
 export interface PatternComparison {
-	/** Tokens in .session/NEXT_PROMPT.md (the dev-session handoff document). */
+	/** Tokens in .session/NEXT_PROMPT.md (the dev-sesssion handoff document). */
 	nextPromptTokens: number;
 	/** Non-empty line count of NEXT_PROMPT.md. */
 	nextPromptLines: number;
@@ -79,13 +79,13 @@ export interface BenchmarkResult {
 	target: BenchmarkTarget;
 	/** "WITHOUT tool" — full codebase token count. */
 	without: TokenReport;
-	/** "WITH tool" — dev-session context budget. */
+	/** "WITH tool" — dev-sesssion context budget. */
 	with: TokenReport;
 	/** Computed savings. */
 	savings: SavingsReport;
 	/** CLI command health checks. */
 	commands: CommandChecks;
-	/** True if dev-session init was run during this benchmark. */
+	/** True if dev-sesssion init was run during this benchmark. */
 	initialized: boolean;
 	/** Wall-clock time for the full benchmark in milliseconds. */
 	durationMs: number;
@@ -97,6 +97,6 @@ export interface BenchmarkResult {
 
 /** Options for the benchmark runner. */
 export interface BenchmarkOptions {
-	/** Skip dev-session init for all targets. */
+	/** Skip dev-sesssion init for all targets. */
 	skipInit: boolean;
 }

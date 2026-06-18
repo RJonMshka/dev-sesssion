@@ -12,7 +12,7 @@ import { DetectedTool, ProjectDetector } from "@dev-session/core";
 import { CliError } from "@dev-session/security";
 
 /** Valid adapter names that can be passed via --adapter flag. */
-const VALID_ADAPTER_NAMES = new Set(["claude", "opencode", "cursor"]);
+const VALID_ADAPTER_NAMES = new Set(["claude", "opencode", "cursor", "windsurf"]);
 
 /**
  * Resolves the adapter to use for the current project.

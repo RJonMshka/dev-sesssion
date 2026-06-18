@@ -126,7 +126,7 @@ describe("AtomicWriter — adversarial tests", () => {
 	describe("bypass comment allows writing secrets", () => {
 		it("writes secret content with bypass in warn mode", () => {
 			const filePath = asValidatedPath(path.join(tmpDir, "bypassed.txt"));
-			const content = "<!-- dev-session:allow -->\nAKIAIOSFODNN7EXAMPLE";
+			const content = "<!-- dev-sesssion:allow -->\nAKIAIOSFODNN7EXAMPLE";
 			const result = AtomicWriter.writeFile(filePath, content);
 
 			expect(result.warnings).toEqual([]);
@@ -135,7 +135,7 @@ describe("AtomicWriter — adversarial tests", () => {
 
 		it("writes secret content with bypass in strict mode", () => {
 			const filePath = asValidatedPath(path.join(tmpDir, "bypassed-strict.txt"));
-			const content = "<!-- dev-session:allow -->\n-----BEGIN RSA PRIVATE KEY-----";
+			const content = "<!-- dev-sesssion:allow -->\n-----BEGIN RSA PRIVATE KEY-----";
 			const result = AtomicWriter.writeFile(filePath, content, {
 				guard: { strict: true },
 			});
@@ -209,7 +209,7 @@ describe("AtomicWriter — adversarial tests", () => {
 
 		it("bypass works in async mode", async () => {
 			const filePath = asValidatedPath(path.join(tmpDir, "async-bypass.txt"));
-			const content = "<!-- dev-session:allow -->\nAKIAIOSFODNN7EXAMPLE";
+			const content = "<!-- dev-sesssion:allow -->\nAKIAIOSFODNN7EXAMPLE";
 			const result = await AtomicWriter.writeFileAsync(filePath, content, {
 				guard: { strict: true },
 			});

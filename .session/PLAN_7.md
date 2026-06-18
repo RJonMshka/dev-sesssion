@@ -5,7 +5,7 @@ depends_on: []
 tasks:
   - text: "Detect: check for `CLAUDE.md` or `.claude/` directory"
     status: todo
-  - text: "`setup`: generate a `CLAUDE.md` section for dev-session with bootstrap/self-update routines"
+  - text: "`setup`: generate a `CLAUDE.md` section for dev-sesssion with bootstrap/self-update routines"
     status: todo
   - text: "`transformState`: map active chunk notes into `CLAUDE.md` update"
     status: todo
@@ -25,7 +25,7 @@ tasks:
     status: todo
   - text: "Detect: check for `opencode.json` or `AGENTS.md`"
     status: todo
-  - text: "`setup`: write AGENTS.md section with dev-session context protocol"
+  - text: "`setup`: write AGENTS.md section with dev-sesssion context protocol"
     status: todo
   - text: "`transformState`: map state to AGENTS.md format"
     status: todo
@@ -50,7 +50,7 @@ tasks:
 ### Tasks
 
 - [ ] Detect: check for `CLAUDE.md` or `.claude/` directory
-- [ ] `setup`: generate a `CLAUDE.md` section for dev-session with bootstrap/self-update routines
+- [ ] `setup`: generate a `CLAUDE.md` section for dev-sesssion with bootstrap/self-update routines
 - [ ] `transformState`: map active chunk notes into `CLAUDE.md` update
 - [ ] `onSessionStart`: read `.claude/MEMORY.md` (first 200 lines) and inject relevant state
 - [ ] `onSessionEnd`: trigger self-update routine format compatible with Claude Code's file-read pattern
@@ -60,7 +60,7 @@ tasks:
 - [ ] Tests: fixture `.claude/` directory, verify generated `CLAUDE.md` is valid markdown
 - [ ] Tests: verify `ClaudeBootstrapFormatter.generatePrompt()` produces valid `@`-mention format
 - [ ] Detect: check for `opencode.json` or `AGENTS.md`
-- [ ] `setup`: write AGENTS.md section with dev-session context protocol
+- [ ] `setup`: write AGENTS.md section with dev-sesssion context protocol
 - [ ] `transformState`: map state to AGENTS.md format
 - [ ] `onSessionEnd`: write session-end instructions in opencode-compatible format
 - [ ] `getFormatter()` → `OpencodeBootstrapFormatter` using opencode's context loading format

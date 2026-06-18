@@ -7,6 +7,8 @@ import { CursorBootstrapFormatter } from "../cursor-bootstrap-formatter.js";
 import { OpencodeAdapter } from "../opencode-adapter.js";
 import { OpencodeBootstrapFormatter } from "../opencode-bootstrap-formatter.js";
 import { getAdapterForTool, getFormatterForTool, getRegisteredTools } from "../registry.js";
+import { WindsurfAdapter } from "../windsurf-adapter.js";
+import { WindsurfBootstrapFormatter } from "../windsurf-bootstrap-formatter.js";
 
 describe("getAdapterForTool", () => {
 	it("returns ClaudeAdapter for claude", () => {
@@ -28,6 +30,13 @@ describe("getAdapterForTool", () => {
 		expect(adapter.config.name).toBe("cursor");
 	});
 
+	it("returns WindsurfAdapter for windsurf", () => {
+		const adapter = getAdapterForTool(DetectedTool.WINDSURF);
+		expect(adapter).toBe(WindsurfAdapter);
+		expect(adapter.config.name).toBe("windsurf");
+		expect(adapter.formatter).toBe(WindsurfBootstrapFormatter);
+	});
+
 	it("returns fallback adapter for unknown tools", () => {
 		const adapter = getAdapterForTool(DetectedTool.UNKNOWN);
 		expect(adapter.config.name).toBe("plain");
@@ -37,12 +46,17 @@ describe("getAdapterForTool", () => {
 	});
 
 	it("returns fallback for unrecognized tool strings", () => {
-		const adapter = getAdapterForTool("windsurf" as "unknown");
+		const adapter = getAdapterForTool("zed" as "unknown");
 		expect(adapter.config.name).toBe("plain");
 	});
 
 	it("all adapters have lifecycle hooks defined", () => {
-		const tools = [DetectedTool.CLAUDE, DetectedTool.OPENCODE, DetectedTool.CURSOR] as const;
+		const tools = [
+			DetectedTool.CLAUDE,
+			DetectedTool.OPENCODE,
+			DetectedTool.CURSOR,
+			DetectedTool.WINDSURF,
+		] as const;
 
 		for (const tool of tools) {
 			const adapter = getAdapterForTool(tool);
@@ -73,6 +87,12 @@ describe("getFormatterForTool", () => {
 		expect(formatter.name).toBe("cursor");
 	});
 
+	it("returns WindsurfBootstrapFormatter for windsurf", () => {
+		const formatter = getFormatterForTool(DetectedTool.WINDSURF);
+		expect(formatter).toBe(WindsurfBootstrapFormatter);
+		expect(formatter.name).toBe("windsurf");
+	});
+
 	it("returns PlainTextFormatter for unknown tools", () => {
 		const formatter = getFormatterForTool(DetectedTool.UNKNOWN);
 		expect(formatter).toBe(PlainTextFormatter);
@@ -80,7 +100,7 @@ describe("getFormatterForTool", () => {
 	});
 
 	it("returns PlainTextFormatter for unrecognized tool strings", () => {
-		const formatter = getFormatterForTool("windsurf" as "unknown");
+		const formatter = getFormatterForTool("zed" as "unknown");
 		expect(formatter).toBe(PlainTextFormatter);
 		expect(formatter.name).toBe("plain");
 	});
@@ -90,6 +110,7 @@ describe("getFormatterForTool", () => {
 			DetectedTool.CLAUDE,
 			DetectedTool.OPENCODE,
 			DetectedTool.CURSOR,
+			DetectedTool.WINDSURF,
 			DetectedTool.UNKNOWN,
 		] as const;
 
@@ -104,17 +125,18 @@ describe("getFormatterForTool", () => {
 });
 
 describe("getRegisteredTools", () => {
-	it("returns all four tool identifiers", () => {
+	it("returns all five tool identifiers", () => {
 		const tools = getRegisteredTools();
 		expect(tools).toContain("claude");
 		expect(tools).toContain("opencode");
 		expect(tools).toContain("cursor");
+		expect(tools).toContain("windsurf");
 		expect(tools).toContain("unknown");
 	});
 
 	it("returns a readonly array", () => {
 		const tools = getRegisteredTools();
 		expect(Array.isArray(tools)).toBe(true);
-		expect(tools.length).toBe(4);
+		expect(tools.length).toBe(5);
 	});
 });

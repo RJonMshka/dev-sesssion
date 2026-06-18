@@ -1,5 +1,5 @@
 /**
- * Tests for the `dev-session migrate` command.
+ * Tests for the `dev-sesssion migrate` command.
  *
  * These tests mock @clack/prompts and verify the command's detection and
  * init-dispatching logic without running full init flows.

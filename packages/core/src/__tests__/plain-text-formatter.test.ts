@@ -76,7 +76,7 @@ function makeContext(overrides?: Partial<BootstrapContext>): BootstrapContext {
 		],
 		budget: makeBudget(),
 		excludePatterns: ["packages/security/**", "**/__tests__/**"],
-		projectName: "dev-session",
+		projectName: "dev-sesssion",
 		...overrides,
 	};
 }
@@ -123,7 +123,7 @@ describe("PlainTextFormatter", () => {
 		it("produces content with required fields", () => {
 			const content = PlainTextFormatter.generatePrompt(makeContext());
 
-			expect(content).toContain("Project: dev-session");
+			expect(content).toContain("Project: dev-sesssion");
 			expect(content).toContain("Active chunk: 4");
 			expect(content).toContain("CLI: init command");
 			expect(content).toContain("Budget:");
@@ -173,6 +173,48 @@ describe("PlainTextFormatter", () => {
 		it("includes notes", () => {
 			const content = PlainTextFormatter.generatePrompt(makeContext());
 			expect(content).toContain("Note: Important decision made");
+		});
+
+		describe("layered Context section", () => {
+			it("falls back to a flat Load line when no resolvedLayers are provided", () => {
+				const content = PlainTextFormatter.generatePrompt(makeContext());
+				expect(content).toContain("Load:");
+				expect(content).not.toContain("Summaries");
+				expect(content).not.toContain("Load full:");
+			});
+
+			it("emits summary and full sections from resolvedLayers", () => {
+				const ctx = makeContext({
+					resolvedLayers: [
+						{
+							filepath: "packages/cli/src/file-0.ts",
+							role: "chunk",
+							baseLayer: 0,
+							layer: 0,
+							escalated: false,
+							fullTokenCost: 500,
+							layeredTokenCost: 40,
+						},
+						{
+							filepath: "packages/cli/src/file-1.ts",
+							role: "chunk",
+							baseLayer: 0,
+							layer: 2,
+							escalated: true,
+							escalatedBy: "Write tests",
+							fullTokenCost: 500,
+							layeredTokenCost: 500,
+						},
+					],
+				});
+				const content = PlainTextFormatter.generatePrompt(ctx);
+
+				expect(content).toContain("Load full: packages/cli/src/file-1.ts");
+				expect(content).toContain("Summaries (read_file_layer for detail):");
+				expect(content).toContain("packages/cli/src/file-0.ts·L0");
+				// The escalated file must not also appear in the summaries list.
+				expect(content).not.toContain("packages/cli/src/file-1.ts·L2");
+			});
 		});
 
 		it("handles state with no completed chunks", () => {

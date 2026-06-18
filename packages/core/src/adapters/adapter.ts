@@ -55,7 +55,7 @@ export type AdapterReadFile = (relativePath: string) => string | undefined;
 // ---------------------------------------------------------------------------
 
 /**
- * Context provided during adapter setup (called during `dev-session init`).
+ * Context provided during adapter setup (called during `dev-sesssion init`).
  *
  * Contains everything the adapter needs to generate tool-specific files
  * (e.g., CLAUDE.md section, AGENTS.md) on first init.
@@ -137,7 +137,7 @@ export interface TransformStateContext {
  *
  * **Lifecycle hook execution order:**
  *
- * 1. `setup()` — during `dev-session init` (once per project)
+ * 1. `setup()` — during `dev-sesssion init` (once per project)
  * 2. `onSessionStart()` — at the start of each coding session
  * 3. `transformState()` — before prompt regeneration (each `update`/`advance`)
  * 4. `onSessionEnd()` — at the end of each coding session (`update --end`)
@@ -158,7 +158,7 @@ export interface TransformStateContext {
  *
  *   async setup(ctx) {
  *     // Generate CLAUDE.md section during init
- *     return { filesWritten: ["CLAUDE.md"], summary: "Added dev-session section to CLAUDE.md" };
+ *     return { filesWritten: ["CLAUDE.md"], summary: "Added dev-sesssion section to CLAUDE.md" };
  *   },
  *
  *   transformState(state, ctx) {
@@ -176,10 +176,10 @@ export interface Adapter {
 	readonly formatter: BootstrapFormatter;
 
 	/**
-	 * Called during `dev-session init` to generate tool-specific files.
+	 * Called during `dev-sesssion init` to generate tool-specific files.
 	 *
 	 * Use this to create or update tool configuration files (e.g., add a
-	 * dev-session section to CLAUDE.md, generate an AGENTS.md skeleton).
+	 * dev-sesssion section to CLAUDE.md, generate an AGENTS.md skeleton).
 	 *
 	 * @param context - Setup context with project paths and detection info.
 	 * @returns A result describing what files were written.

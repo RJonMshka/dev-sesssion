@@ -3,21 +3,21 @@ chunk_id: 8
 title: "Team mode & enterprise features"
 depends_on: []
 tasks:
-  - text: "`dev-session init --team` — prompts for team vs personal mode"
+  - text: "`dev-sesssion init --team` — prompts for team vs personal mode"
     status: todo
   - text: "Generates `.gitignore` patch: adds `SESSION_STATE.md`, `NEXT_PROMPT.md`, `DONE_LOG.md`"
     status: todo
   - text: "Generates `.gitattributes` entry: mark `FILE_INDEX.md` as merge=ours to reduce conflicts"
     status: todo
-  - text: "`dev-session migrate` — handles monorepos: auto-detect `pnpm-workspace.yaml` / `nx.json` / `turborepo`"
+  - text: "`dev-sesssion migrate` — handles monorepos: auto-detect `pnpm-workspace.yaml` / `nx.json` / `turborepo`"
     status: todo
-  - text: "`dev-session import --from claude` — parse existing `CLAUDE.md` content into chunk notes"
+  - text: "`dev-sesssion import --from claude` — parse existing `CLAUDE.md` content into chunk notes"
     status: todo
-  - text: "`dev-session import --from cursor` — parse `.cursor/rules/*.mdc` frontmatter into FILE_INDEX tags"
+  - text: "`dev-sesssion import --from cursor` — parse `.cursor/rules/*.mdc` frontmatter into FILE_INDEX tags"
     status: todo
-  - text: "`dev-session health` — full audit command:"
+  - text: "`dev-sesssion health` — full audit command:"
     status: todo
-  - text: "`dev-session health --fix` — auto-remediate where safe (remove stale index entries)"
+  - text: "`dev-sesssion health --fix` — auto-remediate where safe (remove stale index entries)"
     status: todo
   - text: "FILE_INDEX pagination for repos with 500+ files — split into `FILE_INDEX_1.md`, `FILE_INDEX_2.md`"
     status: todo
@@ -29,9 +29,9 @@ tasks:
     status: todo
   - text: "Integration: monorepo detection for pnpm, nx, turborepo workspace files"
     status: todo
-  - text: "E2e: `dev-session import --from claude` on fixture `CLAUDE.md`"
+  - text: "E2e: `dev-sesssion import --from claude` on fixture `CLAUDE.md`"
     status: todo
-  - text: "E2e: `dev-session health` on intentionally degraded `.session/`"
+  - text: "E2e: `dev-sesssion health` on intentionally degraded `.session/`"
     status: todo
 ---
 
@@ -39,18 +39,18 @@ tasks:
 
 ### Tasks
 
-- [ ] `dev-session init --team` — prompts for team vs personal mode
+- [ ] `dev-sesssion init --team` — prompts for team vs personal mode
 - [ ] Generates `.gitignore` patch: adds `SESSION_STATE.md`, `NEXT_PROMPT.md`, `DONE_LOG.md`
 - [ ] Generates `.gitattributes` entry: mark `FILE_INDEX.md` as merge=ours to reduce conflicts
-- [ ] `dev-session migrate` — handles monorepos: auto-detect `pnpm-workspace.yaml` / `nx.json` / `turborepo`
-- [ ] `dev-session import --from claude` — parse existing `CLAUDE.md` content into chunk notes
-- [ ] `dev-session import --from cursor` — parse `.cursor/rules/*.mdc` frontmatter into FILE_INDEX tags
-- [ ] `dev-session health` — full audit command:
-- [ ] `dev-session health --fix` — auto-remediate where safe (remove stale index entries)
+- [ ] `dev-sesssion migrate` — handles monorepos: auto-detect `pnpm-workspace.yaml` / `nx.json` / `turborepo`
+- [ ] `dev-sesssion import --from claude` — parse existing `CLAUDE.md` content into chunk notes
+- [ ] `dev-sesssion import --from cursor` — parse `.cursor/rules/*.mdc` frontmatter into FILE_INDEX tags
+- [ ] `dev-sesssion health` — full audit command:
+- [ ] `dev-sesssion health --fix` — auto-remediate where safe (remove stale index entries)
 - [ ] FILE_INDEX pagination for repos with 500+ files — split into `FILE_INDEX_1.md`, `FILE_INDEX_2.md`
 - [ ] `--max-files` flag on `init` to limit initial index size
 - [ ] Token budget display: show estimated context window cost for current chunk's files
 - [ ] Integration: team mode `.gitignore` patch is idempotent
 - [ ] Integration: monorepo detection for pnpm, nx, turborepo workspace files
-- [ ] E2e: `dev-session import --from claude` on fixture `CLAUDE.md`
-- [ ] E2e: `dev-session health` on intentionally degraded `.session/`
+- [ ] E2e: `dev-sesssion import --from claude` on fixture `CLAUDE.md`
+- [ ] E2e: `dev-sesssion health` on intentionally degraded `.session/`

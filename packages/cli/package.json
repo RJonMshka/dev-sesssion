@@ -4,7 +4,7 @@
 	"license": "MIT",
 	"type": "module",
 	"bin": {
-		"dev-session": "./dist/index.cjs"
+		"dev-sesssion": "dist/index.cjs"
 	},
 	"exports": {
 		".": {
@@ -32,8 +32,12 @@
 		"prepack": "cp ../../README.md README.md"
 	},
 	"dependencies": {
+		"@anthropic-ai/sdk": "0.54.0",
 		"@clack/prompts": "1.2.0",
-		"commander": "14"
+		"@modelcontextprotocol/sdk": "1.29.0",
+		"clipboardy": "4.0.0",
+		"commander": "14",
+		"zod": "4.3.6"
 	},
 	"devDependencies": {
 		"@dev-session/adapters": "workspace:*",

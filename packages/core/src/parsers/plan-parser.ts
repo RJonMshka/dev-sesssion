@@ -39,11 +39,11 @@ const TASK_DONE_RE = /^[-*]\s+\[[xX]\]\s+(.+)$/;
 /** Matches `- [-] text` (in-progress task). */
 const TASK_IN_PROGRESS_RE = /^[-*]\s+\[-\]\s+(.+)$/;
 
-/** Matches "Chunk N" in a heading and captures N. */
-const CHUNK_ID_RE = /\bChunk\s+(\d+)\b/i;
+/** Matches "Chunk N" (or "Chunk N.M") in a heading and captures the number. */
+const CHUNK_ID_RE = /\bChunk\s+(\d+(?:\.\d+)?)/i;
 
-/** Matches dependency declarations like "Depends on: Chunk 1" or "Chunks 1, 2, 3". */
-const DEPENDS_RE = /depends\s+on:\s*chunks?\s+([\d,\s]+)/i;
+/** Matches dependency declarations like "Depends on: Chunk 1" or "Chunks 1, 2, 3.5". */
+const DEPENDS_RE = /depends\s+on:\s*chunks?\s+([\d.,\s]+)/i;
 
 /** Matches estimated sessions like "Est. sessions: 2-3" or "Est. sessions: 4". */
 const EST_SESSIONS_RE = /est\.?\s*sessions?:\s*(\d+)/i;
@@ -63,8 +63,25 @@ function extractChunkIdFromHeading(heading: string): number | undefined {
 	if (match?.[1] === undefined) {
 		return undefined;
 	}
-	const id = Number.parseInt(match[1], 10);
+	const id = Number.parseFloat(match[1]);
 	return Number.isFinite(id) && id >= 1 ? id : undefined;
+}
+
+/**
+ * Determine whether any `## ` heading in the document uses the `Chunk N`
+ * naming convention. Used to choose between explicit and sequential parsing.
+ *
+ * @param lines - All lines of the document.
+ * @returns `true` if at least one h2 heading names a chunk.
+ */
+function hasExplicitChunkHeading(lines: readonly string[]): boolean {
+	for (const line of lines) {
+		const match = H2_RE.exec(line.trim());
+		if (match?.[1] !== undefined && extractChunkIdFromHeading(match[1]) !== undefined) {
+			return true;
+		}
+	}
+	return false;
 }
 
 /**
@@ -75,8 +92,8 @@ function extractChunkIdFromHeading(heading: string): number | undefined {
  */
 function extractTitle(heading: string): string {
 	// Strip patterns like "Chunk 2 — Security utilities" → "Security utilities"
-	// Also handles "Chunk 2 - Security utilities" (plain dash)
-	const stripped = heading.replace(/^Chunk\s+\d+\s*[—–\-:]\s*/i, "");
+	// Also handles "Chunk 2 - Security utilities" (plain dash) and "Chunk 3.5 — …"
+	const stripped = heading.replace(/^Chunk\s+\d+(?:\.\d+)?\s*[—–\-:]\s*/i, "");
 	return stripped.trim() || heading.trim();
 }
 
@@ -93,7 +110,7 @@ function parseDependencies(line: string): readonly number[] {
 	}
 	return match[1]
 		.split(",")
-		.map((s) => Number.parseInt(s.trim(), 10))
+		.map((s) => Number.parseFloat(s.trim()))
 		.filter((n) => Number.isFinite(n) && n >= 1);
 }
 
@@ -216,8 +233,19 @@ export const PlanParser = {
 	/**
 	 * Parse a monolithic PLAN.md into an array of {@link PlanChunk} objects.
 	 *
-	 * Splits on `## ` (h2) headings. Each h2 section becomes one chunk.
-	 * Content before the first h2 is ignored (typically the document title).
+	 * Splits on `## ` (h2) headings. The behaviour depends on whether the
+	 * document uses the `Chunk N` naming convention:
+	 *
+	 * - **Explicit mode** (at least one h2 reads `## Chunk N …`): only those
+	 *   `Chunk N` headings start a chunk. Other h2 sections — prose like
+	 *   "Architecture overview" or "Risks and open questions" — are treated as
+	 *   non-chunk content and skipped. This prevents document scaffolding from
+	 *   being mis-parsed as chunks and from colliding on sequential IDs.
+	 *   Fractional IDs (`Chunk 3.5`) are preserved as-is.
+	 * - **Sequential mode** (no h2 names a chunk): every h2 section becomes a
+	 *   chunk with a sequential ID (1, 2, 3, …).
+	 *
+	 * Content before the first parsed chunk is ignored (typically the title).
 	 *
 	 * @param content - The raw markdown content of PLAN.md.
 	 * @returns An array of parsed plan chunks.
@@ -232,24 +260,37 @@ export const PlanParser = {
 		}
 
 		const lines = content.split("\n");
+		const explicitMode = hasExplicitChunkHeading(lines);
 		const chunks: PlanChunk[] = [];
 		let current: ChunkAccumulator | undefined;
 		let sequentialId = 0;
+
+		const flush = (): void => {
+			if (current !== undefined) {
+				const id = extractChunkIdFromHeading(current.heading) ?? sequentialId;
+				chunks.push(finalizeChunk(current, id));
+				current = undefined;
+			}
+		};
 
 		for (const line of lines) {
 			const trimmed = line.trim();
 			const h2Match = H2_RE.exec(trimmed);
 
 			if (h2Match?.[1] !== undefined) {
-				// Finalize previous chunk if one exists
-				if (current !== undefined) {
-					const id = extractChunkIdFromHeading(current.heading) ?? sequentialId;
-					chunks.push(finalizeChunk(current, id));
+				const heading = h2Match[1];
+
+				// In explicit mode, a non-`Chunk N` heading is scaffolding: end the
+				// current chunk's accumulation and do not open a new one.
+				if (explicitMode && extractChunkIdFromHeading(heading) === undefined) {
+					flush();
+					continue;
 				}
 
+				flush();
 				sequentialId++;
 				current = {
-					heading: h2Match[1],
+					heading,
 					tasks: [],
 					dependsOn: [],
 					estSessions: undefined,
@@ -265,12 +306,7 @@ export const PlanParser = {
 			processChunkLine(trimmed, current);
 		}
 
-		// Finalize the last chunk
-		if (current !== undefined) {
-			const id = extractChunkIdFromHeading(current.heading) ?? sequentialId;
-			chunks.push(finalizeChunk(current, id));
-		}
-
+		flush();
 		return chunks;
 	},
 

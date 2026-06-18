@@ -1,7 +1,7 @@
 /**
- * `dev-session import` command.
+ * `dev-sesssion import` command.
  *
- * Imports context from external rule files into the dev-session session:
+ * Imports context from external rule files into the dev-sesssion session:
  *
  * - `--from claude`  Parses `CLAUDE.md` H2 sections into SESSION_STATE notes.
  * - `--from cursor`  Parses `.cursor/rules/*.mdc` glob patterns into FILE_INDEX entries.
@@ -60,7 +60,7 @@ export interface ImportOptions {
  */
 export async function runImport(options: ImportOptions): Promise<void> {
 	const sessionDir = resolveSessionDir(options.cwd);
-	intro(`dev-session import --from ${options.from}`);
+	intro(`dev-sesssion import --from ${options.from}`);
 
 	switch (options.from) {
 		case "claude":
@@ -462,7 +462,7 @@ function resolveSessionDir(cwd: string): ValidatedPath {
 	if (!fs.existsSync(sessionDir)) {
 		throw new CliError({
 			message: "No .session/ directory found",
-			suggestion: "Run `dev-session init` first to initialize the project.",
+			suggestion: "Run `dev-sesssion init` first to initialize the project.",
 		});
 	}
 

@@ -63,17 +63,17 @@ tasks:
     status: todo
   - text: "`--fix` flag: auto-remove stale entries after confirmation"
     status: todo
-  - text: "E2e: `dev-session status --json` parses correctly"
+  - text: "E2e: `dev-sesssion status --json` parses correctly"
     status: todo
-  - text: "E2e: `dev-session advance` when all tasks done"
+  - text: "E2e: `dev-sesssion advance` when all tasks done"
     status: todo
-  - text: "E2e: `dev-session advance` when tasks incomplete (warn path)"
+  - text: "E2e: `dev-sesssion advance` when tasks incomplete (warn path)"
     status: todo
-  - text: "E2e: `dev-session update` marks tasks and regenerates prompt"
+  - text: "E2e: `dev-sesssion update` marks tasks and regenerates prompt"
     status: todo
   - text: "Integration: `FileIndexManager.audit()` detects deleted files"
     status: todo
-  - text: "Snapshot: `dev-session status` output format (strip ANSI before asserting)"
+  - text: "Snapshot: `dev-sesssion status` output format (strip ANSI before asserting)"
     status: todo
 ---
 
@@ -111,9 +111,9 @@ tasks:
 - [ ] Run `FileIndexManager.audit()` — detect stale entries (deleted/moved files)
 - [ ] Display: stale entries with suggested action (remove or re-path)
 - [ ] `--fix` flag: auto-remove stale entries after confirmation
-- [ ] E2e: `dev-session status --json` parses correctly
-- [ ] E2e: `dev-session advance` when all tasks done
-- [ ] E2e: `dev-session advance` when tasks incomplete (warn path)
-- [ ] E2e: `dev-session update` marks tasks and regenerates prompt
+- [ ] E2e: `dev-sesssion status --json` parses correctly
+- [ ] E2e: `dev-sesssion advance` when all tasks done
+- [ ] E2e: `dev-sesssion advance` when tasks incomplete (warn path)
+- [ ] E2e: `dev-sesssion update` marks tasks and regenerates prompt
 - [ ] Integration: `FileIndexManager.audit()` detects deleted files
-- [ ] Snapshot: `dev-session status` output format (strip ANSI before asserting)
+- [ ] Snapshot: `dev-sesssion status` output format (strip ANSI before asserting)

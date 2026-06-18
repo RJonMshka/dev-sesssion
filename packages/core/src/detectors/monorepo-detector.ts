@@ -1,5 +1,5 @@
 /**
- * Monorepo detection for `dev-session migrate`.
+ * Monorepo detection for `dev-sesssion migrate`.
  *
  * Detects workspace configuration files (pnpm-workspace.yaml, nx.json,
  * turbo.json, package.json workspaces) and resolves the list of workspace

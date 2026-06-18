@@ -1,4 +1,4 @@
-<!-- dev-session:start -->
+<!-- dev-sesssion:start -->
 
 ## Active Chunk: 1
 
@@ -47,4 +47,4 @@
 - `tsconfig.base.json`
 - `vitest.config.ts`
 
-<!-- dev-session:end -->
+<!-- dev-sesssion:end -->

@@ -18,10 +18,13 @@
 		"test:unit": "vitest run --project unit",
 		"test:integration": "vitest run --project integration",
 		"test:e2e": "vitest run --project e2e",
-		"test:coverage": "vitest run --coverage",
+		"test:coverage": "pnpm build && pnpm test:coverage:unit && pnpm test:coverage:e2e && node tests/coverage/merge-coverage.mjs",
+		"test:coverage:unit": "vitest run --project unit --project integration --coverage",
+		"test:coverage:e2e": "node tests/coverage/collect-e2e-coverage.mjs",
 		"dev": "pnpm -r --filter './packages/**' run dev",
 		"publint": "pnpm -r --filter './packages/**' exec publint",
-		"benchmark": "pnpm build && tsx tests/benchmarks/index.ts"
+		"benchmark": "pnpm build && tsx tests/benchmarks/index.ts",
+		"benchmark:status": "pnpm build && tsx tests/benchmarks/status-latency.ts"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.4.9",
@@ -33,8 +36,11 @@
 		"@semantic-release/release-notes-generator": "14.1.0",
 		"@types/node": "25.5.0",
 		"@vitest/coverage-v8": "4.1.2",
+		"c8": "11.0.0",
 		"conventional-changelog-conventionalcommits": "9.3.1",
 		"execa": "9.6.1",
+		"fast-check": "4.8.0",
+		"istanbul-lib-coverage": "3.2.2",
 		"publint": "0.3.18",
 		"semantic-release": "25.0.3",
 		"strip-ansi": "7.2.0",

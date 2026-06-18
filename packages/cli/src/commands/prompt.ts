@@ -1,5 +1,5 @@
 /**
- * `dev-session prompt` command.
+ * `dev-sesssion prompt` command.
  *
  * Prints the contents of NEXT_PROMPT.md to stdout for piping or copying.
  * Supports a `--copy` flag that copies to the system clipboard using
@@ -47,7 +47,7 @@ export async function runPrompt(options: PromptOptions): Promise<string> {
 	if (!fs.existsSync(promptPath)) {
 		throw new CliError({
 			message: "No NEXT_PROMPT.md found",
-			suggestion: "Run `dev-session init` or `dev-session update` to generate a prompt.",
+			suggestion: "Run `dev-sesssion init` or `dev-sesssion update` to generate a prompt.",
 		});
 	}
 
@@ -154,7 +154,7 @@ function resolveSessionDir(cwd: string): ValidatedPath {
 	if (!fs.existsSync(sessionDir)) {
 		throw new CliError({
 			message: "No .session/ directory found",
-			suggestion: "Run `dev-session init` first to initialize the project.",
+			suggestion: "Run `dev-sesssion init` first to initialize the project.",
 		});
 	}
 

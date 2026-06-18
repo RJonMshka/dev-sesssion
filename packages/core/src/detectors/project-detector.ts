@@ -9,6 +9,7 @@ const TOOL_INDICATORS = {
 	claude: ["CLAUDE.md", ".claude"],
 	opencode: ["AGENTS.md", "opencode.json"],
 	cursor: [".cursor", ".cursor/rules"],
+	windsurf: [".windsurfrules", ".windsurf"],
 } as const;
 
 /** Notable files to scan for in the project root. */
@@ -55,7 +56,7 @@ function anyExists(cwd: string, fileNames: readonly string[]): boolean {
  * @param cwd - The directory to scan for tool indicators.
  * @returns The detected tool identifier.
  */
-function detectTool(cwd: string): "claude" | "opencode" | "cursor" | "unknown" {
+function detectTool(cwd: string): "claude" | "opencode" | "cursor" | "windsurf" | "unknown" {
 	if (anyExists(cwd, TOOL_INDICATORS.claude)) {
 		return DetectedTool.CLAUDE;
 	}
@@ -64,6 +65,9 @@ function detectTool(cwd: string): "claude" | "opencode" | "cursor" | "unknown" {
 	}
 	if (anyExists(cwd, TOOL_INDICATORS.cursor)) {
 		return DetectedTool.CURSOR;
+	}
+	if (anyExists(cwd, TOOL_INDICATORS.windsurf)) {
+		return DetectedTool.WINDSURF;
 	}
 	return DetectedTool.UNKNOWN;
 }

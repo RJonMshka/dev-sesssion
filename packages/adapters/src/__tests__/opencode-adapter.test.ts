@@ -82,7 +82,7 @@ describe("OpencodeAdapter", () => {
 	});
 
 	describe("setup", () => {
-		it("creates AGENTS.md with dev-session section", async () => {
+		it("creates AGENTS.md with dev-sesssion section", async () => {
 			const ctx = makeSetupContext();
 			const result = await OpencodeAdapter.setup?.(ctx);
 

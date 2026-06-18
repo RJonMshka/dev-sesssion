@@ -22,7 +22,7 @@ export interface CliErrorOptions {
  * ```ts
  * throw new CliError({
  *   message: "No .session/ directory found in the current project",
- *   suggestion: "Run `npx dev-session init` to create one",
+ *   suggestion: "Run `npx dev-sesssion init` to create one",
  * });
  * ```
  */

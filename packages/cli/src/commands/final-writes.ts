@@ -1,5 +1,5 @@
 /**
- * Final writes phase for `dev-session init`.
+ * Final writes phase for `dev-sesssion init`.
  *
  * Writes SESSION_STATE.md, ROUTINES.md, NEXT_PROMPT.md, runs the
  * secret scanner on all written content, and offers to patch `.gitignore`.
@@ -12,9 +12,11 @@ import * as path from "node:path";
 import { confirm, isCancel, log } from "@clack/prompts";
 import type { BootstrapContext, FileIndexEntry, PlanChunk, SessionState } from "@dev-session/core";
 import {
+	AiIndexManager,
 	ContextBudgetCalculator,
 	DEFAULT_CONTEXT_BUDGET,
 	FileIndexManager,
+	LayerResolver,
 	NextPromptWriter,
 	RoutinesWriter,
 	SessionStateManager,
@@ -58,10 +60,20 @@ export interface FinalWriteResult {
 // Constants
 // ---------------------------------------------------------------------------
 
-/** Lines to add to .gitignore for session files. */
-const GITIGNORE_ENTRIES = [
+/** Lines to add to .gitignore in personal mode (generated artifacts). */
+const GITIGNORE_ENTRIES_PERSONAL = [
 	"",
-	"# dev-session (ephemeral session state)",
+	"# dev-sesssion (ephemeral session state)",
+	".session/SESSION_STATE.md",
+	".session/NEXT_PROMPT.md",
+	".session/DONE_LOG.md",
+	".session/ai-index.yaml",
+] as const;
+
+/** Lines to add to .gitignore in team mode (only truly ephemeral files). */
+const GITIGNORE_ENTRIES_TEAM = [
+	"",
+	"# dev-sesssion (ephemeral session state)",
 	".session/SESSION_STATE.md",
 	".session/NEXT_PROMPT.md",
 	".session/DONE_LOG.md",
@@ -70,7 +82,7 @@ const GITIGNORE_ENTRIES = [
 /** Lines to add to .gitattributes for team merge strategy. */
 const GITATTRIBUTES_ENTRIES = [
 	"",
-	"# dev-session (team merge strategy)",
+	"# dev-sesssion (team merge strategy)",
 	".session/FILE_INDEX.md merge=ours",
 ] as const;
 
@@ -135,13 +147,32 @@ export async function runFinalWrites(
 	const chunkFiles = FileIndexManager.queryByChunk(entries, activeChunk.chunk_id);
 	const alwaysIncludeFiles = FileIndexManager.alwaysInclude(entries);
 
-	const budget = ContextBudgetCalculator.estimate(
-		sessionState,
-		activeChunk,
+	// Resolve per-file context layers (Chunk 15). Files default to layer 0/1 and
+	// escalate to full source when referenced by an active task. The budget is
+	// charged at the layered cost when an ai-index is available.
+	const aiIndex = AiIndexManager.load(sessionDir);
+	const resolvedLayers = LayerResolver.resolve({
 		chunkFiles,
 		alwaysIncludeFiles,
-		DEFAULT_CONTEXT_BUDGET,
-	);
+		tasks: activeChunk.tasks,
+		index: aiIndex,
+	});
+
+	const budget =
+		aiIndex !== null
+			? ContextBudgetCalculator.estimateLayered(
+					sessionState,
+					activeChunk,
+					resolvedLayers,
+					DEFAULT_CONTEXT_BUDGET,
+				)
+			: ContextBudgetCalculator.estimate(
+					sessionState,
+					activeChunk,
+					chunkFiles,
+					alwaysIncludeFiles,
+					DEFAULT_CONTEXT_BUDGET,
+				);
 
 	const excludePatterns = buildExcludePatterns(activeChunk.chunk_id, chunks);
 
@@ -185,6 +216,7 @@ export async function runFinalWrites(
 		budget,
 		excludePatterns,
 		projectName,
+		...(aiIndex !== null ? { resolvedLayers } : {}),
 	};
 
 	const promptContent = NextPromptWriter.generateWithFormatter(adapter.formatter, bootstrapContext);
@@ -369,19 +401,24 @@ async function patchGitignore(options: FinalWriteOptions): Promise<boolean> {
 		// No .gitignore — we'll create one
 	}
 
-	const alreadyPatched = GITIGNORE_ENTRIES.some(
+	// In team mode, ai-index.yaml is committed (not gitignored).
+	// In personal mode, ai-index.yaml is a generated artifact → gitignored.
+	const entriesToAdd =
+		options.teamMode === true ? GITIGNORE_ENTRIES_TEAM : GITIGNORE_ENTRIES_PERSONAL;
+
+	const alreadyPatched = entriesToAdd.some(
 		(entry) => entry.trim().length > 0 && existingContent.includes(entry),
 	);
 
 	if (alreadyPatched) {
 		if (options.verbose) {
-			log.info(".gitignore already contains dev-session entries.");
+			log.info(".gitignore already contains dev-sesssion entries.");
 		}
 		return false;
 	}
 
 	if (options.dryRun) {
-		dryRunGitignorePatch(gitignorePath, [...GITIGNORE_ENTRIES], options.cwd);
+		dryRunGitignorePatch(gitignorePath, [...entriesToAdd], options.cwd);
 		return false;
 	}
 
@@ -402,7 +439,7 @@ async function patchGitignore(options: FinalWriteOptions): Promise<boolean> {
 	}
 
 	if (shouldPatch) {
-		const newContent = `${existingContent}${GITIGNORE_ENTRIES.join("\n")}\n`;
+		const newContent = `${existingContent}${entriesToAdd.join("\n")}\n`;
 		const validatedPath = PathValidator.safeResolvePath(".gitignore", options.cwd);
 		AtomicWriter.writeFile(validatedPath, newContent, { skipGuard: true });
 		log.success("Patched .gitignore with session entries.");
@@ -437,7 +474,7 @@ function patchGitattributes(options: FinalWriteOptions): boolean {
 
 	if (alreadyPatched) {
 		if (options.verbose) {
-			log.info(".gitattributes already contains dev-session merge strategy.");
+			log.info(".gitattributes already contains dev-sesssion merge strategy.");
 		}
 		return false;
 	}

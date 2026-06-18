@@ -8,6 +8,7 @@
  * @packageDocumentation
  */
 
+import type { ResolvedFileLayer } from "../calculators/layer-resolver.js";
 import type { ContextBudget } from "../schemas/context-budget.js";
 import type { PlanChunk, SessionState, Task } from "../schemas/index.js";
 
@@ -105,4 +106,63 @@ export function trimToMaxLines(lines: readonly string[], maxLines: number): read
 		return lines;
 	}
 	return lines.slice(0, maxLines);
+}
+
+/**
+ * Caps a list of rendered file references and appends a "+N more" suffix.
+ *
+ * @param refs - The already-formatted file references.
+ * @param maxFiles - Maximum references to show before truncating.
+ * @returns A comma-separated string, or `"(none)"` when empty.
+ */
+function capRefList(refs: readonly string[], maxFiles: number): string {
+	if (refs.length === 0) {
+		return "(none)";
+	}
+	const shown = refs.slice(0, maxFiles);
+	const remaining = refs.length - shown.length;
+	const suffix = remaining > 0 ? `, +${String(remaining)} more` : "";
+	return shown.join(", ") + suffix;
+}
+
+/**
+ * Builds the layered "Load" section lines from resolved per-file layers.
+ *
+ * Files escalated to layer 2 (full source, referenced by an active task) are
+ * listed on a `Load full:` line; the remaining summary-only files (layers 0–1)
+ * are listed on a `Summaries:` line annotated with their layer. The `ref`
+ * callback applies the formatter's native file-reference syntax (e.g. an
+ * `@`-mention for Claude Code).
+ *
+ * @param resolved - Per-file resolved layers from `LayerResolver.resolve`.
+ * @param ref - Renders a single filepath in the formatter's reference syntax.
+ * @param maxFiles - Maximum files to list per line before truncating.
+ * @returns One or two prompt lines describing what to load and at which layer.
+ */
+export function formatLayeredContextLines(
+	resolved: readonly ResolvedFileLayer[],
+	ref: (filepath: string) => string,
+	maxFiles: number,
+): readonly string[] {
+	const full: string[] = [];
+	const summary: string[] = [];
+	for (const r of resolved) {
+		if (r.layer === 2) {
+			full.push(ref(r.filepath));
+		} else {
+			summary.push(`${ref(r.filepath)}·L${String(r.layer)}`);
+		}
+	}
+
+	const lines: string[] = [];
+	if (full.length > 0) {
+		lines.push(`Load full: ${capRefList(full, maxFiles)}`);
+	}
+	if (summary.length > 0) {
+		lines.push(`Summaries (read_file_layer for detail): ${capRefList(summary, maxFiles)}`);
+	}
+	if (lines.length === 0) {
+		lines.push("Load: (none)");
+	}
+	return lines;
 }

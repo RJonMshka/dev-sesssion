@@ -17,7 +17,7 @@ import { SecretScanner } from "../scanners/secret-scanner.js";
  * When this string appears anywhere in the content, the WriteGuard
  * allows the write without scanning.
  */
-const BYPASS_COMMENT = "<!-- dev-session:allow -->";
+const BYPASS_COMMENT = "<!-- dev-sesssion:allow -->";
 
 /**
  * Options for {@link WriteGuard.check}.
@@ -50,7 +50,7 @@ export interface WriteGuardResult {
  *
  * - **Warn mode** (default): Returns scan results but allows the write.
  * - **Strict mode**: Throws {@link SecurityError} if secrets are detected.
- * - **Bypass**: Content containing `<!-- dev-session:allow -->` skips scanning entirely.
+ * - **Bypass**: Content containing `<!-- dev-sesssion:allow -->` skips scanning entirely.
  */
 export const WriteGuard = {
 	/**

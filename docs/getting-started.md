@@ -1,8 +1,8 @@
 # Getting started
 
-## What is dev-session?
+## What is dev-sesssion?
 
-AI coding assistants lose all context when a conversation ends. `dev-session` solves this by maintaining a structured `.session/` directory in your project root — a living document set that:
+AI coding assistants lose all context when a conversation ends. `dev-sesssion` solves this by maintaining a structured `.session/` directory in your project root — a living document set that:
 
 - Tracks which chunk of your plan you're on and which tasks are done
 - Keeps an annotated index of which files the AI needs to read
@@ -16,10 +16,10 @@ The AI never has to re-read your entire codebase. It picks up exactly where you 
 
 ```bash
 # One-time, no global install required
-npx dev-session@latest init
+npx dev-sesssion@latest init
 
 # Or install globally
-npm install -g dev-session
+npm install -g dev-sesssion
 ```
 
 **Requirements:** Node.js ≥ 20.
@@ -28,11 +28,11 @@ npm install -g dev-session
 
 ## Initializing a project
 
-Run `dev-session init` in your project root:
+Run `dev-sesssion init` in your project root:
 
 ```bash
 cd my-project
-npx dev-session@latest init
+npx dev-sesssion@latest init
 ```
 
 The wizard walks you through:
@@ -61,7 +61,7 @@ After init, your project contains:
 
 ### SESSION_STATE.md
 
-Tracks your active chunk, task statuses, last-worked files, and notes. Updated by `dev-session update` and `dev-session advance`.
+Tracks your active chunk, task statuses, last-worked files, and notes. Updated by `dev-sesssion update` and `dev-sesssion advance`.
 
 ### FILE_INDEX.md
 
@@ -77,10 +77,10 @@ A compact, self-contained prompt (≤15 lines) that re-orients the AI in seconds
 
 1. **Start the session:** paste `.session/NEXT_PROMPT.md` into your AI chat
 2. **Work:** the AI knows exactly what to build and which files to read
-3. **End the session:** run `dev-session update` to mark tasks done and regenerate the prompt
+3. **End the session:** run `dev-sesssion update` to mark tasks done and regenerate the prompt
 
 ```bash
-dev-session update
+dev-sesssion update
 ```
 
 The prompt for your next session is ready in `.session/NEXT_PROMPT.md`.
@@ -92,7 +92,7 @@ The prompt for your next session is ready in `.session/NEXT_PROMPT.md`.
 When all tasks in the active chunk are complete, advance to the next one:
 
 ```bash
-dev-session advance
+dev-sesssion advance
 ```
 
 This archives the completed chunk, updates `SESSION_STATE.md`, and writes a fresh `NEXT_PROMPT.md` for the next chunk.
@@ -104,11 +104,11 @@ This archives the completed chunk, updates `SESSION_STATE.md`, and writes a fres
 Skip all prompts and use defaults with `--yes`:
 
 ```bash
-npx dev-session@latest init --yes
+npx dev-sesssion@latest init --yes
 ```
 
 Useful in CI or scripted setups. Combines with `--dry-run` to preview what would be written:
 
 ```bash
-npx dev-session@latest init --yes --dry-run
+npx dev-sesssion@latest init --yes --dry-run
 ```

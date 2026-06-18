@@ -118,7 +118,7 @@ export function makeContext(overrides?: Partial<BootstrapContext>): BootstrapCon
 		],
 		budget: makeBudget(),
 		excludePatterns: ["packages/security/**", "**/__tests__/**"],
-		projectName: "dev-session",
+		projectName: "dev-sesssion",
 		...overrides,
 	};
 }

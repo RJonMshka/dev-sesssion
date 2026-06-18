@@ -1,4 +1,4 @@
-<!-- dev-session:start -->
+<!-- dev-sesssion:start -->
 
 ## Active Chunk: 1
 
@@ -39,4 +39,4 @@
 - `tests/users.test.ts`
 - `tsconfig.json`
 
-<!-- dev-session:end -->
+<!-- dev-sesssion:end -->

@@ -1,6 +1,6 @@
 ---
 version: 1
-last_updated: "2026-04-08"
+last_updated: "2026-06-16"
 ---
 
 # File Index
@@ -68,6 +68,7 @@ last_updated: "2026-04-08"
 | packages/security/src/__tests__/write-guard.test.ts | Unit tests for WriteGuard (14 tests) |
 | packages/security/src/__tests__/atomic-writer.test.ts | Unit tests for AtomicWriter (14 tests) |
 | packages/security/src/__tests__/path-validator.adversarial.test.ts | Adversarial tests for PathValidator (26 tests) |
+| packages/security/src/__tests__/path-validator.property.test.ts | Property-based (fast-check) tests for PathValidator — safety invariant + reject classes (10 tests) |
 | packages/security/src/__tests__/content-sanitizer.adversarial.test.ts | Adversarial tests for ContentSanitizer (25 tests) |
 | packages/security/src/__tests__/frontmatter-parser.adversarial.test.ts | Adversarial tests for FrontmatterParser (19 tests) |
 | packages/security/src/__tests__/secret-scanner.adversarial.test.ts | Adversarial tests for SecretScanner (30 tests) |
@@ -110,6 +111,7 @@ last_updated: "2026-04-08"
 | packages/core/src/__tests__/plan-chunk-manager.test.ts | PlanChunkManager tests (10 tests) |
 | packages/core/src/__tests__/next-prompt-writer.test.ts | NextPromptWriter tests (10 tests) |
 | packages/core/src/__tests__/plan-parser.test.ts | PlanParser tests (16 tests) |
+| packages/core/src/__tests__/plan-parser.property.test.ts | Property-based (fast-check) tests for PlanParser — round-trip, empty/non-empty, boundary invariants (6 tests) |
 | packages/core/src/__tests__/project-detector.test.ts | ProjectDetector tests (12 tests) |
 | packages/core/src/__tests__/gitignore-aware-walker.test.ts | GitignoreAwareWalker tests (16 tests) |
 
@@ -209,19 +211,37 @@ last_updated: "2026-04-08"
 | packages/adapters/package.json | Fixed: duplicate license key removed |
 | tests/e2e/cli.e2e.test.ts | E2E tests — 15 subprocess tests via execa (init, status, health, prompt, index) |
 | tests/helpers/run-cli.ts | execa wrapper — strips ANSI, reject:false, uses cli-runner.cjs |
-| tests/helpers/cli-runner.cjs | CJS wrapper calling run() directly (not named dev-session.* to avoid double-run) |
+| tests/helpers/cli-runner.cjs | CJS wrapper calling run() directly (not named dev-sesssion.* to avoid double-run) |
 | tests/setup/e2e-global-setup.ts | Vitest globalSetup — builds CLI if dist missing before E2E |
 | vitest.config.ts | Updated: globalSetup added to e2e project config |
 | .github/workflows/ci.yml | Updated: build step moved before test step |
 | packages/core/src/parsers/plan-parser.ts | Fixed: toMarkdown() now writes YAML frontmatter (required by PlanChunkManager) |
 | packages/cli/src/commands/final-writes.ts | Fixed: added_at uses full ISO datetime, not date-only string |
-| packages/cli/src/commands/export.ts | export command — --to claude (SESSION_STATE → CLAUDE.md section) and --to cursor (FILE_INDEX → .cursor/rules/dev-session.mdc) |
+| packages/cli/src/commands/export.ts | export command — --to claude (SESSION_STATE → CLAUDE.md section) and --to cursor (FILE_INDEX → .cursor/rules/dev-sesssion.mdc) |
 | packages/cli/src/__tests__/export.test.ts | export command tests (19 tests) |
 | README.md | Full project README — problem, how it works, quick start, commands, adapters, team mode, security, contributing |
 | docs/getting-started.md | Installation, .session/ structure, first session walkthrough, advance, --yes mode |
 | docs/commands.md | Full command reference for all 10 commands + global flags |
 | docs/adapters.md | Claude Code / opencode / Cursor — detection, NEXT_PROMPT format, setup, export |
 | docs/team-mode.md | Shared vs personal files, gitignore/gitattributes, team workflow, monorepo teams |
+
+### Chunk 9 follow-up (2026-06-17) — audits, subprocess coverage, docs
+
+| File | Purpose |
+|---|---|
+| .gitleaks.toml | gitleaks config — extends default + allowlists secret-scanner test fixtures |
+| tests/coverage/collect-e2e-coverage.mjs | Runs e2e under NODE_V8_COVERAGE; c8 remaps CLI-bundle dumps → coverage/e2e/coverage-final.json |
+| tests/coverage/merge-coverage.mjs | DISJOINT merge of vitest (in-process) + c8 (subprocess) coverage; per-pkg summary; enforces 80/75 gate |
+| tests/e2e/lifecycle.e2e.test.ts | E2e for update/advance/export/import/health/status/prompt + status warning states (33 tests) — closed the CLI coverage gap |
+| packages/adapters/src/__tests__/formatters-ai-index.test.ts | formatAiIndex across all 4 formatters: layers 0/1/2 + empty (20 tests) |
+| tests/benchmarks/status-latency.ts | `status` latency benchmark — 200-file project, median < 500ms budget |
+| vitest.config.ts | Updated: coverage reporter=json, reportsDirectory=coverage/unit, in-config threshold removed (merge script enforces) |
+| package.json | Updated: test:coverage (build→unit→e2e→merge), test:coverage:unit/:e2e, benchmark:status; +devDeps c8, istanbul-lib-coverage |
+| .github/workflows/ci.yml | Updated: gitleaks step (GITLEAKS_CONFIG=.gitleaks.toml); Test step runs `pnpm test:coverage` gate |
+| AUTHORS | Project authors file |
+| PROTOCOL.md | Session Protocol v1.0 spec — the `.session/` format for community adoption |
+| docs/authoring-adapters.md | Guide for writing a new adapter (interface, formatter, hooks, registration, tests) |
+| README.md | Updated: Documentation index section; Windsurf added to package table |
 
 ## Chunk 8 — Team mode & enterprise features
 
@@ -242,3 +262,142 @@ last_updated: "2026-04-08"
 | packages/cli/src/commands/final-writes.ts | Updated: teamMode option, patchGitattributes, auto-gitignore in team mode |
 | packages/cli/src/__tests__/final-writes.test.ts | Updated: +6 team mode tests (gitattributes patch, idempotency, dry-run) |
 | packages/cli/src/cli.ts | Updated: registerMigrateCommand, registerHealthCommand, registerImportCommand registered |
+
+## Chunk 11 — Context Intelligence
+
+| File | Purpose |
+|---|---|
+| packages/core/src/linters/context-linter.ts | ContextLinter — detectDuplicates, detectSoftLanguage, detectDeadReferences; LintResult type |
+| packages/core/src/schemas/trim-overrides.ts | TrimOverrides schema + TrimOverrideEntry type for .session/trim-overrides.json |
+| packages/core/src/managers/trim-overrides-manager.ts | TrimOverridesManager — load/save/clear/addExclusion/removeExclusion/isExcluded |
+| packages/cli/src/commands/preview.ts | preview command — token breakdown table + assembled prompt; --format json, --copy, --no-content |
+| packages/cli/src/commands/trim.ts | trim command — interactive/auto file exclusion; --budget <N>; writes trim-overrides.json |
+| packages/cli/src/commands/lint-context.ts | lint-context command — ContextLinter static analysis, exits 1 on errors, no API key |
+| packages/cli/src/commands/compact.ts | compact <file> command — AI compaction via Haiku, backup to .session/backups/, updates token_cost |
+| packages/cli/src/commands/advance.ts | Updated: clears trim-overrides.json on advance |
+| packages/cli/src/cli.ts | Updated: registers preview, trim, lint-context, compact commands |
+| packages/cli/package.json | Updated: added @anthropic-ai/sdk + clipboardy dependencies |
+| packages/core/src/__tests__/context-linter.test.ts | ContextLinter unit tests (33 tests) |
+| packages/core/src/__tests__/trim-overrides-manager.test.ts | TrimOverridesManager unit tests (17 tests) |
+| packages/cli/src/__tests__/preview.test.ts | renderBreakdownTable unit tests (9 tests) |
+| packages/cli/src/__tests__/trim.test.ts | autoSelectExclusions unit tests (6 tests) |
+| tests/e2e/context-intelligence.e2e.test.ts | E2E tests for preview, trim, lint-context, compact (19 tests) |
+
+## Chunk 12 — Session memory & analytics
+
+| File | Purpose |
+|---|---|
+| packages/core/src/schemas/context-log.ts | ContextLogEntry schema + ContextLog + ContextLogStats + StalenessReport types |
+| packages/core/src/managers/session-memory-manager.ts | SessionMemoryManager — append/load/summarizeStats/analyzeStaleness/detectPassiveLoads/prune/parseDuration |
+| packages/cli/src/commands/memory.ts | memory subcommand group — show/stats/stale/prune |
+| packages/cli/src/commands/update.ts | Updated: appends ContextLogEntry to CONTEXT_LOG.md after each update |
+| packages/cli/src/commands/advance.ts | Updated: appends ContextLogEntry to CONTEXT_LOG.md on advance |
+| packages/cli/src/commands/status.ts | Updated: added "Session memory" section to output |
+| packages/cli/src/commands/health.ts | Updated: added staleness check from session memory |
+| packages/cli/src/cli.ts | Updated: registers memory command group |
+| packages/core/src/__tests__/session-memory-manager.test.ts | SessionMemoryManager unit tests (31 tests) |
+| tests/e2e/memory.e2e.test.ts | E2E tests for memory show/stats/stale/prune (12 tests) |
+
+## Chunk 13A — Auto-extract ai-index (zero-config) [COMPLETE 2026-04-14]
+
+| File | Purpose |
+|---|---|
+| packages/core/src/annotation/types.ts | ParsedSymbol, ParsedFile, AiIndex, FileEntry, SymbolEntry, SymbolSurface types |
+| packages/core/src/annotation/yaml-utils.ts | Minimal YAML serializer/deserializer (no external dep, deterministic, sorted keys) |
+| packages/core/src/annotation/auto-extractor.ts | AutoExtractor — extractFile (AST via @typescript-eslint/typescript-estree), extractDirectory; extracts all exported symbols + existing JSDoc summaries |
+| packages/core/src/annotation/ai-index-builder.ts | AiIndexBuilder — build, merge (mtime-based), serialize (deterministic YAML, sorted keys), deserialize |
+| packages/core/src/annotation/ai-index-manager.ts | AiIndexManager — load, save (atomic + SecretScanner), queryByLayer, queryByTag, queryByChunk, renderLayer0/1/2, stats |
+| packages/core/src/annotation/index.ts | Annotation module barrel export |
+| packages/core/src/index.ts | Updated: exports AutoExtractor, AiIndexBuilder, AiIndexManager, AiIndex, FileEntry, SymbolEntry, ParsedFile, ParsedSymbol |
+| packages/cli/src/commands/index-cmd.ts | Updated: dev-sesssion index — full regen, --update (mtime-based), --dry-run, --file, --show, stats subcommand |
+| packages/cli/src/commands/final-writes.ts | Updated: ai-index.yaml added to .gitignore (personal); team mode keeps it committed |
+| packages/core/src/formatters/bootstrap-formatter.ts | Updated: formatAiIndex(index, layer) added to BootstrapFormatter interface |
+| packages/core/src/formatters/plain-text-formatter.ts | Updated: formatAiIndex() — plain text layer 0/1/2 rendering |
+| packages/adapters/src/claude-bootstrap-formatter.ts | Updated: formatAiIndex() — prose instruction block + Layer 0/1 content |
+| packages/adapters/src/opencode-bootstrap-formatter.ts | Updated: formatAiIndex() — opencode style rendering |
+| packages/adapters/src/cursor-bootstrap-formatter.ts | Updated: formatAiIndex() — cursor style rendering |
+| packages/core/src/__tests__/auto-extractor.test.ts | AutoExtractor unit tests (all export kinds, existing JSDoc, parse error handling) — 14 tests |
+| packages/core/src/__tests__/ai-index-builder.test.ts | AiIndexBuilder unit tests (build, merge add/remove/modify, serialize determinism) — 20 tests |
+| packages/core/src/__tests__/ai-index-manager.test.ts | AiIndexManager unit tests (renderLayer0/1, queryByChunk, stats) — 12 tests |
+| tests/e2e/ai-index.e2e.test.ts | E2e: dev-sesssion index on fixture, --update, --dry-run, stats, --show — 8 tests |
+| tests/fixtures/ts-project/ | Fixture TypeScript project with existing JSDoc for E2e tests |
+
+## Chunk 13B — @ai-* annotation refinement
+
+| File | Purpose |
+|---|---|
+| packages/core/src/annotation/annotation-parser.ts | AnnotationParser — parse(commentBlock): SymbolAnnotations (@ai-surface/-summary/-layer-hint/-layer-default/-tag); collect() → FileAnnotations; allowlist-validated, null-proto, never throws |
+| packages/core/src/annotation/auto-extractor.ts | Updated: resolveOverrides() calls AnnotationParser per JSDoc block; surface/summary/tags overrides applied transparently to ParsedSymbol |
+| packages/core/src/annotation/index.ts | Updated: exports AnnotationParser + SymbolAnnotations/FileAnnotations/LayerHint types |
+| packages/core/src/index.ts | Updated: re-exports AnnotationParser, SymbolAnnotations, FileAnnotations, LayerHint |
+| packages/core/src/__tests__/annotation-parser.test.ts | AnnotationParser unit + adversarial tests (valid tags, malformed values, YAML injection, prototype pollution, determinism) — 24 tests |
+| packages/core/src/__tests__/auto-extractor-annotations.test.ts | AutoExtractor×AnnotationParser integration: mixed annotated/unannotated fixture + annotation-coverage check — 5 tests |
+
+## Chunk 14 — MCP server (basic, v1-compatible) [COMPLETE 2026-06-16]
+
+> Built facade-in-core, not a separate `packages/mcp`. The original speculative
+> file list (a standalone package with session_token auth + pid management) was
+> superseded: the MCP layer reuses the existing managers via a `SessionManager`
+> facade, and the server is a thin `dev-sesssion mcp` CLI command over stdio.
+
+| File | Purpose |
+|---|---|
+| packages/core/src/managers/session-manager.ts | SessionManager facade — composes state/plan/file-index/ai-index managers; 6 ops; validates untrusted paths; read-only flag |
+| packages/core/src/index.ts | Updated: exports SessionManager + ActiveChunkInfo/IndexQuery/MarkTaskResult types |
+| packages/cli/src/mcp/server.ts | MCP server — createMcpServer(manager) + startStdioServer(); stdio transport |
+| packages/cli/src/mcp/tools.ts | registerSessionTools — 6 tools mapped 1:1 to the facade; zod-validated args; sanitized errors |
+| packages/cli/src/commands/mcp.ts | `dev-sesssion mcp [--read-only]` command |
+| packages/cli/src/cli.ts | Updated: registers mcp command |
+| packages/cli/package.json | Updated: + @modelcontextprotocol/sdk, zod deps |
+| packages/core/src/__tests__/session-manager.test.ts | Facade unit tests (all 6 ops, path traversal, read-only, query validation) |
+| packages/cli/src/__tests__/mcp.test.ts | MCP boundary tests via in-memory transport (tools/list, calls, traversal + read-only rejection) |
+
+## Chunk 15 — Layered context loading (wiring) [COMPLETE 2026-06-17]
+
+| File | Purpose |
+|---|---|
+| packages/core/src/calculators/layer-resolver.ts | LayerResolver.resolve — per-file effective layer (chunk→0, always-include→1, @ai-layer-default raises floor, active-task reference escalates to 2); ResolvedFileLayer/LayerResolverInput/FileLayerRole types |
+| packages/core/src/calculators/context-budget-calculator.ts | Updated: estimateLayered(state, chunk, resolved[, cap]) — totals from layered file costs (chunk vs always-include split) |
+| packages/core/src/formatters/formatter-utils.ts | Updated: formatLayeredContextLines(resolved, ref, maxFiles) — "Load full" + "Summaries (Ln)" lines |
+| packages/core/src/formatters/bootstrap-formatter.ts | Updated: BootstrapContext.resolvedLayers? optional field |
+| packages/core/src/formatters/plain-text-formatter.ts | Updated: layered Context section when resolvedLayers present |
+| packages/core/src/index.ts | Updated: exports LayerResolver, formatLayeredContextLines + ResolvedFileLayer/LayerResolverInput/FileLayerRole |
+| packages/adapters/src/claude-bootstrap-formatter.ts | Updated: layered Context section (@-mention refs) |
+| packages/adapters/src/cursor-bootstrap-formatter.ts | Updated: layered Context section |
+| packages/adapters/src/opencode-bootstrap-formatter.ts | Updated: layered Context section |
+| packages/cli/src/commands/preview.ts | Updated: per-file layer marker + escalation delta (FileTokenInfo), layered budget, layered_savings, info line |
+| packages/cli/src/commands/update.ts | Updated: resolves layers, layered budget, passes resolvedLayers |
+| packages/cli/src/commands/advance.ts | Updated: resolves layers, layered budget, passes resolvedLayers |
+| packages/cli/src/commands/final-writes.ts | Updated: resolves layers, layered budget, passes resolvedLayers (init) |
+| packages/core/src/__tests__/layer-resolver.test.ts | LayerResolver unit tests (8) |
+| packages/core/src/__tests__/context-budget-calculator.test.ts | Updated: estimateLayered tests (4) |
+| packages/core/src/__tests__/formatter-utils.test.ts | Updated: formatLayeredContextLines tests (5) |
+| packages/core/src/__tests__/plain-text-formatter.test.ts | Updated: layered Context section tests (2) |
+| packages/cli/src/__tests__/preview.test.ts | Updated: layer marker + escalation delta tests (3) |
+
+**Design note:** Built as a pure decision layer (`LayerResolver`) reusing existing managers — no separate `LayerManager`/`session.yaml`/new commands. NEXT_PROMPT communicates which layer per file; the MCP `read_file_layer` tool (Chunk 14) serves content on demand. Layering activates only when `ai-index.yaml` exists; otherwise whole-file cost (unchanged behavior).
+
+## Chunk 16 — Windsurf adapter
+
+| File | Purpose |
+|---|---|
+| packages/core/src/schemas/project-info.ts | Updated: WINDSURF added to DetectedTool enum; Zod schema includes "windsurf" |
+| packages/core/src/detectors/project-detector.ts | Updated: detects .windsurfrules and .windsurf/ markers |
+| packages/adapters/src/windsurf-adapter.ts | WindsurfAdapter — .windsurfrules section management with # dev-sesssion:start/end markers |
+| packages/adapters/src/windsurf-bootstrap-formatter.ts | WindsurfBootstrapFormatter — plain paths, Ignore directive (mirrors CursorBootstrapFormatter) |
+| packages/adapters/src/registry.ts | Updated: WINDSURF → WindsurfAdapter in ADAPTER_MAP |
+| packages/adapters/src/index.ts | Updated: exports WindsurfAdapter + WindsurfBootstrapFormatter |
+| packages/adapters/src/__tests__/windsurf-adapter.test.ts | Windsurf adapter lifecycle tests (16 tests) |
+| packages/adapters/src/__tests__/windsurf-bootstrap-formatter.test.ts | Windsurf formatter tests |
+| packages/adapters/src/__tests__/registry.test.ts | Updated: Windsurf resolution + 5 registered tools |
+| packages/core/src/__tests__/project-detector.test.ts | Updated: Windsurf detection from .windsurfrules and .windsurf/ |
+
+**Design note:** Windsurf adapter mirrors the Cursor adapter pattern (.cursorrules → .windsurfrules, same comment-style section markers). WindsurfBootstrapFormatter is identical to CursorBootstrapFormatter in behavior (plain paths, Ignore directive) — Windsurf reads .windsurfrules natively. +35 tests; 1102 total.
+
+## Chunk 17 — BACKLOG: Cross-session intelligence (deferred)
+
+See `.session/PLAN_17.md` for rationale and original spec reference. Do not start until 13A–16 complete.
+
+## Chunk 18 — BACKLOG: Open ecosystem (deferred)
+
+See `.session/PLAN_18.md` for rationale and original spec reference. Do not start until v2 is battle-tested.

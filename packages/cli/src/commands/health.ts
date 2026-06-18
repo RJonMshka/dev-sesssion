@@ -1,5 +1,5 @@
 /**
- * `dev-session health` command.
+ * `dev-sesssion health` command.
  *
  * Audits the full `.session/` directory and reports issues at three
  * severity levels: ERROR, WARNING, INFO. With `--fix`, automatically
@@ -21,6 +21,7 @@ import {
 	HealthChecker,
 	type HealthReport,
 	HealthSeverity,
+	SessionMemoryManager,
 } from "@dev-session/core";
 import { CliError, PathValidator, type ValidatedPath } from "@dev-session/security";
 import type { Command } from "commander";
@@ -59,7 +60,7 @@ export async function runHealth(options: HealthOptions): Promise<void> {
 	const sessionDir = resolveSessionDir(options.cwd);
 
 	if (!options.json) {
-		intro("dev-session health");
+		intro("dev-sesssion health");
 	}
 
 	const s = spinner();
@@ -86,11 +87,14 @@ export async function runHealth(options: HealthOptions): Promise<void> {
 
 	displayReport(report, options.verbose);
 
+	// Staleness check from session memory
+	displayStalenessWarnings(sessionDir, options.verbose);
+
 	if (options.fix && report.issues.some((i) => i.fixable)) {
 		await applyFixes(sessionDir, report, options);
 	} else if (!report.healthy) {
 		if (report.issues.some((i) => i.fixable)) {
-			log.info("Run `dev-session health --fix` to auto-remediate fixable issues.");
+			log.info("Run `dev-sesssion health --fix` to auto-remediate fixable issues.");
 		}
 		outro("Health check complete.");
 		throw new CliError({
@@ -209,6 +213,51 @@ async function fixStaleEntries(
 }
 
 // ---------------------------------------------------------------------------
+// Staleness warnings
+// ---------------------------------------------------------------------------
+
+/**
+ * Display staleness warnings from session memory (best-effort, non-fatal).
+ *
+ * @param sessionDir - Validated path to .session/
+ * @param verbose - Whether to show verbose output
+ */
+function displayStalenessWarnings(sessionDir: ValidatedPath, verbose: boolean): void {
+	try {
+		const entries = SessionMemoryManager.load(sessionDir);
+		if (entries.length < 3) return; // Not enough data for meaningful staleness analysis
+
+		const allIndexEntries = FileIndexManager.load(sessionDir);
+		const alwaysInclude = FileIndexManager.alwaysInclude(allIndexEntries);
+		const indexedPaths = allIndexEntries.map((e) => e.filepath);
+		const alwaysIncludePaths = alwaysInclude.map((e) => e.filepath);
+
+		const stale = SessionMemoryManager.analyzeStaleness(
+			entries,
+			indexedPaths,
+			alwaysIncludePaths,
+			3,
+		);
+
+		if (stale.length === 0) return;
+
+		log.warn(
+			`Session memory: ${String(stale.length)} stale file${stale.length === 1 ? "" : "s"} detected — run \`dev-sesssion memory stale\` for details`,
+		);
+
+		if (verbose) {
+			for (const report of stale.slice(0, 3)) {
+				log.message(
+					`  [${report.suggestion}] ${report.path} (loaded ${String(report.sessionCount)} sessions, never modified)`,
+				);
+			}
+		}
+	} catch {
+		// Non-fatal — memory log may not exist yet
+	}
+}
+
+// ---------------------------------------------------------------------------
 // JSON output
 // ---------------------------------------------------------------------------
 
@@ -251,7 +300,7 @@ function resolveSessionDir(cwd: string): ValidatedPath {
 	if (!fs.existsSync(sessionDir)) {
 		throw new CliError({
 			message: "No .session/ directory found",
-			suggestion: "Run `dev-session init` first to initialize the project.",
+			suggestion: "Run `dev-sesssion init` first to initialize the project.",
 		});
 	}
 

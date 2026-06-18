@@ -63,9 +63,9 @@ tasks:
     status: todo
   - text: "Display: success summary + \"Paste NEXT_PROMPT.md to start your first session\""
     status: todo
-  - text: "E2e: `npx dev-session init --yes` on a fixture project with `PLAN.md`"
+  - text: "E2e: `npx dev-sesssion init --yes` on a fixture project with `PLAN.md`"
     status: todo
-  - text: "E2e: `npx dev-session init --yes` on a bare `package.json` project"
+  - text: "E2e: `npx dev-sesssion init --yes` on a bare `package.json` project"
     status: todo
   - text: "E2e: `--dry-run` produces no filesystem changes"
     status: todo
@@ -111,8 +111,8 @@ tasks:
 - [ ] Run `SecretScanner` on all written files before finalizing
 - [ ] Offer to add `.session/SESSION_STATE.md` and `.session/NEXT_PROMPT.md` to `.gitignore`
 - [ ] Display: success summary + "Paste NEXT_PROMPT.md to start your first session"
-- [ ] E2e: `npx dev-session init --yes` on a fixture project with `PLAN.md`
-- [ ] E2e: `npx dev-session init --yes` on a bare `package.json` project
+- [ ] E2e: `npx dev-sesssion init --yes` on a fixture project with `PLAN.md`
+- [ ] E2e: `npx dev-sesssion init --yes` on a bare `package.json` project
 - [ ] E2e: `--dry-run` produces no filesystem changes
 - [ ] Integration: migration path A correctly splits 3-phase PLAN.md
 - [ ] Integration: FILE_INDEX generation respects `.gitignore`

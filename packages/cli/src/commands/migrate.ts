@@ -1,9 +1,9 @@
 /**
- * `dev-session migrate` command.
+ * `dev-sesssion migrate` command.
  *
  * Detects monorepo workspace configuration (pnpm-workspace.yaml, nx.json,
  * turbo.json, package.json workspaces) and offers to initialize
- * dev-session in each workspace package that does not already have a
+ * dev-sesssion in each workspace package that does not already have a
  * `.session/` directory.
  *
  * Business logic (MonorepoDetector) lives in @dev-session/core.
@@ -53,7 +53,7 @@ export interface MigrateOptions {
  * @throws {CliError} if detection or init fails.
  */
 export async function runMigrate(options: MigrateOptions): Promise<void> {
-	intro("dev-session migrate");
+	intro("dev-sesssion migrate");
 
 	const s = spinner();
 
@@ -64,7 +64,7 @@ export async function runMigrate(options: MigrateOptions): Promise<void> {
 
 	if (!info.isMonorepo || info.packages.length === 0) {
 		log.warn(
-			"No workspace packages found. Run `dev-session init` directly in the package directories.",
+			"No workspace packages found. Run `dev-sesssion init` directly in the package directories.",
 		);
 		outro("Nothing to migrate.");
 		return;
@@ -83,7 +83,7 @@ export async function runMigrate(options: MigrateOptions): Promise<void> {
 	const needsInit = info.packages.filter((p) => !packageHasSession(p.absolutePath));
 
 	if (needsInit.length === 0) {
-		log.success("All packages already have dev-session initialized.");
+		log.success("All packages already have dev-sesssion initialized.");
 		outro("Nothing to do.");
 		return;
 	}
@@ -199,7 +199,7 @@ function errorMessage(error: unknown): string {
 export function registerMigrateCommand(program: Command): void {
 	program
 		.command("migrate")
-		.description("Initialize dev-session in monorepo workspace packages")
+		.description("Initialize dev-sesssion in monorepo workspace packages")
 		.action(async () => {
 			const opts = program.opts<{
 				cwd: string;

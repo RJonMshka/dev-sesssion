@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createProgram, handleError, installSignalHandlers, onCleanup, run } from "../index.js";
 
-describe("dev-session CLI", () => {
+describe("dev-sesssion CLI", () => {
 	it("exports createProgram function", () => {
 		expect(typeof createProgram).toBe("function");
 	});

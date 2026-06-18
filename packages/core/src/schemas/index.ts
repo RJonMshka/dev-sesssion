@@ -21,6 +21,18 @@ export {
 	ContextBudgetSummarySchema,
 	DEFAULT_CONTEXT_BUDGET,
 } from "./context-budget.js";
+// Context log
+export type {
+	ContextLog,
+	ContextLogEntry,
+	ContextLogStats,
+	StalenessReport,
+} from "./context-log.js";
+export {
+	CONTEXT_LOG_FILENAME,
+	ContextLogEntrySchema,
+	ContextLogSchema,
+} from "./context-log.js";
 export type { AuditResult, FileIndexEntry } from "./file-index-entry.js";
 
 // File index

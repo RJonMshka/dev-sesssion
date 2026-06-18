@@ -1,5 +1,5 @@
 /**
- * `dev-session status` command.
+ * `dev-sesssion status` command.
  *
  * Reads the session state, active plan chunk, and file index to display
  * a rich status overview: task completion percentage, context budget
@@ -23,6 +23,7 @@ import {
 	NextPromptWriter,
 	type PlanChunk,
 	PlanChunkManager,
+	SessionMemoryManager,
 	type SessionState,
 	SessionStateManager,
 	type Task,
@@ -68,6 +69,12 @@ export interface StatusJson {
 	};
 	readonly warnings: readonly string[];
 	readonly days_since_last_session: number | null;
+	readonly memory?: {
+		readonly totalSessions: number;
+		readonly avgTokens: number;
+		readonly firstDate: string | null;
+		readonly lastDate: string | null;
+	};
 }
 
 /**
@@ -111,7 +118,7 @@ export function computeWarnings(
 	const allDone = chunk.tasks.length > 0 && chunk.tasks.every((t) => t.status === TaskStatus.DONE);
 	if (allDone) {
 		warnings.push(
-			"All tasks in active chunk are done — run `dev-session advance` to move to the next chunk",
+			"All tasks in active chunk are done — run `dev-sesssion advance` to move to the next chunk",
 		);
 	}
 
@@ -208,6 +215,12 @@ export function buildStatusJson(
 	chunkFiles: readonly FileIndexEntry[],
 	budget: ContextBudget,
 	warnings: readonly string[],
+	memoryStats?: {
+		totalSessions: number;
+		avgTokens: number;
+		firstDate: string | null;
+		lastDate: string | null;
+	},
 ): StatusJson {
 	const taskCounts = countTasks(chunk.tasks);
 
@@ -236,6 +249,7 @@ export function buildStatusJson(
 		},
 		warnings,
 		days_since_last_session: daysSinceLastSession(state.last_updated),
+		...(memoryStats !== undefined ? { memory: memoryStats } : {}),
 	};
 }
 
@@ -279,6 +293,18 @@ export function displayStatus(status: StatusJson, budget: ContextBudget, verbose
 
 	// Budget
 	log.info(ContextBudgetCalculator.formatSummary(budget));
+
+	// Session memory summary
+	if (status.memory !== undefined) {
+		const m = status.memory;
+		if (m.totalSessions === 0) {
+			log.info("Session memory: no entries yet");
+		} else {
+			log.info(
+				`Session memory: ${String(m.totalSessions)} session${m.totalSessions === 1 ? "" : "s"} recorded, avg ~${String(m.avgTokens)} tokens`,
+			);
+		}
+	}
 
 	// Warnings
 	for (const warning of status.warnings) {
@@ -327,6 +353,10 @@ export async function runStatus(options: StatusOptions): Promise<void> {
 	// Compute warnings
 	const warnings = computeWarnings(state, chunk, alwaysInclude, promptLineCount, budget);
 
+	// Load memory stats (best-effort — no error if log missing)
+	const memoryEntries = SessionMemoryManager.load(sessionDir);
+	const memoryStats = SessionMemoryManager.summarizeStats(memoryEntries);
+
 	// Build status object
 	const status = buildStatusJson(
 		state,
@@ -336,6 +366,12 @@ export async function runStatus(options: StatusOptions): Promise<void> {
 		chunkFiles,
 		budget,
 		warnings,
+		{
+			totalSessions: memoryStats.totalSessions,
+			avgTokens: memoryStats.avgTokens,
+			firstDate: memoryStats.firstDate,
+			lastDate: memoryStats.lastDate,
+		},
 	);
 
 	if (options.json) {
@@ -360,7 +396,7 @@ function resolveSessionDir(cwd: string): ValidatedPath {
 	if (!fs.existsSync(sessionDir)) {
 		throw new CliError({
 			message: "No .session/ directory found",
-			suggestion: "Run `dev-session init` first to initialize the project.",
+			suggestion: "Run `dev-sesssion init` first to initialize the project.",
 		});
 	}
 

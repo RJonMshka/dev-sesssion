@@ -4,7 +4,7 @@ import { z } from "zod";
  * Default context budget in estimated tokens.
  *
  * This caps the token cost of the *generated bootstrap context* that
- * `dev-session` produces (SESSION_STATE summary, plan chunk summary,
+ * `dev-sesssion` produces (SESSION_STATE summary, plan chunk summary,
  * always-include file references, and context file metadata). It is
  * **not** the full AI context window — source files listed in the
  * bootstrap are loaded separately by the AI.

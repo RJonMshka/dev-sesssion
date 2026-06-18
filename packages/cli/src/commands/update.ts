@@ -1,5 +1,5 @@
 /**
- * `dev-session update` command.
+ * `dev-sesssion update` command.
  *
  * Interactive task marking, note adding, "last worked" file updates,
  * prompt regeneration, and secret scanning. In `--yes` mode, only
@@ -17,12 +17,16 @@ import * as path from "node:path";
 import { promisify } from "node:util";
 import { cancel, isCancel, log, multiselect, text } from "@clack/prompts";
 import {
+	AiIndexManager,
 	type BootstrapContext,
 	ContextBudgetCalculator,
+	type ContextLogEntry,
 	FileIndexManager,
+	LayerResolver,
 	NextPromptWriter,
 	type PlanChunk,
 	PlanChunkManager,
+	SessionMemoryManager,
 	SessionStateManager,
 	type Task,
 	TaskStatus,
@@ -157,7 +161,20 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 	const chunkFiles = FileIndexManager.queryByChunk(allEntries, state.active_chunk);
 	const allChunks = PlanChunkManager.loadAll(sessionDir);
 
-	const budget = ContextBudgetCalculator.estimate(state, chunk, chunkFiles, alwaysInclude);
+	// Resolve per-file context layers (Chunk 15); charge layered budget when an
+	// ai-index is present.
+	const aiIndex = AiIndexManager.load(sessionDir);
+	const resolvedLayers = LayerResolver.resolve({
+		chunkFiles,
+		alwaysIncludeFiles: alwaysInclude,
+		tasks: chunk.tasks,
+		index: aiIndex,
+	});
+
+	const budget =
+		aiIndex !== null
+			? ContextBudgetCalculator.estimateLayered(state, chunk, resolvedLayers)
+			: ContextBudgetCalculator.estimate(state, chunk, chunkFiles, alwaysInclude);
 
 	const excludePatterns = buildExcludePatterns(state.active_chunk, allChunks);
 
@@ -188,6 +205,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 		budget,
 		excludePatterns,
 		projectName,
+		...(aiIndex !== null ? { resolvedLayers } : {}),
 	};
 
 	const promptContent = NextPromptWriter.generateWithFormatter(adapter.formatter, bootstrapContext);
@@ -215,6 +233,19 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 	if (!options.yes) {
 		log.success("Session updated and NEXT_PROMPT.md regenerated.");
 	}
+
+	// -----------------------------------------------------------------------
+	// Step 8: Append context log entry
+	// -----------------------------------------------------------------------
+	const logEntry: ContextLogEntry = {
+		session_id: state.session_id,
+		timestamp: new Date().toISOString(),
+		active_chunk: state.active_chunk,
+		files_loaded: [...alwaysInclude.map((e) => e.filepath), ...chunkFiles.map((e) => e.filepath)],
+		total_tokens: budget.totalTokens,
+		modifications: [...state.last_worked_files],
+	};
+	SessionMemoryManager.append(sessionDir, logEntry);
 
 	return {
 		tasksUpdated,
@@ -465,7 +496,7 @@ function resolveSessionDir(cwd: string): ValidatedPath {
 	if (!fs.existsSync(sessionDir)) {
 		throw new CliError({
 			message: "No .session/ directory found",
-			suggestion: "Run `dev-session init` first to initialize the project.",
+			suggestion: "Run `dev-sesssion init` first to initialize the project.",
 		});
 	}
 

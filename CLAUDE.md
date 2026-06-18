@@ -1,6 +1,6 @@
-# CLAUDE.md — dev-session
+# CLAUDE.md — dev-sesssion
 
-Self-managing context architecture for AI-assisted coding. Installs via `npx dev-session init`. Manages `.session/` to keep AI sessions lean and self-resuming. Stage: pre-open-source (`UNLICENSED` → `MIT`).
+Self-managing context architecture for AI-assisted coding. Installs via `npx dev-sesssion init`. Manages `.session/` to keep AI sessions lean and self-resuming. Stage: pre-open-source (`UNLICENSED` → `MIT`).
 
 ---
 
@@ -50,7 +50,7 @@ npx gitleaks protect --staged
 ## Structure
 
 ```
-dev-session/
+dev-sesssion/
 ├── packages/
 │   ├── core/       # business logic — no CLI deps, no process.argv
 │   ├── cli/        # parse args → call core → format output → exit
