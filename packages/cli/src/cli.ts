@@ -8,6 +8,7 @@
  * @module
  */
 
+import { readFileSync } from "node:fs";
 import { Command } from "commander";
 import { registerAdvanceCommand } from "./commands/advance.js";
 import { registerCompactCommand } from "./commands/compact.js";
@@ -25,7 +26,6 @@ import { registerPromptCommand } from "./commands/prompt.js";
 import { registerStatusCommand } from "./commands/status.js";
 import { registerTrimCommand } from "./commands/trim.js";
 import { registerUpdateCommand } from "./commands/update.js";
-import { readFileSync } from "node:fs";
 import { handleError } from "./utils/error-handler.js";
 import { installSignalHandlers } from "./utils/signal-handler.js";
 
