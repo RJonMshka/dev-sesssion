@@ -1,6 +1,6 @@
 {
 	"name": "dev-sesssion",
-	"version": "1.0.0",
+	"version": "1.0.2",
 	"license": "MIT",
 	"type": "module",
 	"bin": {
@@ -22,12 +22,14 @@
 	"module": "./dist/index.mjs",
 	"types": "./dist/index.d.ts",
 	"files": [
-		"dist"
+		"dist",
+		"README.md"
 	],
 	"scripts": {
 		"build": "tsup",
 		"dev": "tsup --watch",
-		"typecheck": "tsc --noEmit"
+		"typecheck": "tsc --noEmit",
+		"prepack": "cp ../../README.md README.md"
 	},
 	"dependencies": {
 		"@anthropic-ai/sdk": "0.54.0",
