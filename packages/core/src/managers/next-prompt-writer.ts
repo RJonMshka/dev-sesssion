@@ -45,13 +45,13 @@ const FILE_LOAD_FIELDS: readonly string[] = ["Files to load:", "Load:"];
 /**
  * Extracts a project name from the session ID.
  *
- * Falls back to `"dev-session"` if the session ID does not contain a recognizable name.
+ * Falls back to `"dev-sesssion"` if the session ID does not contain a recognizable name.
  *
  * @param sessionId - The session's unique identifier string.
  * @returns A human-readable project name.
  */
 function extractProjectName(sessionId: string): string {
-	return sessionId.length > 0 ? sessionId : "dev-session";
+	return sessionId.length > 0 ? sessionId : "dev-sesssion";
 }
 
 /**

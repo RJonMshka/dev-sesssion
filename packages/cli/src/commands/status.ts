@@ -1,5 +1,5 @@
 /**
- * `dev-session status` command.
+ * `dev-sesssion status` command.
  *
  * Reads the session state, active plan chunk, and file index to display
  * a rich status overview: task completion percentage, context budget
@@ -118,7 +118,7 @@ export function computeWarnings(
 	const allDone = chunk.tasks.length > 0 && chunk.tasks.every((t) => t.status === TaskStatus.DONE);
 	if (allDone) {
 		warnings.push(
-			"All tasks in active chunk are done — run `dev-session advance` to move to the next chunk",
+			"All tasks in active chunk are done — run `dev-sesssion advance` to move to the next chunk",
 		);
 	}
 
@@ -396,7 +396,7 @@ function resolveSessionDir(cwd: string): ValidatedPath {
 	if (!fs.existsSync(sessionDir)) {
 		throw new CliError({
 			message: "No .session/ directory found",
-			suggestion: "Run `dev-session init` first to initialize the project.",
+			suggestion: "Run `dev-sesssion init` first to initialize the project.",
 		});
 	}
 

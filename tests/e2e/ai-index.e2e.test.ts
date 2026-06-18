@@ -1,11 +1,11 @@
 /**
- * E2E tests for `dev-session index` (ai-index generation).
+ * E2E tests for `dev-sesssion index` (ai-index generation).
  *
  * Tests:
- * - `dev-session index` on a fixture project → generates ai-index.yaml
- * - `dev-session index --update` skips unchanged files (mtime check)
- * - `dev-session index --dry-run` writes nothing to disk
- * - `dev-session index stats` shows counts
+ * - `dev-sesssion index` on a fixture project → generates ai-index.yaml
+ * - `dev-sesssion index --update` skips unchanged files (mtime check)
+ * - `dev-sesssion index --dry-run` writes nothing to disk
+ * - `dev-sesssion index stats` shows counts
  */
 
 import * as fs from "node:fs";
@@ -27,7 +27,7 @@ const FIXTURE_DIR = path.resolve(
 );
 
 beforeEach(() => {
-	tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "dev-session-ai-index-e2e-"));
+	tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "dev-sesssion-ai-index-e2e-"));
 });
 
 afterEach(() => {
@@ -35,7 +35,7 @@ afterEach(() => {
 });
 
 /**
- * Copy the ts-project fixture into tmpDir and run `dev-session init --yes`.
+ * Copy the ts-project fixture into tmpDir and run `dev-sesssion init --yes`.
  * Returns the path to the initialized project.
  */
 async function initFixture(): Promise<string> {
@@ -55,7 +55,7 @@ async function initFixture(): Promise<string> {
 // index (full regen)
 // ---------------------------------------------------------------------------
 
-describe("dev-session index", () => {
+describe("dev-sesssion index", () => {
 	it("generates ai-index.yaml in .session/", async () => {
 		const projectDir = await initFixture();
 
@@ -111,7 +111,7 @@ describe("dev-session index", () => {
 // index --dry-run
 // ---------------------------------------------------------------------------
 
-describe("dev-session index --dry-run", () => {
+describe("dev-sesssion index --dry-run", () => {
 	it("writes nothing to disk", async () => {
 		const projectDir = await initFixture();
 
@@ -130,7 +130,7 @@ describe("dev-session index --dry-run", () => {
 // index --update
 // ---------------------------------------------------------------------------
 
-describe("dev-session index --update", () => {
+describe("dev-sesssion index --update", () => {
 	it("merges with existing index when run a second time", async () => {
 		const projectDir = await initFixture();
 
@@ -155,7 +155,7 @@ describe("dev-session index --update", () => {
 // index stats
 // ---------------------------------------------------------------------------
 
-describe("dev-session index stats", () => {
+describe("dev-sesssion index stats", () => {
 	it("shows stats after generating the index", async () => {
 		const projectDir = await initFixture();
 		await runCli(["index", "--cwd", projectDir]);
@@ -181,7 +181,7 @@ describe("dev-session index stats", () => {
 // index --show
 // ---------------------------------------------------------------------------
 
-describe("dev-session index --show", () => {
+describe("dev-sesssion index --show", () => {
 	it("prints an existing index entry for a file", async () => {
 		const projectDir = await initFixture();
 		await runCli(["index", "--cwd", projectDir]);

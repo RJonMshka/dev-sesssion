@@ -154,7 +154,7 @@ export function add(a: number, b: number): number {
 		const filePath = writeTsFile(
 			"pkg-doc.ts",
 			`/**
- * Core utility module for dev-session.
+ * Core utility module for dev-sesssion.
  *
  * @packageDocumentation
  */
@@ -164,7 +164,7 @@ export const VERSION = "1.0.0";
 		);
 
 		const result = extractor.extractFile(filePath);
-		expect(result.moduleSummary).toBe("Core utility module for dev-session.");
+		expect(result.moduleSummary).toBe("Core utility module for dev-sesssion.");
 	});
 
 	it("returns empty exports on parse error, does not throw", () => {

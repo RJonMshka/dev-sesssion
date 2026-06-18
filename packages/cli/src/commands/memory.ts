@@ -1,5 +1,5 @@
 /**
- * `dev-session memory` subcommand group.
+ * `dev-sesssion memory` subcommand group.
  *
  * Provides session history analytics: show recent sessions, aggregate stats,
  * staleness analysis, and log pruning.
@@ -45,7 +45,7 @@ export async function runMemoryShow(options: MemoryShowOptions): Promise<void> {
 	const entries = SessionMemoryManager.load(sessionDir);
 
 	if (entries.length === 0) {
-		log.info("No session memory entries yet. Run `dev-session update` to start recording.");
+		log.info("No session memory entries yet. Run `dev-sesssion update` to start recording.");
 		return;
 	}
 
@@ -101,7 +101,7 @@ export async function runMemoryStats(options: MemoryStatsOptions): Promise<void>
 	}
 
 	if (stats.totalSessions === 0) {
-		log.info("No session memory entries yet. Run `dev-session update` to start recording.");
+		log.info("No session memory entries yet. Run `dev-sesssion update` to start recording.");
 		return;
 	}
 
@@ -327,7 +327,7 @@ function resolveSessionDir(cwd: string): ValidatedPath {
 	if (!fs.existsSync(sessionDir)) {
 		throw new CliError({
 			message: "No .session/ directory found",
-			suggestion: "Run `dev-session init` first to initialize the project.",
+			suggestion: "Run `dev-sesssion init` first to initialize the project.",
 		});
 	}
 

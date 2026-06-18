@@ -2,7 +2,7 @@
  * Windsurf adapter — full lifecycle adapter for Windsurf integration.
  *
  * Wraps {@link WindsurfBootstrapFormatter} with lifecycle hooks that:
- * - Generate a dev-session section in .windsurfrules during init
+ * - Generate a dev-sesssion section in .windsurfrules during init
  * - Update .windsurfrules session section on session end
  *
  * @packageDocumentation
@@ -23,9 +23,9 @@ import { WindsurfBootstrapFormatter } from "./windsurf-bootstrap-formatter.js";
 // Constants
 // ---------------------------------------------------------------------------
 
-/** Marker comments that delimit the dev-session section in .windsurfrules. */
-const SECTION_START = "# dev-session:start";
-const SECTION_END = "# dev-session:end";
+/** Marker comments that delimit the dev-sesssion section in .windsurfrules. */
+const SECTION_START = "# dev-sesssion:start";
+const SECTION_END = "# dev-sesssion:end";
 
 /** The .windsurfrules file path. */
 const WINDSURFRULES_PATH = ".windsurfrules";
@@ -48,7 +48,7 @@ const WINDSURF_CONFIG: AdapterConfig = {
 // ---------------------------------------------------------------------------
 
 /**
- * Generates the dev-session section content for .windsurfrules.
+ * Generates the dev-sesssion section content for .windsurfrules.
  *
  * Uses comment-style markers (# prefix) since .windsurfrules is plain text,
  * not markdown.
@@ -60,9 +60,9 @@ const WINDSURF_CONFIG: AdapterConfig = {
 function generateSessionSection(_projectName: string, sessionDir: string): string {
 	const lines = [
 		"",
-		"## dev-session",
+		"## dev-sesssion",
 		"",
-		"This project uses dev-session to manage AI coding sessions.",
+		"This project uses dev-sesssion to manage AI coding sessions.",
 		"",
 		"### Session workflow",
 		"",
@@ -77,7 +77,7 @@ function generateSessionSection(_projectName: string, sessionDir: string): strin
 }
 
 /**
- * Inserts or replaces the dev-session section in .windsurfrules content.
+ * Inserts or replaces the dev-sesssion section in .windsurfrules content.
  *
  * @param existing - The existing .windsurfrules content (or empty string).
  * @param sectionContent - The new section content.
@@ -107,7 +107,7 @@ function upsertSection(existing: string, sectionContent: string): string {
 /**
  * Windsurf adapter.
  *
- * Integrates dev-session with Windsurf by managing a .windsurfrules section
+ * Integrates dev-sesssion with Windsurf by managing a .windsurfrules section
  * with session workflow instructions and ignore directives.
  */
 export const WindsurfAdapter: Adapter = {
@@ -115,7 +115,7 @@ export const WindsurfAdapter: Adapter = {
 	formatter: WindsurfBootstrapFormatter,
 
 	/**
-	 * Generates or updates the dev-session section in .windsurfrules.
+	 * Generates or updates the dev-sesssion section in .windsurfrules.
 	 *
 	 * @param context - Setup context with project paths and detection info.
 	 * @returns Result describing what was written.
@@ -133,7 +133,7 @@ export const WindsurfAdapter: Adapter = {
 		const verb = existing.length > 0 ? "Updated" : "Created";
 		return {
 			filesWritten: [WINDSURFRULES_PATH],
-			summary: `${verb} .windsurfrules with dev-session workflow section`,
+			summary: `${verb} .windsurfrules with dev-sesssion workflow section`,
 		};
 	},
 
@@ -158,7 +158,7 @@ export const WindsurfAdapter: Adapter = {
 	},
 
 	/**
-	 * Updates the .windsurfrules dev-session section with current state.
+	 * Updates the .windsurfrules dev-sesssion section with current state.
 	 *
 	 * @param context - Session lifecycle context.
 	 */

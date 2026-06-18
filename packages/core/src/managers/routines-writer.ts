@@ -2,7 +2,7 @@
  * Generates and writes ROUTINES.md — bootstrap and self-update prompt snippets.
  *
  * This is a static file with well-known content. It is written once during
- * `dev-session init` and rarely changes.
+ * `dev-sesssion init` and rarely changes.
  *
  * @packageDocumentation
  */

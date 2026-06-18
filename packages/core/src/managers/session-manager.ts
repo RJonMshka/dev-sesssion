@@ -94,7 +94,7 @@ export class SessionManager {
 		if (!fs.existsSync(sessionDirAbs)) {
 			throw new CliError({
 				message: "No .session/ directory found",
-				suggestion: "Run `dev-session init` first to initialize the project.",
+				suggestion: "Run `dev-sesssion init` first to initialize the project.",
 			});
 		}
 
@@ -168,7 +168,7 @@ export class SessionManager {
 		if (!index) {
 			throw new CliError({
 				message: "No ai-index.yaml found",
-				suggestion: "Run `dev-session index` first to generate the index.",
+				suggestion: "Run `dev-sesssion index` first to generate the index.",
 			});
 		}
 
@@ -177,7 +177,7 @@ export class SessionManager {
 		if (!entry) {
 			throw new CliError({
 				message: `No index entry for path: ${key}`,
-				suggestion: "Run `dev-session index` to regenerate the index, or check the path.",
+				suggestion: "Run `dev-sesssion index` to regenerate the index, or check the path.",
 			});
 		}
 
@@ -205,7 +205,7 @@ export class SessionManager {
 		if (!index) {
 			throw new CliError({
 				message: "No ai-index.yaml found",
-				suggestion: "Run `dev-session index` first to generate the index.",
+				suggestion: "Run `dev-sesssion index` first to generate the index.",
 			});
 		}
 
@@ -252,7 +252,7 @@ export class SessionManager {
 		if (!fs.existsSync(filePath)) {
 			throw new CliError({
 				message: "No NEXT_PROMPT.md found",
-				suggestion: "Run `dev-session update` to generate the next-session prompt.",
+				suggestion: "Run `dev-sesssion update` to generate the next-session prompt.",
 			});
 		}
 		// sessionDir is validated and the filename is a fixed constant.

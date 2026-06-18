@@ -1,6 +1,6 @@
 # Authoring an adapter
 
-An **adapter** teaches `dev-session` how to integrate with a specific AI coding
+An **adapter** teaches `dev-sesssion` how to integrate with a specific AI coding
 tool: how to detect it, how to format the resume prompt for it, and how to wire
 the session into the tool's native config files.
 
@@ -10,7 +10,7 @@ ship (Claude Code, opencode, Cursor, Windsurf), see [adapters.md](adapters.md).
 > **Where adapters live today.** Adapters are resolved from a built-in registry
 > (`ADAPTER_MAP` in `packages/adapters/src/registry.ts`). The supported path for
 > a new adapter is to add it to that registry via a pull request. A pluggable
-> external-adapter mechanism (`dev-session-adapter-*` packages + a registry) is
+> external-adapter mechanism (`dev-sesssion-adapter-*` packages + a registry) is
 > on the roadmap but not yet available — see PROTOCOL.md and the project plan.
 
 ---
@@ -91,8 +91,8 @@ requirement (see PROTOCOL.md), not a style preference.
 
 Hooks run in this order:
 
-1. `setup(ctx)` — during `dev-session init`, once per project. Create or update
-   the tool's config file (e.g. add a managed `dev-session` section to
+1. `setup(ctx)` — during `dev-sesssion init`, once per project. Create or update
+   the tool's config file (e.g. add a managed `dev-sesssion` section to
    `.mytoolrc`). Return `{ filesWritten, summary }`.
 2. `onSessionStart(ctx)` — read tool context at session start.
 3. `transformState(state, ctx)` — **pure, synchronous** transform of session
@@ -110,7 +110,7 @@ async setup(ctx) {
   const existing = ctx.readFile(".mytoolrc") ?? "";
   const next = upsertManagedSection(existing); // your logic
   ctx.writeFile(".mytoolrc", next);            // atomic + scanned
-  return { filesWritten: [".mytoolrc"], summary: "Added dev-session section to .mytoolrc" };
+  return { filesWritten: [".mytoolrc"], summary: "Added dev-sesssion section to .mytoolrc" };
 }
 ```
 
@@ -118,8 +118,8 @@ Adapters depend on `core` only — they must not import `cli` or `security`. The
 IO functions are how `core`-only adapters stay safe without a `security`
 dependency.
 
-Use a stable, idempotent section marker (e.g. `# dev-session:start` …
-`# dev-session:end`) so re-running `init` updates in place rather than appending
+Use a stable, idempotent section marker (e.g. `# dev-sesssion:start` …
+`# dev-sesssion:end`) so re-running `init` updates in place rather than appending
 duplicates.
 
 ---

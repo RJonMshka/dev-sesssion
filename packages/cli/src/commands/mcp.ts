@@ -1,7 +1,7 @@
 /**
- * `dev-session mcp` command.
+ * `dev-sesssion mcp` command.
  *
- * Starts the dev-session Model Context Protocol server over stdio, exposing
+ * Starts the dev-sesssion Model Context Protocol server over stdio, exposing
  * `.session/` state to an agent as pull-based tools. Business logic lives in
  * the `SessionManager` facade (@dev-session/core); the MCP wiring lives in
  * `../mcp/`. This module only handles Commander registration.
@@ -43,7 +43,7 @@ export async function runMcp(options: McpOptions): Promise<void> {
 export function registerMcpCommand(program: Command): void {
 	program
 		.command("mcp")
-		.description("Start the dev-session MCP server (stdio) to serve .session/ state to an agent")
+		.description("Start the dev-sesssion MCP server (stdio) to serve .session/ state to an agent")
 		.option("--read-only", "Disable mutating tools (mark_task_done)", false)
 		.action(async (cmdOptions: { readOnly?: boolean }) => {
 			const opts = program.opts<{ cwd: string }>();

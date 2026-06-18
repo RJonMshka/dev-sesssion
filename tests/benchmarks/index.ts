@@ -1,11 +1,11 @@
 /**
- * dev-session token savings benchmark CLI.
+ * dev-sesssion token savings benchmark CLI.
  *
  * Usage:
  *   pnpm benchmark                       # run all fixtures
  *   pnpm benchmark --cwd /path/to/proj   # run on a specific project
  *   pnpm benchmark --json                # JSON output
- *   pnpm benchmark --no-init             # skip dev-session init
+ *   pnpm benchmark --no-init             # skip dev-sesssion init
  */
 
 import * as path from "node:path";
@@ -30,7 +30,7 @@ const FIXTURE_TARGETS: BenchmarkTarget[] = [
 		description: "TypeScript monorepo      (~35 files, 3 chunks)",
 	},
 	{
-		name: "dev-session (self)",
+		name: "dev-sesssion (self)",
 		path: path.resolve(__dirname, "../.."),
 		description: "This repo — the real dogfood test",
 		skipInit: true, // already initialized
@@ -81,7 +81,7 @@ let targets: BenchmarkTarget[];
 if (cwd) {
 	targets = [{ name: path.basename(cwd), path: cwd }];
 } else if (fixturesOnly) {
-	targets = FIXTURE_TARGETS.filter((t) => t.name !== "dev-session (self)");
+	targets = FIXTURE_TARGETS.filter((t) => t.name !== "dev-sesssion (self)");
 } else {
 	targets = FIXTURE_TARGETS;
 }

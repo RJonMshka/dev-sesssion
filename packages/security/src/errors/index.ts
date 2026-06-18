@@ -1,5 +1,5 @@
 /**
- * Error types for dev-session security package.
+ * Error types for dev-sesssion security package.
  *
  * All error types extend `Error` and include a discriminant `name` property
  * for reliable runtime type checking.

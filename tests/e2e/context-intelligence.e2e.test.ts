@@ -16,7 +16,7 @@ import { runCli } from "../helpers/run-cli.js";
 let tmpDir: string;
 
 beforeEach(() => {
-	tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "dev-session-ci-e2e-"));
+	tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "dev-sesssion-ci-e2e-"));
 });
 
 afterEach(() => {
@@ -55,7 +55,7 @@ async function initProject(dir: string): Promise<void> {
 // preview
 // ---------------------------------------------------------------------------
 
-describe("dev-session preview", () => {
+describe("dev-sesssion preview", () => {
 	beforeEach(async () => {
 		await initProject(tmpDir);
 	});
@@ -127,7 +127,7 @@ describe("dev-session preview", () => {
 // trim
 // ---------------------------------------------------------------------------
 
-describe("dev-session trim", () => {
+describe("dev-sesssion trim", () => {
 	beforeEach(async () => {
 		await initProject(tmpDir);
 	});
@@ -188,7 +188,7 @@ describe("dev-session trim", () => {
 // lint-context
 // ---------------------------------------------------------------------------
 
-describe("dev-session lint-context", () => {
+describe("dev-sesssion lint-context", () => {
 	beforeEach(async () => {
 		await initProject(tmpDir);
 	});
@@ -255,7 +255,7 @@ describe("dev-session lint-context", () => {
 // compact
 // ---------------------------------------------------------------------------
 
-describe("dev-session compact", () => {
+describe("dev-sesssion compact", () => {
 	beforeEach(async () => {
 		await initProject(tmpDir);
 	});

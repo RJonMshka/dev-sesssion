@@ -1,7 +1,7 @@
 /**
  * @dev-session/core
  *
- * Business logic for dev-session. Data model, file managers, validators.
+ * Business logic for dev-sesssion. Data model, file managers, validators.
  * No CLI dependencies — this is a pure library.
  *
  * @packageDocumentation

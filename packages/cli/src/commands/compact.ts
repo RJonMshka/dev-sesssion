@@ -1,5 +1,5 @@
 /**
- * `dev-session compact <file>` command.
+ * `dev-sesssion compact <file>` command.
  *
  * Uses the Anthropic API (Haiku model) to compress a context file,
  * preserving meaning while reducing token count. Before writing,
@@ -340,7 +340,7 @@ function resolveSessionDir(cwd: string): ValidatedPath {
 	if (!fs.existsSync(sessionDir)) {
 		throw new CliError({
 			message: "No .session/ directory found",
-			suggestion: "Run `dev-session init` first to initialize the project.",
+			suggestion: "Run `dev-sesssion init` first to initialize the project.",
 		});
 	}
 

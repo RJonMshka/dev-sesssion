@@ -1,7 +1,7 @@
 /**
  * Manages CONTEXT_LOG.md — the append-only session memory log.
  *
- * Records what files were loaded and modified in each dev-session session.
+ * Records what files were loaded and modified in each dev-sesssion session.
  * Used for analytics (`memory stats`), staleness detection (`memory stale`),
  * and historical browsing (`memory show`).
  *

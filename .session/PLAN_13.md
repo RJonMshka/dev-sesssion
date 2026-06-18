@@ -17,11 +17,11 @@ tasks:
     status: todo
   - text: "`AiIndexManager` class — `load(root)`, `save(root, index)` (atomic write + SecretScanner), `queryByLayer(index, layer)`, `queryByTag(index, tag)`, `queryByChunk(index, chunkId)`, `renderLayer0(entry)` (module summary + public symbol names only), `renderLayer1(entry)` (signatures, no impl), `renderLayer2(path)` (full source)"
     status: todo
-  - text: "`dev-session index` command — runs `AutoExtractor.extractDirectory()` → `TokenCounter.countFiles()` → `AiIndexBuilder.build()` → `AiIndexManager.save()`; reports: 'Indexed N files, M public symbols. Estimated context surface: X tokens'; warns if Layer 0 cost exceeds adapter budget"
+  - text: "`dev-sesssion index` command — runs `AutoExtractor.extractDirectory()` → `TokenCounter.countFiles()` → `AiIndexBuilder.build()` → `AiIndexManager.save()`; reports: 'Indexed N files, M public symbols. Estimated context surface: X tokens'; warns if Layer 0 cost exceeds adapter budget"
     status: todo
-  - text: "`dev-session index --update` — reads existing index mtimes, skips unchanged files, merges via `AiIndexBuilder.merge()`"
+  - text: "`dev-sesssion index --update` — reads existing index mtimes, skips unchanged files, merges via `AiIndexBuilder.merge()`"
     status: todo
-  - text: "`dev-session index --dry-run` — no filesystem changes; `--file <path>` single file; `--show <path>` prints index entry; `index stats` subcommand — N files, M symbols, token cost breakdown by layer"
+  - text: "`dev-sesssion index --dry-run` — no filesystem changes; `--file <path>` single file; `--show <path>` prints index entry; `index stats` subcommand — N files, M symbols, token cost breakdown by layer"
     status: todo
   - text: "Add `.session/ai-index.yaml` to `.gitignore` in personal mode `init`; include (commit) in team mode"
     status: todo
@@ -37,9 +37,9 @@ tasks:
     status: todo
   - text: "Unit: `AiIndexManager.renderLayer0` — returns only module summary + public symbol names (no signatures); `renderLayer1` — signatures only; `queryByChunk` cross-references FILE_INDEX chunk tags"
     status: todo
-  - text: "E2e: `dev-session index` on fixture project — verify ai-index.yaml YAML shape"
+  - text: "E2e: `dev-sesssion index` on fixture project — verify ai-index.yaml YAML shape"
     status: todo
-  - text: "E2e: `dev-session index --update` skips unchanged files; `--dry-run` writes nothing"
+  - text: "E2e: `dev-sesssion index --update` skips unchanged files; `--dry-run` writes nothing"
     status: todo
 ---
 
@@ -64,13 +64,13 @@ immediate value on day one, before any `@ai-*` tags are added.
 - [ ] `AiIndexBuilder` class — `build`, `merge` (mtime-based incremental), `serialize` (deterministic YAML, sorted keys), `deserialize`
 - [ ] `AiIndex` + `FileEntry` + `SymbolEntry` types
 - [ ] `AiIndexManager` class — `load`, `save` (atomic + SecretScanner), `queryByLayer`, `queryByTag`, `queryByChunk`, `renderLayer0`, `renderLayer1`, `renderLayer2`
-- [ ] `dev-session index` command — full regen pipeline + reports + over-budget warning
-- [ ] `dev-session index --update` — incremental via mtime
-- [ ] `dev-session index --dry-run`, `--file`, `--show`, `stats` subcommand
+- [ ] `dev-sesssion index` command — full regen pipeline + reports + over-budget warning
+- [ ] `dev-sesssion index --update` — incremental via mtime
+- [ ] `dev-sesssion index --dry-run`, `--file`, `--show`, `stats` subcommand
 - [ ] Add `ai-index.yaml` to gitignore (personal) / commit (team) in `init`
 - [ ] `BootstrapFormatter.formatAiIndex()` + `ClaudeBootstrapFormatter` implementation
 - [ ] Export new types from `packages/core`
 - [ ] Unit: `AutoExtractor.extractFile` (all export kinds, existing JSDoc, parse error handling)
 - [ ] Unit: `AiIndexBuilder.merge` (add/remove/modify), `serialize` (deterministic)
 - [ ] Unit: `AiIndexManager.renderLayer0/1`, `queryByChunk`
-- [ ] E2e: `dev-session index` on fixture; `--update` skips unchanged; `--dry-run` writes nothing
+- [ ] E2e: `dev-sesssion index` on fixture; `--update` skips unchanged; `--dry-run` writes nothing

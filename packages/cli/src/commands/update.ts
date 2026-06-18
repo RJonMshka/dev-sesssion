@@ -1,5 +1,5 @@
 /**
- * `dev-session update` command.
+ * `dev-sesssion update` command.
  *
  * Interactive task marking, note adding, "last worked" file updates,
  * prompt regeneration, and secret scanning. In `--yes` mode, only
@@ -496,7 +496,7 @@ function resolveSessionDir(cwd: string): ValidatedPath {
 	if (!fs.existsSync(sessionDir)) {
 		throw new CliError({
 			message: "No .session/ directory found",
-			suggestion: "Run `dev-session init` first to initialize the project.",
+			suggestion: "Run `dev-sesssion init` first to initialize the project.",
 		});
 	}
 

@@ -205,9 +205,9 @@ describe("CliError", () => {
 	it("creates with suggestion", () => {
 		const err = new CliError({
 			message: "No .session/ directory found",
-			suggestion: "Run `npx dev-session init` to create one",
+			suggestion: "Run `npx dev-sesssion init` to create one",
 		});
-		expect(err.suggestion).toBe("Run `npx dev-session init` to create one");
+		expect(err.suggestion).toBe("Run `npx dev-sesssion init` to create one");
 	});
 
 	it("creates with cause", () => {

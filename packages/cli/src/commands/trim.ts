@@ -1,5 +1,5 @@
 /**
- * `dev-session trim` command.
+ * `dev-sesssion trim` command.
  *
  * Interactive or automated context pruning — lets the user exclude files
  * from the bootstrap context to stay within a token budget.
@@ -10,7 +10,7 @@
  * - `--dry-run`: shows what would change without writing
  *
  * Writes excluded files to `.session/trim-overrides.json` (gitignored).
- * Cleared on `dev-session advance`.
+ * Cleared on `dev-sesssion advance`.
  *
  * Does NOT require `ANTHROPIC_API_KEY` — all operations are local.
  *
@@ -219,7 +219,7 @@ export async function runTrim(options: TrimOptions): Promise<TrimResult> {
 				TrimOverridesManager.addExclusion(sessionDir, state.session_id, filepath, "auto-trim");
 			}
 			log.success(
-				`Excluded ${String(newExclusions.length)} file(s). Run \`dev-session preview\` to verify.`,
+				`Excluded ${String(newExclusions.length)} file(s). Run \`dev-sesssion preview\` to verify.`,
 			);
 		} else {
 			log.info("Dry run — no changes written.");
@@ -318,7 +318,7 @@ function resolveSessionDir(cwd: string): ValidatedPath {
 	if (!fs.existsSync(sessionDir)) {
 		throw new CliError({
 			message: "No .session/ directory found",
-			suggestion: "Run `dev-session init` first to initialize the project.",
+			suggestion: "Run `dev-sesssion init` first to initialize the project.",
 		});
 	}
 

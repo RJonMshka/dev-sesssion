@@ -76,7 +76,7 @@ function makeContext(overrides?: Partial<BootstrapContext>): BootstrapContext {
 		],
 		budget: makeBudget(),
 		excludePatterns: ["packages/security/**", "**/__tests__/**"],
-		projectName: "dev-session",
+		projectName: "dev-sesssion",
 		...overrides,
 	};
 }
@@ -123,7 +123,7 @@ describe("PlainTextFormatter", () => {
 		it("produces content with required fields", () => {
 			const content = PlainTextFormatter.generatePrompt(makeContext());
 
-			expect(content).toContain("Project: dev-session");
+			expect(content).toContain("Project: dev-sesssion");
 			expect(content).toContain("Active chunk: 4");
 			expect(content).toContain("CLI: init command");
 			expect(content).toContain("Budget:");

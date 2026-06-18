@@ -16,7 +16,7 @@ import { runCli } from "../helpers/run-cli.js";
 let tmpDir: string;
 
 beforeEach(() => {
-	tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "dev-session-mem-e2e-"));
+	tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "dev-sesssion-mem-e2e-"));
 });
 
 afterEach(() => {
@@ -89,7 +89,7 @@ function makeEntry(overrides: Partial<LogEntry> = {}): LogEntry {
 // memory show
 // ---------------------------------------------------------------------------
 
-describe("dev-session memory show", () => {
+describe("dev-sesssion memory show", () => {
 	beforeEach(async () => {
 		await initProject(tmpDir);
 	});
@@ -134,7 +134,7 @@ describe("dev-session memory show", () => {
 // memory stats
 // ---------------------------------------------------------------------------
 
-describe("dev-session memory stats", () => {
+describe("dev-sesssion memory stats", () => {
 	beforeEach(async () => {
 		await initProject(tmpDir);
 	});
@@ -177,7 +177,7 @@ describe("dev-session memory stats", () => {
 // memory stale
 // ---------------------------------------------------------------------------
 
-describe("dev-session memory stale", () => {
+describe("dev-sesssion memory stale", () => {
 	beforeEach(async () => {
 		await initProject(tmpDir);
 	});
@@ -240,7 +240,7 @@ describe("dev-session memory stale", () => {
 // memory prune
 // ---------------------------------------------------------------------------
 
-describe("dev-session memory prune", () => {
+describe("dev-sesssion memory prune", () => {
 	beforeEach(async () => {
 		await initProject(tmpDir);
 	});

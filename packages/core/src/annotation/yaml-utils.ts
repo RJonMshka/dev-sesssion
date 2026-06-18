@@ -3,7 +3,7 @@
  *
  * This is intentionally a minimal implementation tailored to the ai-index
  * schema. It does NOT support full YAML — only the specific subset that
- * dev-session produces and consumes.
+ * dev-sesssion produces and consumes.
  *
  * Serialization rules:
  * - Object keys are sorted alphabetically at every level.

@@ -1,5 +1,5 @@
 /**
- * dev-session MCP server.
+ * dev-sesssion MCP server.
  *
  * Exposes the `.session/` state over the Model Context Protocol so an agent can
  * pull context on demand (active chunk, indexed files, layered file renders)
@@ -16,7 +16,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { registerSessionTools } from "./tools.js";
 
 /** The MCP server name advertised to clients. */
-export const MCP_SERVER_NAME = "dev-session";
+export const MCP_SERVER_NAME = "dev-sesssion";
 
 /** The MCP server version advertised to clients. */
 export const MCP_SERVER_VERSION = "1.0.0";
@@ -48,7 +48,7 @@ export function createMcpServer(manager: SessionManager): McpServer {
 }
 
 /**
- * Start the dev-session MCP server over stdio.
+ * Start the dev-sesssion MCP server over stdio.
  *
  * Resolves the session facade for `options.cwd`, wires the tools, and connects
  * a stdio transport. Resolves once the transport is connected; the process then

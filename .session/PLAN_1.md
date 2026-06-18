@@ -11,7 +11,7 @@ tasks:
     status: todo
   - text: "Configure `package.json` exports with conditional `import`/`require`/`types` paths"
     status: todo
-  - text: "Add `bin` entry: `\"dev-session\": \"./dist/index.cjs\"` in `cli/package.json`"
+  - text: "Add `bin` entry: `\"dev-sesssion\": \"./dist/index.cjs\"` in `cli/package.json`"
     status: todo
   - text: "Set up Biome v2 — `biome.json` at root, shared across all packages"
     status: todo
@@ -43,7 +43,7 @@ tasks:
 - [ ] Configure root `tsconfig.json` (strict, composite, path aliases) and per-package `tsconfig.json`
 - [ ] Set up `tsup` in each package — dual CJS/ESM, `.cjs` for CLI binary, `.mjs` for library
 - [ ] Configure `package.json` exports with conditional `import`/`require`/`types` paths
-- [ ] Add `bin` entry: `"dev-session": "./dist/index.cjs"` in `cli/package.json`
+- [ ] Add `bin` entry: `"dev-sesssion": "./dist/index.cjs"` in `cli/package.json`
 - [ ] Set up Biome v2 — `biome.json` at root, shared across all packages
 - [ ] Configure vitest — `vitest.config.ts` with three projects: `unit`, `integration`, `e2e`
 - [ ] Add `.npmrc`: `ignore-scripts=true`, `audit=true`, `save-exact=true`

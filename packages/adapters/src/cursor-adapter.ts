@@ -2,7 +2,7 @@
  * Cursor adapter — full lifecycle adapter for Cursor integration.
  *
  * Wraps {@link CursorBootstrapFormatter} with lifecycle hooks that:
- * - Generate a dev-session section in .cursorrules during init
+ * - Generate a dev-sesssion section in .cursorrules during init
  * - Update .cursorrules session section on session end
  *
  * @packageDocumentation
@@ -23,9 +23,9 @@ import { CursorBootstrapFormatter } from "./cursor-bootstrap-formatter.js";
 // Constants
 // ---------------------------------------------------------------------------
 
-/** Marker comments that delimit the dev-session section in .cursorrules. */
-const SECTION_START = "# dev-session:start";
-const SECTION_END = "# dev-session:end";
+/** Marker comments that delimit the dev-sesssion section in .cursorrules. */
+const SECTION_START = "# dev-sesssion:start";
+const SECTION_END = "# dev-sesssion:end";
 
 /** The .cursorrules file path. */
 const CURSORRULES_PATH = ".cursorrules";
@@ -48,7 +48,7 @@ const CURSOR_CONFIG: AdapterConfig = {
 // ---------------------------------------------------------------------------
 
 /**
- * Generates the dev-session section content for .cursorrules.
+ * Generates the dev-sesssion section content for .cursorrules.
  *
  * Uses comment-style markers (# prefix) since .cursorrules is plain text,
  * not markdown.
@@ -60,9 +60,9 @@ const CURSOR_CONFIG: AdapterConfig = {
 function generateSessionSection(_projectName: string, sessionDir: string): string {
 	const lines = [
 		"",
-		"## dev-session",
+		"## dev-sesssion",
 		"",
-		"This project uses dev-session to manage AI coding sessions.",
+		"This project uses dev-sesssion to manage AI coding sessions.",
 		"",
 		"### Session workflow",
 		"",
@@ -77,7 +77,7 @@ function generateSessionSection(_projectName: string, sessionDir: string): strin
 }
 
 /**
- * Inserts or replaces the dev-session section in .cursorrules content.
+ * Inserts or replaces the dev-sesssion section in .cursorrules content.
  *
  * @param existing - The existing .cursorrules content (or empty string).
  * @param sectionContent - The new section content.
@@ -107,7 +107,7 @@ function upsertSection(existing: string, sectionContent: string): string {
 /**
  * Cursor adapter.
  *
- * Integrates dev-session with Cursor by managing a .cursorrules section
+ * Integrates dev-sesssion with Cursor by managing a .cursorrules section
  * with session workflow instructions and ignore directives.
  */
 export const CursorAdapter: Adapter = {
@@ -115,7 +115,7 @@ export const CursorAdapter: Adapter = {
 	formatter: CursorBootstrapFormatter,
 
 	/**
-	 * Generates or updates the dev-session section in .cursorrules.
+	 * Generates or updates the dev-sesssion section in .cursorrules.
 	 *
 	 * @param context - Setup context with project paths and detection info.
 	 * @returns Result describing what was written.
@@ -133,7 +133,7 @@ export const CursorAdapter: Adapter = {
 		const verb = existing.length > 0 ? "Updated" : "Created";
 		return {
 			filesWritten: [CURSORRULES_PATH],
-			summary: `${verb} .cursorrules with dev-session workflow section`,
+			summary: `${verb} .cursorrules with dev-sesssion workflow section`,
 		};
 	},
 
@@ -158,7 +158,7 @@ export const CursorAdapter: Adapter = {
 	},
 
 	/**
-	 * Updates the .cursorrules dev-session section with current state.
+	 * Updates the .cursorrules dev-sesssion section with current state.
 	 *
 	 * @param context - Session lifecycle context.
 	 */

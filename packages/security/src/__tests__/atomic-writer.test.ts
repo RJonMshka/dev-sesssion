@@ -120,7 +120,7 @@ describe("AtomicWriter", () => {
 
 		it("allows bypass comment in strict mode", () => {
 			const filePath = asValidatedPath(path.join(tmpDir, "bypass.txt"));
-			const content = "<!-- dev-session:allow -->\nAKIAIOSFODNN7EXAMPLE";
+			const content = "<!-- dev-sesssion:allow -->\nAKIAIOSFODNN7EXAMPLE";
 			const result = AtomicWriter.writeFile(filePath, content, {
 				guard: { strict: true },
 			});

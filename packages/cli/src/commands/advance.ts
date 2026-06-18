@@ -1,5 +1,5 @@
 /**
- * `dev-session advance` command.
+ * `dev-sesssion advance` command.
  *
  * Archives the current chunk, compacts session state, advances to the
  * next chunk, and regenerates NEXT_PROMPT.md. Warns if not all tasks in
@@ -128,7 +128,7 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 	if (!nextChunkExists) {
 		throw new CliError({
 			message: `No PLAN_${String(nextChunkId)}.md found — cannot advance beyond the last chunk.`,
-			suggestion: "All chunks are complete. Consider running `dev-session status` to review.",
+			suggestion: "All chunks are complete. Consider running `dev-sesssion status` to review.",
 		});
 	}
 
@@ -319,7 +319,7 @@ function resolveSessionDir(cwd: string): ValidatedPath {
 	if (!fs.existsSync(sessionDir)) {
 		throw new CliError({
 			message: "No .session/ directory found",
-			suggestion: "Run `dev-session init` first to initialize the project.",
+			suggestion: "Run `dev-sesssion init` first to initialize the project.",
 		});
 	}
 

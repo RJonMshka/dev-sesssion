@@ -1,7 +1,7 @@
 /**
  * Schema and types for CONTEXT_LOG.md — the append-only session memory log.
  *
- * Each entry records what was loaded and modified during a dev-session session.
+ * Each entry records what was loaded and modified during a dev-sesssion session.
  * The log is stored in `.session/CONTEXT_LOG.md` as a YAML frontmatter list
  * and is always gitignored (personal session data, not team-shared).
  *
@@ -16,7 +16,7 @@ export const CONTEXT_LOG_FILENAME = "CONTEXT_LOG.md";
 /**
  * A single entry in the context log.
  *
- * Appended by `dev-session update` and `dev-session advance` after each session.
+ * Appended by `dev-sesssion update` and `dev-sesssion advance` after each session.
  */
 export const ContextLogEntrySchema = z.object({
 	/** Unique session identifier — matches `session_id` in SESSION_STATE. */

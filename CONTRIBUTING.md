@@ -1,11 +1,11 @@
-# Contributing to dev-session
+# Contributing to dev-sesssion
 
 ## Development Setup
 
 ```bash
 # Clone the repository
 git clone <repo-url>
-cd dev-session
+cd dev-sesssion
 
 # Install dependencies
 pnpm install

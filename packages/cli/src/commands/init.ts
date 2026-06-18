@@ -1,5 +1,5 @@
 /**
- * `dev-session init` command.
+ * `dev-sesssion init` command.
  *
  * Orchestrates the full init wizard: detection, migration path selection,
  * plan splitting or scaffolding, FILE_INDEX generation, and final writes.
@@ -72,7 +72,7 @@ export interface InitOptions {
  * @throws CliError if the project cannot be initialized
  */
 export async function runInit(options: InitOptions): Promise<void> {
-	intro("dev-session init");
+	intro("dev-sesssion init");
 
 	const s = spinner();
 
@@ -211,9 +211,9 @@ export async function runInit(options: InitOptions): Promise<void> {
 		note(
 			[
 				"1. Paste .session/NEXT_PROMPT.md into your AI chat to begin",
-				"2. dev-session status    → task progress + context budget",
-				"3. dev-session update    → mark tasks done after each session",
-				"4. dev-session advance   → move to the next chunk when done",
+				"2. dev-sesssion status    → task progress + context budget",
+				"3. dev-sesssion update    → mark tasks done after each session",
+				"4. dev-sesssion advance   → move to the next chunk when done",
 			].join("\n"),
 			"Next steps",
 		);
@@ -293,7 +293,7 @@ function ensureSessionDir(options: InitOptions): ValidatedPath {
 export function registerInitCommand(program: Command): void {
 	const cmd = program
 		.command("init")
-		.description("Initialize dev-session in the current project")
+		.description("Initialize dev-sesssion in the current project")
 		.option("--team", "Enable team mode (auto-applies .gitignore + .gitattributes)", false)
 		.option(
 			"--max-files <n>",

@@ -1,5 +1,5 @@
 /**
- * `dev-session lint-context` command.
+ * `dev-sesssion lint-context` command.
  *
  * Static analysis of session context files — finds duplicate blocks,
  * soft/hedging language, and dead `@mention` references.
@@ -239,7 +239,7 @@ function resolveSessionDir(cwd: string): ValidatedPath {
 	if (!fs.existsSync(sessionDir)) {
 		throw new CliError({
 			message: "No .session/ directory found",
-			suggestion: "Run `dev-session init` first to initialize the project.",
+			suggestion: "Run `dev-sesssion init` first to initialize the project.",
 		});
 	}
 

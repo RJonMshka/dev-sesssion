@@ -11,7 +11,7 @@ tasks: []
 
 **Why deferred:**
 - Shipping a protocol spec before the protocol is stable locks in decisions prematurely. The annotation schema, layer semantics, and MCP tool contracts **will** change once real users hit them. Versioning a spec too early turns design debt into breaking changes.
-- A community adapter registry is overbuilt when there are zero community adapters. npm naming convention (`dev-session-adapter-*`) + a docs page is sufficient for discovery until there are actual adapters to find.
+- A community adapter registry is overbuilt when there are zero community adapters. npm naming convention (`dev-sesssion-adapter-*`) + a docs page is sufficient for discovery until there are actual adapters to find.
 - The `FallbackLayeredFormatter` backward-compatibility story requires a stable v2 interface to wrap — that interface isn't stable yet.
 
 **Revisit when:**
@@ -21,4 +21,4 @@ tasks: []
 - PROTOCOL.md can describe what exists, not what was planned
 
 **Original spec:** See `docs/PLANv2.md` — "Chunk 17 — Open ecosystem" for the full design
-(PROTOCOL.md v2, FallbackLayeredFormatter, community registry, `dev-session registry search/add`).
+(PROTOCOL.md v2, FallbackLayeredFormatter, community registry, `dev-sesssion registry search/add`).

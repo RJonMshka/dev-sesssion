@@ -83,7 +83,7 @@ describe("WindsurfAdapter", () => {
 	});
 
 	describe("setup", () => {
-		it("creates .windsurfrules with dev-session section", async () => {
+		it("creates .windsurfrules with dev-sesssion section", async () => {
 			const ctx = makeSetupContext();
 			const result = await WindsurfAdapter.setup?.(ctx);
 

@@ -58,7 +58,7 @@ describe("OpencodeBootstrapFormatter", () => {
 	describe("generatePrompt", () => {
 		it("produces content with required fields", () => {
 			const content = OpencodeBootstrapFormatter.generatePrompt(makeContext());
-			expect(content).toContain("Project: dev-session");
+			expect(content).toContain("Project: dev-sesssion");
 			expect(content).toContain("Active chunk: 4");
 			expect(content).toContain("CLI: init command");
 			expect(content).toContain("Budget:");

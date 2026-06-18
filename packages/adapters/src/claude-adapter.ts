@@ -2,7 +2,7 @@
  * Claude Code adapter — full lifecycle adapter for Claude Code integration.
  *
  * Wraps {@link ClaudeBootstrapFormatter} with lifecycle hooks that:
- * - Generate a dev-session section in CLAUDE.md during init
+ * - Generate a dev-sesssion section in CLAUDE.md during init
  * - Read `.claude/MEMORY.md` and inject relevant context into session notes
  * - Update CLAUDE.md session section on session end
  *
@@ -27,9 +27,9 @@ import { ClaudeBootstrapFormatter } from "./claude-bootstrap-formatter.js";
 /** Maximum lines to read from .claude/MEMORY.md. */
 const MAX_MEMORY_LINES = 200;
 
-/** Marker comments that delimit the dev-session section in CLAUDE.md. */
-const SECTION_START = "<!-- dev-session:start -->";
-const SECTION_END = "<!-- dev-session:end -->";
+/** Marker comments that delimit the dev-sesssion section in CLAUDE.md. */
+const SECTION_START = "<!-- dev-sesssion:start -->";
+const SECTION_END = "<!-- dev-sesssion:end -->";
 
 /** Path to Claude Code's memory index file. */
 const MEMORY_PATH = ".claude/MEMORY.md";
@@ -52,7 +52,7 @@ const CLAUDE_CONFIG: AdapterConfig = {
 // ---------------------------------------------------------------------------
 
 /**
- * Generates the dev-session section content for CLAUDE.md.
+ * Generates the dev-sesssion section content for CLAUDE.md.
  *
  * @param projectName - The project name.
  * @param sessionDir - Relative path to the session directory.
@@ -61,9 +61,9 @@ const CLAUDE_CONFIG: AdapterConfig = {
 function generateSessionSection(_projectName: string, sessionDir: string): string {
 	const lines = [
 		"",
-		"## dev-session",
+		"## dev-sesssion",
 		"",
-		`This project uses [dev-session](https://github.com/anthropics/dev-session) to manage AI coding sessions.`,
+		`This project uses [dev-sesssion](https://github.com/anthropics/dev-sesssion) to manage AI coding sessions.`,
 		"",
 		"### Session workflow",
 		"",
@@ -76,7 +76,7 @@ function generateSessionSection(_projectName: string, sessionDir: string): strin
 }
 
 /**
- * Inserts or replaces the dev-session section in CLAUDE.md content.
+ * Inserts or replaces the dev-sesssion section in CLAUDE.md content.
  *
  * If the section markers exist, replaces the content between them.
  * Otherwise, appends the section at the end.
@@ -135,7 +135,7 @@ function extractMemorySummaries(content: string): readonly string[] {
 /**
  * Claude Code adapter.
  *
- * Integrates dev-session with Claude Code by:
+ * Integrates dev-sesssion with Claude Code by:
  * - Adding a session workflow section to CLAUDE.md during `setup`
  * - Reading `.claude/MEMORY.md` summaries into session notes via `transformState`
  * - Updating the CLAUDE.md session section on `onSessionEnd`
@@ -145,7 +145,7 @@ export const ClaudeAdapter: Adapter = {
 	formatter: ClaudeBootstrapFormatter,
 
 	/**
-	 * Generates or updates the dev-session section in CLAUDE.md.
+	 * Generates or updates the dev-sesssion section in CLAUDE.md.
 	 *
 	 * @param context - Setup context with project paths and detection info.
 	 * @returns Result describing what was written.
@@ -163,7 +163,7 @@ export const ClaudeAdapter: Adapter = {
 		const verb = existing.length > 0 ? "Updated" : "Created";
 		return {
 			filesWritten: ["CLAUDE.md"],
-			summary: `${verb} CLAUDE.md with dev-session workflow section`,
+			summary: `${verb} CLAUDE.md with dev-sesssion workflow section`,
 		};
 	},
 
@@ -214,7 +214,7 @@ export const ClaudeAdapter: Adapter = {
 	},
 
 	/**
-	 * Updates the CLAUDE.md dev-session section with current session state.
+	 * Updates the CLAUDE.md dev-sesssion section with current session state.
 	 *
 	 * @param context - Session lifecycle context with current state.
 	 */

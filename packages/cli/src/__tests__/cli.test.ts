@@ -1,5 +1,13 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import { createProgram } from "../cli.js";
+
+// The version Commander reports must match the package's own package.json.
+const pkgVersion = (
+	JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")) as {
+		version: string;
+	}
+).version;
 
 // Mock @clack/prompts to avoid terminal output in tests
 vi.mock("@clack/prompts", () => ({
@@ -79,12 +87,12 @@ function parseGlobalOpts(args: string[] = []): ReturnType<typeof createProgram> 
 describe("createProgram", () => {
 	it("creates a Commander program", () => {
 		const program = createProgram();
-		expect(program.name()).toBe("dev-session");
+		expect(program.name()).toBe("dev-sesssion");
 	});
 
-	it("has version 0.0.0", () => {
+	it("reports the version from package.json", () => {
 		const program = createProgram();
-		expect(program.version()).toBe("0.0.0");
+		expect(program.version()).toBe(pkgVersion);
 	});
 
 	it("has --cwd option defaulting to process.cwd()", () => {
@@ -121,7 +129,7 @@ describe("createProgram", () => {
 		const program = createProgram();
 		const initCmd = program.commands.find((c) => c.name() === "init");
 		expect(initCmd).toBeDefined();
-		expect(initCmd?.description()).toBe("Initialize dev-session in the current project");
+		expect(initCmd?.description()).toBe("Initialize dev-sesssion in the current project");
 	});
 
 	it("parses --cwd option", () => {

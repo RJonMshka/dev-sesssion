@@ -2,5 +2,5 @@
 	"name": "ts-project-fixture",
 	"version": "1.0.0",
 	"private": true,
-	"description": "Fixture TypeScript project for dev-session ai-index E2E tests"
+	"description": "Fixture TypeScript project for dev-sesssion ai-index E2E tests"
 }

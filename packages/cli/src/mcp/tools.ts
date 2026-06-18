@@ -1,5 +1,5 @@
 /**
- * MCP tool registrations for the dev-session server.
+ * MCP tool registrations for the dev-sesssion server.
  *
  * Each tool is a thin adapter: it validates inbound arguments with Zod (the MCP
  * boundary is untrusted), calls the {@link SessionManager} facade, and formats
@@ -62,7 +62,7 @@ function errorResult(error: unknown): ToolResult {
 }
 
 /**
- * Register all dev-session session tools on an MCP server.
+ * Register all dev-sesssion session tools on an MCP server.
  *
  * @param server - The MCP server to register tools on.
  * @param manager - The session facade backing the tools.

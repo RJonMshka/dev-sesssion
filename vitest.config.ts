@@ -9,6 +9,9 @@ export default defineConfig({
 					include: ["packages/*/src/**/*.test.ts", "packages/*/src/**/__tests__/**/*.test.ts"],
 					exclude: ["**/integration/**", "**/e2e/**"],
 					environment: "node",
+					// Repo dir is "dev-sesssion", so importing the CLI entry in-process
+					// trips its auto-run heuristic. Opt out; tests call run() explicitly.
+					env: { DEV_SESSSION_NO_AUTORUN: "1" },
 				},
 			},
 			{
@@ -17,6 +20,7 @@ export default defineConfig({
 					include: ["tests/**/*.integration.test.ts"],
 					environment: "node",
 					testTimeout: 30_000,
+					env: { DEV_SESSSION_NO_AUTORUN: "1" },
 				},
 			},
 			{

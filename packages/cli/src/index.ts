@@ -1,5 +1,5 @@
 /**
- * dev-session CLI
+ * dev-sesssion CLI
  *
  * Thin wrapper over @dev-session/core.
  * Parse args -> call core -> format output -> exit.
@@ -23,8 +23,14 @@ export {
 	onCleanup,
 } from "./utils/index.js";
 
-// Auto-run when executed directly
-const isDirectRun = typeof process !== "undefined" && process.argv[1]?.includes("dev-session");
+// Auto-run when executed directly.
+// The path check matches the installed binary (node_modules/dev-sesssion/...).
+// E2E tests require this module from inside the repo (also named "dev-sesssion"),
+// so the wrapper sets DEV_SESSSION_NO_AUTORUN to call run() itself exactly once.
+const isDirectRun =
+	typeof process !== "undefined" &&
+	!process.env.DEV_SESSSION_NO_AUTORUN &&
+	process.argv[1]?.includes("dev-sesssion");
 if (isDirectRun) {
 	void import("./cli.js").then(({ run: runCli }) => runCli());
 }

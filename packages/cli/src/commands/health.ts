@@ -1,5 +1,5 @@
 /**
- * `dev-session health` command.
+ * `dev-sesssion health` command.
  *
  * Audits the full `.session/` directory and reports issues at three
  * severity levels: ERROR, WARNING, INFO. With `--fix`, automatically
@@ -60,7 +60,7 @@ export async function runHealth(options: HealthOptions): Promise<void> {
 	const sessionDir = resolveSessionDir(options.cwd);
 
 	if (!options.json) {
-		intro("dev-session health");
+		intro("dev-sesssion health");
 	}
 
 	const s = spinner();
@@ -94,7 +94,7 @@ export async function runHealth(options: HealthOptions): Promise<void> {
 		await applyFixes(sessionDir, report, options);
 	} else if (!report.healthy) {
 		if (report.issues.some((i) => i.fixable)) {
-			log.info("Run `dev-session health --fix` to auto-remediate fixable issues.");
+			log.info("Run `dev-sesssion health --fix` to auto-remediate fixable issues.");
 		}
 		outro("Health check complete.");
 		throw new CliError({
@@ -242,7 +242,7 @@ function displayStalenessWarnings(sessionDir: ValidatedPath, verbose: boolean): 
 		if (stale.length === 0) return;
 
 		log.warn(
-			`Session memory: ${String(stale.length)} stale file${stale.length === 1 ? "" : "s"} detected — run \`dev-session memory stale\` for details`,
+			`Session memory: ${String(stale.length)} stale file${stale.length === 1 ? "" : "s"} detected — run \`dev-sesssion memory stale\` for details`,
 		);
 
 		if (verbose) {
@@ -300,7 +300,7 @@ function resolveSessionDir(cwd: string): ValidatedPath {
 	if (!fs.existsSync(sessionDir)) {
 		throw new CliError({
 			message: "No .session/ directory found",
-			suggestion: "Run `dev-session init` first to initialize the project.",
+			suggestion: "Run `dev-sesssion init` first to initialize the project.",
 		});
 	}
 

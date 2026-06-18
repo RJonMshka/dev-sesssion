@@ -34,7 +34,7 @@ function printPatternComparison(pc: PatternComparison): void {
 
 	const npTokens = pc.nextPromptTokens;
 	const npBar = bar(npTokens, maxTokens);
-	const npLine = `  NEXT_PROMPT (dev-session):  ${npBar} ${fmt(npTokens).padStart(7)} t  (${pc.nextPromptLines} lines)`;
+	const npLine = `  NEXT_PROMPT (dev-sesssion):  ${npBar} ${fmt(npTokens).padStart(7)} t  (${pc.nextPromptLines} lines)`;
 	console.log(`│${npLine.padEnd(WIDTH - 2)}│`);
 	console.log(`├${"─".repeat(WIDTH - 2)}┤`);
 	console.log(`│  vs developer loading patterns:${"".padEnd(WIDTH - 34)}│`);
@@ -56,7 +56,7 @@ function printPatternComparison(pc: PatternComparison): void {
  */
 export function printReport(results: BenchmarkResult[]): void {
 	console.log();
-	console.log("dev-session Token Savings Benchmark");
+	console.log("dev-sesssion Token Savings Benchmark");
 	console.log(sep("═"));
 	console.log();
 

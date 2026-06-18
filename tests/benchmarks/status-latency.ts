@@ -1,5 +1,5 @@
 /**
- * Latency benchmark: `dev-session status` must complete in < 500ms on a
+ * Latency benchmark: `dev-sesssion status` must complete in < 500ms on a
  * 200-file project (PLAN_9 performance target).
  *
  * Generates a throwaway 200-file project, runs `init --yes`, then times the
@@ -22,7 +22,7 @@ const BUDGET_MS = 500;
 
 /** Create a temp project with FILE_COUNT TypeScript files across several dirs. */
 function makeProject(): string {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "dev-session-perf-"));
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "dev-sesssion-perf-"));
 	fs.writeFileSync(
 		path.join(dir, "package.json"),
 		JSON.stringify({ name: "perf-fixture", version: "1.0.0" }, null, 2),
@@ -71,7 +71,7 @@ try {
 	const p95 = quantile(timings, 0.95);
 
 	const fmt = (n: number) => `${n.toFixed(0)}ms`;
-	console.log(`\ndev-session status latency — ${FILE_COUNT} files, ${ITERATIONS} runs\n`);
+	console.log(`\ndev-sesssion status latency — ${FILE_COUNT} files, ${ITERATIONS} runs\n`);
 	console.log(`  min     ${fmt(min)}`);
 	console.log(`  median  ${fmt(median)}`);
 	console.log(`  p95     ${fmt(p95)}`);

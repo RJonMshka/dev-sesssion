@@ -1,5 +1,5 @@
 /**
- * Tests for the `dev-session import` command.
+ * Tests for the `dev-sesssion import` command.
  *
  * Tests --from claude (CLAUDE.md → SESSION_STATE notes) and
  * --from cursor (.cursor/rules/*.mdc globs → FILE_INDEX entries).

@@ -1,6 +1,6 @@
 # API Reference — @dev-session/core v1.0.0
 
-`@dev-session/core` is the library package underlying the `dev-session` CLI. Use it to build custom integrations, companion tools, or alternative UIs on top of the session state model.
+`@dev-session/core` is the library package underlying the `dev-sesssion` CLI. Use it to build custom integrations, companion tools, or alternative UIs on top of the session state model.
 
 ```bash
 npm install @dev-session/core

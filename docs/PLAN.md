@@ -1,7 +1,7 @@
-# PLAN.md — dev-session
+# PLAN.md — dev-sesssion
 
 > A self-managing context architecture for AI-assisted coding sessions.
-> Installs via `npx dev-session init`. First-class Claude Code + opencode support. Tool-agnostic by design.
+> Installs via `npx dev-sesssion init`. First-class Claude Code + opencode support. Tool-agnostic by design.
 
 ---
 
@@ -9,7 +9,7 @@
 
 | Field | Value |
 |---|---|
-| Package name | `dev-session` |
+| Package name | `dev-sesssion` |
 | License | `UNLICENSED` (internal) → `MIT` on open-source release |
 | Language | TypeScript (strict) |
 | Runtime | Node.js 20+ |
@@ -89,10 +89,10 @@ The CLI is a thin layer over the programmatic API. All business logic lives in `
 - **FILE_INDEX entries should include `token_cost`** — populated by `GitignoreAwareWalker.estimateTokenCost()` or live file scanning
 - **Only the active plan chunk is loaded** — not the full PLAN.md. `docs/PLAN.md` is split into `.session/PLAN_N.md` files by `init`
 - **SESSION_STATE is compacted on chunk advance** — completed chunk tasks are archived to DONE_LOG.md, SESSION_STATE keeps only the active chunk's tasks plus a summary line per completed chunk
-- **`dev-session status` must display the context budget breakdown** — tokens per category, over-budget warnings
+- **`dev-sesssion status` must display the context budget breakdown** — tokens per category, over-budget warnings
 - **Bootstrap formatters are adapter-specific** — Claude Code uses `@`-mention syntax, opencode uses its own format, generic uses plain text. Each adapter implements the `BootstrapFormatter` interface
 - **Exclude patterns are explicit** — NEXT_PROMPT.md includes a "Do NOT load" line listing patterns to avoid (test files, other chunks, dist/)
-- **Stale context detection** — `dev-session health` flags always-include files that haven't been touched in N sessions
+- **Stale context detection** — `dev-sesssion health` flags always-include files that haven't been touched in N sessions
 
 ### Dependencies
 - No runtime dependencies in `core` beyond: `@11ty/gray-matter`, `globby`, `zod`, `write-file-atomic`
@@ -115,7 +115,7 @@ The CLI is a thin layer over the programmatic API. All business logic lives in `
 - [ ] Configure root `tsconfig.json` (strict, composite, path aliases) and per-package `tsconfig.json`
 - [ ] Set up `tsup` in each package — dual CJS/ESM, `.cjs` for CLI binary, `.mjs` for library
 - [ ] Configure `package.json` exports with conditional `import`/`require`/`types` paths
-- [ ] Add `bin` entry: `"dev-session": "./dist/index.cjs"` in `cli/package.json`
+- [ ] Add `bin` entry: `"dev-sesssion": "./dist/index.cjs"` in `cli/package.json`
 - [ ] Set up Biome v2 — `biome.json` at root, shared across all packages
 - [ ] Configure vitest — `vitest.config.ts` with three projects: `unit`, `integration`, `e2e`
 - [ ] Add `.npmrc`: `ignore-scripts=true`, `audit=true`, `save-exact=true`
@@ -180,7 +180,7 @@ Security is built before the data model so that every subsequent chunk has no ch
 - [ ] `WriteGuard` — middleware wrapping atomic file writes: scan → warn/block → write
   - Default: warn mode (prints warning, still writes)
   - `--strict` flag: block mode (throws `SecurityError`, no write)
-  - Supports inline `<!-- dev-session:allow -->` bypass comment
+  - Supports inline `<!-- dev-sesssion:allow -->` bypass comment
 - [ ] `AtomicWriter` — `writeFileAtomic(path, content)` using `write-file-atomic` package
   - Sets `mode: 0o644` on all written files
   - Cleans up `.tmp` file on error via `finally` block
@@ -322,7 +322,7 @@ export { SessionManager }  // unified facade over all managers
 
 ## Chunk 4 — CLI: `init` command
 
-> **Goal:** `npx dev-session init` works end-to-end for new, vibe-code, and enterprise projects
+> **Goal:** `npx dev-sesssion init` works end-to-end for new, vibe-code, and enterprise projects
 > **Depends on:** Chunks 2, 3
 > **Est. sessions:** 2–3
 
@@ -371,8 +371,8 @@ export { SessionManager }  // unified facade over all managers
 - [ ] Display: success summary + "Paste NEXT_PROMPT.md to start your first session"
 
 #### 4g — Tests
-- [ ] E2e: `npx dev-session init --yes` on a fixture project with `PLAN.md`
-- [ ] E2e: `npx dev-session init --yes` on a bare `package.json` project
+- [ ] E2e: `npx dev-sesssion init --yes` on a fixture project with `PLAN.md`
+- [ ] E2e: `npx dev-sesssion init --yes` on a bare `package.json` project
 - [ ] E2e: `--dry-run` produces no filesystem changes
 - [ ] Integration: migration path A correctly splits 3-phase PLAN.md
 - [ ] Integration: FILE_INDEX generation respects `.gitignore`
@@ -388,7 +388,7 @@ export { SessionManager }  // unified facade over all managers
 
 ### Tasks
 
-#### `dev-session status`
+#### `dev-sesssion status`
 - [ ] Read `SESSION_STATE.md` + active chunk
 - [ ] Display: active chunk, task completion % (N/M done), files in context, days since last session
 - [ ] Display: always-include file count, indexed file count, FILE_INDEX health
@@ -398,7 +398,7 @@ export { SessionManager }  // unified facade over all managers
 - [ ] Warn if `always-include` list > 4 files ("creep detected")
 - [ ] Warn if context budget exceeds `DEFAULT_CONTEXT_BUDGET` — suggest removing large files or splitting chunks
 
-#### `dev-session update`
+#### `dev-sesssion update`
 - [ ] Interactive: show current task list with checkboxes
 - [ ] Mark tasks done / in-progress / todo
 - [ ] Add session notes (free text)
@@ -407,7 +407,7 @@ export { SessionManager }  // unified facade over all managers
 - [ ] Display context budget after regeneration
 - [ ] Run `SecretScanner` on updated files before write
 
-#### `dev-session advance`
+#### `dev-sesssion advance`
 - [ ] Check all tasks in active chunk are `done` — warn if not, prompt to confirm force-advance
 - [ ] Archive completed chunk to `DONE_LOG.md`
 - [ ] **Compact `SESSION_STATE.md`** — call `SessionStateManager.compact()` to move completed chunk details to DONE_LOG and keep SESSION_STATE lean
@@ -416,33 +416,33 @@ export { SessionManager }  // unified facade over all managers
 - [ ] Display: "Advanced to PLAN_2.md. N tasks remaining in this chunk."
 - [ ] Display: context budget for the new chunk
 
-#### `dev-session prompt`
+#### `dev-sesssion prompt`
 - [ ] Print `NEXT_PROMPT.md` to stdout (for piping or copying)
 - [ ] `--copy` flag: copy to clipboard via `clipboardy`
 
-#### `dev-session index add <filepath>`
+#### `dev-sesssion index add <filepath>`
 - [ ] Validate path (PathValidator) before processing
 - [ ] Prompt: which chunk(s) to tag, purpose description
 - [ ] Append to `FILE_INDEX.md` atomically
 
-#### `dev-session index audit`
+#### `dev-sesssion index audit`
 - [ ] Run `FileIndexManager.audit()` — detect stale entries (deleted/moved files)
 - [ ] Display: stale entries with suggested action (remove or re-path)
 - [ ] `--fix` flag: auto-remove stale entries after confirmation
 
 #### Tests
-- [ ] E2e: `dev-session status --json` parses correctly
-- [ ] E2e: `dev-session advance` when all tasks done
-- [ ] E2e: `dev-session advance` when tasks incomplete (warn path)
-- [ ] E2e: `dev-session update` marks tasks and regenerates prompt
+- [ ] E2e: `dev-sesssion status --json` parses correctly
+- [ ] E2e: `dev-sesssion advance` when all tasks done
+- [ ] E2e: `dev-sesssion advance` when tasks incomplete (warn path)
+- [ ] E2e: `dev-sesssion update` marks tasks and regenerates prompt
 - [ ] Integration: `FileIndexManager.audit()` detects deleted files
-- [ ] Snapshot: `dev-session status` output format (strip ANSI before asserting)
+- [ ] Snapshot: `dev-sesssion status` output format (strip ANSI before asserting)
 
 ---
 
 ## Chunk 6 — Programmatic API (`packages/core` public surface)
 
-> **Goal:** Clean, stable `import { SessionManager } from 'dev-session/core'` API
+> **Goal:** Clean, stable `import { SessionManager } from 'dev-sesssion/core'` API
 > **Depends on:** Chunk 3
 > **Est. sessions:** 1–2
 
@@ -469,7 +469,7 @@ export { SessionManager }  // unified facade over all managers
   - Integrating with a CI pipeline to check session state
   - Building a custom adapter using the programmatic API
 
-### Public API surface (what gets exported from `dev-session/core`)
+### Public API surface (what gets exported from `dev-sesssion/core`)
 ```typescript
 // Main facade
 export { SessionManager }
@@ -512,9 +512,9 @@ Each adapter MUST implement `BootstrapFormatter` (defined in `packages/core`) to
 tool-native bootstrap prompts. This is how context reduction works end-to-end: the adapter
 knows how its tool loads files, so it generates the most efficient NEXT_PROMPT format.
 
-### Claude Code adapter (`dev-session/adapters/claude`)
+### Claude Code adapter (`dev-sesssion/adapters/claude`)
 - [ ] Detect: check for `CLAUDE.md` or `.claude/` directory
-- [ ] `setup`: generate a `CLAUDE.md` section for dev-session with bootstrap/self-update routines
+- [ ] `setup`: generate a `CLAUDE.md` section for dev-sesssion with bootstrap/self-update routines
 - [ ] `transformState`: map active chunk notes into `CLAUDE.md` update
 - [ ] `onSessionStart`: read `.claude/MEMORY.md` (first 200 lines) and inject relevant state
 - [ ] `onSessionEnd`: trigger self-update routine format compatible with Claude Code's file-read pattern
@@ -524,9 +524,9 @@ knows how its tool loads files, so it generates the most efficient NEXT_PROMPT f
 - [ ] Tests: fixture `.claude/` directory, verify generated `CLAUDE.md` is valid markdown
 - [ ] Tests: verify `ClaudeBootstrapFormatter.generatePrompt()` produces valid `@`-mention format
 
-### opencode adapter (`dev-session/adapters/opencode`)
+### opencode adapter (`dev-sesssion/adapters/opencode`)
 - [ ] Detect: check for `opencode.json` or `AGENTS.md`
-- [ ] `setup`: write AGENTS.md section with dev-session context protocol
+- [ ] `setup`: write AGENTS.md section with dev-sesssion context protocol
 - [ ] `transformState`: map state to AGENTS.md format
 - [ ] `onSessionEnd`: write session-end instructions in opencode-compatible format
 - [ ] `getFormatter()` → `OpencodeBootstrapFormatter` using opencode's context loading format
@@ -557,25 +557,25 @@ In team mode, `PLAN_N.md` and `FILE_INDEX.md` are committed. `SESSION_STATE.md` 
 ### Tasks
 
 #### Team mode init
-- [ ] `dev-session init --team` — prompts for team vs personal mode
+- [ ] `dev-sesssion init --team` — prompts for team vs personal mode
 - [ ] Generates `.gitignore` patch: adds `SESSION_STATE.md`, `NEXT_PROMPT.md`, `DONE_LOG.md`
-- [ ] Generates `.gitattributes` entry: mark `FILE_INDEX.md` with a **union merge driver** (`merge=union`) so concurrent index additions from different developers are both kept — NEVER `merge=ours` (which would silently discard teammates' entries on a shared file). Document that union merge can produce duplicate lines; `dev-session index audit` deduplicates after merge.
+- [ ] Generates `.gitattributes` entry: mark `FILE_INDEX.md` with a **union merge driver** (`merge=union`) so concurrent index additions from different developers are both kept — NEVER `merge=ours` (which would silently discard teammates' entries on a shared file). Document that union merge can produce duplicate lines; `dev-sesssion index audit` deduplicates after merge.
 
 #### Migration tooling
-- [ ] `dev-session migrate` — handles monorepos: auto-detect `pnpm-workspace.yaml` / `nx.json` / `turborepo`
+- [ ] `dev-sesssion migrate` — handles monorepos: auto-detect `pnpm-workspace.yaml` / `nx.json` / `turborepo`
   - Prompt: one shared `.session/` or per-package `.session/`
   - Write symlinks or per-package configs as appropriate
-- [ ] `dev-session import --from claude` — parse existing `CLAUDE.md` content into chunk notes
-- [ ] `dev-session import --from cursor` — parse `.cursor/rules/*.mdc` frontmatter into FILE_INDEX tags
+- [ ] `dev-sesssion import --from claude` — parse existing `CLAUDE.md` content into chunk notes
+- [ ] `dev-sesssion import --from cursor` — parse `.cursor/rules/*.mdc` frontmatter into FILE_INDEX tags
 
 #### Health checks
-- [ ] `dev-session health` — full audit command:
+- [ ] `dev-sesssion health` — full audit command:
   - Stale FILE_INDEX entries
   - Always-include list creep (>4 files = warning)
   - NEXT_PROMPT length (>15 lines = warning)
   - DONE_LOG size (>500 lines = suggest archiving)
   - Dependency audit (`npm audit --omit=dev`)
-- [ ] `dev-session health --fix` — auto-remediate where safe (remove stale index entries)
+- [ ] `dev-sesssion health --fix` — auto-remediate where safe (remove stale index entries)
 
 #### Large repo support
 - [ ] FILE_INDEX pagination for repos with 500+ files — split into `FILE_INDEX_1.md`, `FILE_INDEX_2.md`
@@ -585,8 +585,8 @@ In team mode, `PLAN_N.md` and `FILE_INDEX.md` are committed. `SESSION_STATE.md` 
 #### Tests
 - [ ] Integration: team mode `.gitignore` patch is idempotent
 - [ ] Integration: monorepo detection for pnpm, nx, turborepo workspace files
-- [ ] E2e: `dev-session import --from claude` on fixture `CLAUDE.md`
-- [ ] E2e: `dev-session health` on intentionally degraded `.session/`
+- [ ] E2e: `dev-sesssion import --from claude` on fixture `CLAUDE.md`
+- [ ] E2e: `dev-sesssion health` on intentionally degraded `.session/`
 
 ---
 
@@ -601,7 +601,7 @@ In team mode, `PLAN_N.md` and `FILE_INDEX.md` are committed. `SESSION_STATE.md` 
 - [ ] Add missing adversarial tests for any security function not yet tested
 - [ ] Add property-based tests (using `fast-check`) for `PathValidator` and `PlanParser`
 - [ ] Add regression tests for every bug found during internal use
-- [ ] Performance benchmark: `dev-session status` must complete < 500ms on 200-file project
+- [ ] Performance benchmark: `dev-sesssion status` must complete < 500ms on 200-file project
 
 ### Documentation
 - [ ] `README.md` — quick start (5 steps), core concepts, CLI reference, API reference
@@ -627,7 +627,7 @@ In team mode, `PLAN_N.md` and `FILE_INDEX.md` are committed. `SESSION_STATE.md` 
 ### Launch
 - [ ] Submit to AGENTS.md foundation as compatible tooling
 - [ ] Publish blog post: "Why your AI sessions keep losing context"
-- [ ] Record 3-min demo: `npx dev-session init` on a real Next.js project
+- [ ] Record 3-min demo: `npx dev-sesssion init` on a real Next.js project
 - [ ] Post to r/ClaudeAI, r/cursor, Hacker News, dev.to
 
 ---
@@ -680,9 +680,9 @@ export { TokenCounter, TokenCostMap, TokenBudget }
 > **Est. sessions:** 3–4
 
 ### Rationale
-Existing tools (Claude Code, Cursor, opencode) suffer from shared failure modes: context bloat in `CLAUDE.md`/`AGENTS.md`, silent compaction at hard limits (~167K tokens for Claude Code), no way to preview what the model will actually see, and no tooling to reduce context before a session. This chunk makes `dev-session` the first tool that treats context as a measurable, auditable, reducible asset — not a black box.
+Existing tools (Claude Code, Cursor, opencode) suffer from shared failure modes: context bloat in `CLAUDE.md`/`AGENTS.md`, silent compaction at hard limits (~167K tokens for Claude Code), no way to preview what the model will actually see, and no tooling to reduce context before a session. This chunk makes `dev-sesssion` the first tool that treats context as a measurable, auditable, reducible asset — not a black box.
 
-### Feature A — `dev-session preview`
+### Feature A — `dev-sesssion preview`
 
 - [ ] Assemble the full bootstrap context exactly as the active adapter's `BootstrapFormatter` would produce it
 - [ ] Call `TokenCounter.countFiles()` on each component: SESSION_STATE, active plan chunk, always-include files, chunk-tagged files, NEXT_PROMPT header
@@ -703,9 +703,9 @@ Existing tools (Claude Code, Cursor, opencode) suffer from shared failure modes:
 - [ ] `--copy` flag: copies assembled prompt to clipboard via `clipboardy`
 - [ ] `--no-content` flag: show breakdown only, suppress full prompt text
 - [ ] Warn if `accurate: false` (no API key) — show heuristic caveat
-- [ ] Warn if total exceeds `DEFAULT_CONTEXT_BUDGET` — suggest `dev-session trim`
+- [ ] Warn if total exceeds `DEFAULT_CONTEXT_BUDGET` — suggest `dev-sesssion trim`
 
-### Feature B — `dev-session trim`
+### Feature B — `dev-sesssion trim`
 
 - [ ] Read current context file list (same source as `preview`)
 - [ ] Interactive mode: for each file, show token cost and prompt action:
@@ -716,10 +716,10 @@ Existing tools (Claude Code, Cursor, opencode) suffer from shared failure modes:
 - [ ] `--budget <N>` flag: auto-suggest skipping files until under budget (largest-first)
 - [ ] `--dry-run` flag: show what would be excluded without modifying anything
 - [ ] Does NOT require `ANTHROPIC_API_KEY` — all operations are local
-- [ ] Session-scoped skips/truncations written to a `.session/trim-overrides.json` file (gitignored); cleared on `dev-session advance`
+- [ ] Session-scoped skips/truncations written to a `.session/trim-overrides.json` file (gitignored); cleared on `dev-sesssion advance`
 - [ ] `NextPromptWriter.generateWithFormatter()` respects trim overrides when assembling NEXT_PROMPT
 
-### Feature C — `dev-session lint-context`
+### Feature C — `dev-sesssion lint-context`
 
 - [ ] `ContextLinter` class in `packages/core`:
   - `detectDuplicates(files)` — fuzzy line-level dedup across CLAUDE.md, SESSION_STATE, NEXT_PROMPT (using normalized strings, not exact match)
@@ -728,7 +728,7 @@ Existing tools (Claude Code, Cursor, opencode) suffer from shared failure modes:
   - `detectConflicts(files)` — simple pattern matching: e.g., "use tabs" + "use spaces" in different files
   - `detectDeadReferences(files, root)` — finds `@mentions` or file paths in content that no longer exist on disk
 - [ ] `LintResult` type: `{ severity: 'error' | 'warning' | 'info'; rule: string; file: string; line?: number; message: string }`
-- [ ] `dev-session lint-context` command:
+- [ ] `dev-sesssion lint-context` command:
   - Runs all `ContextLinter` checks on always-include + SESSION_STATE + NEXT_PROMPT
   - Outputs structured report grouped by severity
   - Exit code 1 if any `error`-severity findings (for CI use)
@@ -736,7 +736,7 @@ Existing tools (Claude Code, Cursor, opencode) suffer from shared failure modes:
   - `--format json` flag for machine-readable output
 - [ ] No `ANTHROPIC_API_KEY` required — fully local static analysis
 
-### Feature D — `dev-session compact <file>`
+### Feature D — `dev-sesssion compact <file>`
 
 > ⚠ **Highest-blast-radius feature.** LLM compression is lossy and non-deterministic. Auto-rewriting a developer's rule files is the single most dangerous operation in the project, so this command is **dry-run by default and never writes without an explicit, reviewed diff approval.** The safe, deterministic overlap (dedup, soft-language, dead refs) is already covered by `lint-context` (Feature C) — prefer it first.
 
@@ -759,11 +759,11 @@ Existing tools (Claude Code, Cursor, opencode) suffer from shared failure modes:
 - [ ] Unit: `ContextLinter.detectSoftLanguage` returns correct ratio and line numbers
 - [ ] Unit: `ContextLinter.detectDeadReferences` flags non-existent `@mention` paths
 - [ ] Unit: trim overrides are respected by `NextPromptWriter`
-- [ ] E2e: `dev-session preview --format json` on a fixture project parses correctly
-- [ ] E2e: `dev-session trim --budget 3000 --dry-run` on a fixture over-budget project
-- [ ] E2e: `dev-session lint-context` exits 1 on fixture with injected duplicate rules
-- [ ] E2e: `dev-session compact --dry-run` on a large fixture file (no write, output to stdout)
-- [ ] Integration: `dev-session compact` backup file appears in `.session/backups/`
+- [ ] E2e: `dev-sesssion preview --format json` on a fixture project parses correctly
+- [ ] E2e: `dev-sesssion trim --budget 3000 --dry-run` on a fixture over-budget project
+- [ ] E2e: `dev-sesssion lint-context` exits 1 on fixture with injected duplicate rules
+- [ ] E2e: `dev-sesssion compact --dry-run` on a large fixture file (no write, output to stdout)
+- [ ] Integration: `dev-sesssion compact` backup file appears in `.session/backups/`
 
 ---
 
@@ -774,7 +774,7 @@ Existing tools (Claude Code, Cursor, opencode) suffer from shared failure modes:
 > **Est. sessions:** 2
 
 ### Rationale
-No existing tool tracks *what was loaded* across sessions, so they can never tell you "this file has been in your context for 10 sessions and you've never modified it." Session memory closes this loop: `dev-session` becomes the first tool that improves its context recommendations over time by observing your actual usage patterns.
+No existing tool tracks *what was loaded* across sessions, so they can never tell you "this file has been in your context for 10 sessions and you've never modified it." Session memory closes this loop: `dev-sesssion` becomes the first tool that improves its context recommendations over time by observing your actual usage patterns.
 
 ### Tasks
 
@@ -799,26 +799,26 @@ No existing tool tracks *what was loaded* across sessions, so they can never tel
   - `analyzeStaleness(entries, threshold: number)` → `StalenessReport[]` — files loaded in >N sessions without modification
   - `detectPassiveLoads(entries, fileIndex)` → `PassiveLoad[]` — always-include files with zero modifications across all logged sessions
   - `summarizeStats(entries)` → `MemoryStats` — avg tokens/session, most-loaded files, session count, date range
-- [ ] Integrate into session lifecycle: `dev-session update` and `dev-session advance` both append to `CONTEXT_LOG.md`
+- [ ] Integrate into session lifecycle: `dev-sesssion update` and `dev-sesssion advance` both append to `CONTEXT_LOG.md`
 - [ ] `StalenessReport` type: `{ path: string; sessionCount: number; lastModified: string | null; suggestion: 'remove-from-always-include' | 'remove-from-index' | 'investigate' }`
 
-#### 11b — `dev-session memory` command
+#### 11b — `dev-sesssion memory` command
 
-- [ ] `dev-session memory show` — formatted session history (most recent N entries, configurable)
-- [ ] `dev-session memory stats` — aggregate stats: avg tokens/session, top 5 most-loaded files, total sessions, date range
-- [ ] `dev-session memory stale` — runs `analyzeStaleness()` + `detectPassiveLoads()`, outputs actionable report
+- [ ] `dev-sesssion memory show` — formatted session history (most recent N entries, configurable)
+- [ ] `dev-sesssion memory stats` — aggregate stats: avg tokens/session, top 5 most-loaded files, total sessions, date range
+- [ ] `dev-sesssion memory stale` — runs `analyzeStaleness()` + `detectPassiveLoads()`, outputs actionable report
   - `--threshold <N>` flag: sessions without modification to consider stale (default: 3)
   - `--fix` flag: interactive — for each stale file, prompt to demote from always-include or remove from index
-- [ ] `dev-session memory prune --older-than <duration>` — removes log entries older than duration (e.g., `30d`, `3mo`)
+- [ ] `dev-sesssion memory prune --older-than <duration>` — removes log entries older than duration (e.g., `30d`, `3mo`)
   - Confirmation prompt before deleting
   - `--dry-run` flag
 
 #### 11c — Integration with existing commands
 
-- [ ] `dev-session status` — add "Session memory" section:
+- [ ] `dev-sesssion status` — add "Session memory" section:
   - Total sessions logged, avg tokens/session
-  - Count of passive load candidates (with hint to run `dev-session memory stale`)
-- [ ] `dev-session health` — add staleness check:
+  - Count of passive load candidates (with hint to run `dev-sesssion memory stale`)
+- [ ] `dev-sesssion health` — add staleness check:
   - Flag always-include files with no modification in last N sessions (uses `SessionMemoryManager.analyzeStaleness()`)
   - Flag always-include list growth rate (sessions where a new file was added)
 
@@ -828,9 +828,9 @@ No existing tool tracks *what was loaded* across sessions, so they can never tel
 - [ ] Unit: `analyzeStaleness()` correctly identifies files not modified across N sessions
 - [ ] Unit: `detectPassiveLoads()` returns files in always-include with zero logged modifications
 - [ ] Unit: `summarizeStats()` returns correct averages on fixture log data
-- [ ] Integration: `dev-session update` appends entry to `CONTEXT_LOG.md`
-- [ ] E2e: `dev-session memory stats` on a fixture log file
-- [ ] E2e: `dev-session memory stale --threshold 2` flags correct files in fixture
+- [ ] Integration: `dev-sesssion update` appends entry to `CONTEXT_LOG.md`
+- [ ] E2e: `dev-sesssion memory stats` on a fixture log file
+- [ ] E2e: `dev-sesssion memory stale --threshold 2` flags correct files in fixture
 
 ### Key exports added to `packages/core`
 ```typescript
@@ -867,8 +867,8 @@ Loading whole source files into context is the dominant source of token waste. T
   - Layer 2: full file (escalation path via `ValidatedPath`)
 
 #### 12c — CLI + adapter integration
-- [ ] `dev-session index` — full regen pipeline + reports + over-budget warning
-- [ ] `dev-session index --update` — incremental via mtime; `--dry-run`, `--file`, `--show`; `index stats` subcommand
+- [ ] `dev-sesssion index` — full regen pipeline + reports + over-budget warning
+- [ ] `dev-sesssion index --update` — incremental via mtime; `--dry-run`, `--file`, `--show`; `index stats` subcommand
 - [ ] Add `ai-index.yaml` to gitignore (personal) / commit (team) in `init`
 - [ ] `BootstrapFormatter.formatAiIndex()` + implementations for all four formatters (plain, claude, opencode, cursor)
 - [ ] Export `AutoExtractor`, `AiIndexBuilder`, `AiIndexManager`, and the new types from `packages/core`
@@ -877,7 +877,7 @@ Loading whole source files into context is the dominant source of token waste. T
 - [ ] Unit: `AutoExtractor.extractFile` — all export kinds, existing JSDoc, parse-error handling
 - [ ] Unit: `AiIndexBuilder.merge` (add/remove/modify), `serialize` determinism
 - [ ] Unit: `AiIndexManager.renderLayer0/1`, `queryByChunk`
-- [ ] E2e: `dev-session index` on fixture; `--update` skips unchanged; `--dry-run` writes nothing
+- [ ] E2e: `dev-sesssion index` on fixture; `--update` skips unchanged; `--dry-run` writes nothing
 
 ### Key exports added to `packages/core`
 ```typescript
@@ -921,7 +921,7 @@ Chunk 12 requires zero annotations, but auto-extraction occasionally guesses wro
 The paste-`NEXT_PROMPT` flow front-loads a fixed context budget. An MCP server inverts this: the agent calls tools to fetch the active chunk, query the ai-index by layer, and mark tasks done — loading the full body of a file only when it decides it needs it. This is the natural end state of the "context as a reducible, pull-based asset" thesis.
 
 ### Tasks
-- [x] MCP server entrypoint (`dev-session mcp`) built on the official MCP SDK; reads `.session/` via the new `SessionManager` facade in core (no business logic in the server layer)
+- [x] MCP server entrypoint (`dev-sesssion mcp`) built on the official MCP SDK; reads `.session/` via the new `SessionManager` facade in core (no business logic in the server layer)
 - [x] Tools: `get_active_chunk`, `list_context_files`, `read_file_layer(path, layer)`, `query_index(tag|chunk|layer)`, `mark_task_done(text)`, `get_next_prompt`
 - [x] All writes go through `AtomicWriter` + `WriteGuard` (via the managers); all paths through `PathValidator` — the MCP boundary is treated as untrusted external input
 - [x] Read-only mode flag (`--read-only`) for shared/team setups
@@ -944,7 +944,7 @@ The paste-`NEXT_PROMPT` flow front-loads a fixed context budget. An MCP server i
 ### Tasks
 - [x] `BootstrapFormatter` defaults to **layer 0** for chunk-tagged files (path + module summary), layer 1 for always-include — driven by the new `LayerResolver` and surfaced via `resolvedLayers` on `BootstrapContext`
 - [x] Escalation rule: a file referenced by an active (non-done) task loads at layer 2; everything else stays at the lowest useful layer (`@ai-layer-default` raises the floor but never lowers it)
-- [x] `dev-session preview` shows per-file layer and the escalation token delta (`+N full`), plus a layered-savings summary; both text and `--format json`
+- [x] `dev-sesssion preview` shows per-file layer and the escalation token delta (`+N full`), plus a layered-savings summary; both text and `--format json`
 - [x] Budget calculator accounts for layered cost, not whole-file cost (`ContextBudgetCalculator.estimateLayered`); wired into `preview`, `update`, `advance`, and `init` final-writes
 - [x] Tests: `LayerResolver` (escalation, layer floor, dedup, costs), `estimateLayered`, `formatLayeredContextLines`, plain-formatter layered section, preview table markers
 
@@ -986,14 +986,14 @@ The paste-`NEXT_PROMPT` flow front-loads a fixed context budget. An MCP server i
 
 ## Success metrics
 
-- `npx dev-session init` completes in < 60s on a 200-file project
+- `npx dev-sesssion init` completes in < 60s on a 200-file project
 - `NEXT_PROMPT.md` is ≤ 15 lines and fully self-contained
 - A session bootstrapped from only `NEXT_PROMPT.md` needs zero follow-up questions
-- `dev-session status` completes in < 500ms
-- `dev-session preview` completes in < 5s on a 10-file context (including API token count call)
-- `dev-session lint-context` completes in < 1s (fully local, no API)
+- `dev-sesssion status` completes in < 500ms
+- `dev-sesssion preview` completes in < 5s on a 10-file context (including API token count call)
+- `dev-sesssion lint-context` completes in < 1s (fully local, no API)
 - Core package < 100KB unpacked (no bloat)
 - Zero `npm audit` vulnerabilities (production deps) at release
 - 80% statement coverage, 75% branch coverage enforced in CI
 - No breaking changes to `SessionManager` API between minor versions
-- A project using `dev-session memory stale` can identify and remove at least one unnecessary always-include file after 5 sessions
+- A project using `dev-sesssion memory stale` can identify and remove at least one unnecessary always-include file after 5 sessions

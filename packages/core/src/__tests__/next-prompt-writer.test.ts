@@ -201,7 +201,7 @@ describe("NextPromptWriter", () => {
 				],
 				budget: makeBudget(),
 				excludePatterns: ["**/__tests__/**"],
-				projectName: "dev-session",
+				projectName: "dev-sesssion",
 			};
 		}
 
@@ -209,7 +209,7 @@ describe("NextPromptWriter", () => {
 			const ctx = makeBootstrapContext();
 			const content = NextPromptWriter.generateWithFormatter(PlainTextFormatter, ctx);
 
-			expect(content).toContain("Project: dev-session");
+			expect(content).toContain("Project: dev-sesssion");
 			expect(content).toContain("Active chunk: 3");
 			expect(content).toContain("Budget:");
 		});

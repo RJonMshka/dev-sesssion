@@ -3,7 +3,7 @@
  *
  * Trim overrides record which files the user has chosen to exclude
  * from the bootstrap context. They are session-scoped — cleared on
- * `dev-session advance`.
+ * `dev-sesssion advance`.
  *
  * @packageDocumentation
  */

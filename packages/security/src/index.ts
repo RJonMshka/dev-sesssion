@@ -1,7 +1,7 @@
 /**
  * @dev-session/security
  *
- * Security primitives for dev-session.
+ * Security primitives for dev-sesssion.
  * Zero internal dependencies. Built and tested first.
  *
  * @packageDocumentation

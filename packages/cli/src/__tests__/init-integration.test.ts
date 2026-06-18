@@ -1,5 +1,5 @@
 /**
- * Integration tests for `dev-session init`.
+ * Integration tests for `dev-sesssion init`.
  *
  * These tests exercise the full init flow by mocking @clack/prompts
  * and using real temp directories. They verify the end-to-end flow

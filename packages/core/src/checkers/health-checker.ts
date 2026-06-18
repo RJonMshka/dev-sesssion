@@ -1,5 +1,5 @@
 /**
- * Session health checking for dev-session.
+ * Session health checking for dev-sesssion.
  *
  * Audits `.session/` for structural issues and returns a {@link HealthReport}.
  * All issues carry machine-readable {@link HealthIssue.code} values so the CLI
@@ -305,7 +305,7 @@ function checkTaskCompletion(chunk: PlanChunk): HealthIssue[] {
 		makeIssue(
 			HealthSeverity.INFO,
 			"ALL_TASKS_DONE",
-			"All tasks in active chunk are done — run `dev-session advance` to move to the next chunk",
+			"All tasks in active chunk are done — run `dev-sesssion advance` to move to the next chunk",
 			false,
 		),
 	];
@@ -333,7 +333,7 @@ function checkPrompt(sessionDir: string): PromptCheckResult {
 				makeIssue(
 					HealthSeverity.WARNING,
 					"PROMPT_MISSING",
-					"NEXT_PROMPT.md does not exist — run `dev-session update` to regenerate",
+					"NEXT_PROMPT.md does not exist — run `dev-sesssion update` to regenerate",
 					false,
 				),
 			],
@@ -353,7 +353,7 @@ function checkPrompt(sessionDir: string): PromptCheckResult {
 				makeIssue(
 					HealthSeverity.WARNING,
 					"PROMPT_TOO_LONG",
-					`NEXT_PROMPT.md has ${String(lineCount)} lines (max ${String(MAX_PROMPT_LINES)}) — run \`dev-session update\` to regenerate`,
+					`NEXT_PROMPT.md has ${String(lineCount)} lines (max ${String(MAX_PROMPT_LINES)}) — run \`dev-sesssion update\` to regenerate`,
 					false,
 				),
 			],

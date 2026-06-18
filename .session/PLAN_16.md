@@ -5,13 +5,13 @@ depends_on: [7, 15]
 tasks:
   - text: "`CONTEXT_BUDGET_DEFAULTS` updated: `cursor: 6_000`, `windsurf: 6_000`; `BootstrapFormatter` adapters use adapter's declared budget"
     status: todo
-  - text: "Cursor adapter (`packages/adapters/src/cursor-adapter.ts`) — detect `.cursor/` directory; `setup` generates `.cursor/rules/dev-session.mdc` with YAML frontmatter (`description`, `globs`, `alwaysApply`)"
+  - text: "Cursor adapter (`packages/adapters/src/cursor-adapter.ts`) — detect `.cursor/` directory; `setup` generates `.cursor/rules/dev-sesssion.mdc` with YAML frontmatter (`description`, `globs`, `alwaysApply`)"
     status: todo
   - text: "Cursor `transformState` — maps `session.yaml` layers to Cursor rules format; emits file-priority rule per Layer 2 file"
     status: todo
   - text: "`CursorBootstrapFormatter` — `formatFilesToLoad()` emits `@File` Cursor composer syntax; `formatLayeredContext(resolved)` (Layer 0 inline, Layer 1/2 as `@File` with depth annotation); `formatExcludes()` `@Docs` list"
     status: todo
-  - text: "Cursor `onSessionStart` — validates `.cursor/rules/dev-session.mdc` is current (not stale from prior chunk); `onSessionEnd` — updates `.mdc` with completed tasks summary"
+  - text: "Cursor `onSessionStart` — validates `.cursor/rules/dev-sesssion.mdc` is current (not stale from prior chunk); `onSessionEnd` — updates `.mdc` with completed tasks summary"
     status: todo
   - text: "Windsurf adapter (`packages/adapters/src/windsurf-adapter.ts`) — detect `.windsurfrules` or `.windsurf/` directory; `setup` appends session block to `.windsurfrules` (does not overwrite existing rules)"
     status: todo
@@ -29,11 +29,11 @@ tasks:
     status: todo
   - text: "Unit: dual-adapter detection throws `CliError` with actionable message"
     status: todo
-  - text: "E2e: `dev-session init --adapter cursor` on fixture project — verify `.mdc` written correctly"
+  - text: "E2e: `dev-sesssion init --adapter cursor` on fixture project — verify `.mdc` written correctly"
     status: todo
-  - text: "E2e: `dev-session init --adapter windsurf` on fixture project — verify `.windsurfrules` appended"
+  - text: "E2e: `dev-sesssion init --adapter windsurf` on fixture project — verify `.windsurfrules` appended"
     status: todo
-  - text: "E2e: `dev-session update` with Cursor adapter regenerates `.cursor/rules/dev-session.mdc`"
+  - text: "E2e: `dev-sesssion update` with Cursor adapter regenerates `.cursor/rules/dev-sesssion.mdc`"
     status: todo
 ---
 

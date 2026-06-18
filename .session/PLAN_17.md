@@ -21,5 +21,5 @@ tasks: []
 - Annotation hints are actually being found to be wrong in practice
 
 **Original spec:** See `docs/PLANv2.md` — "Chunk 16 — Cross-session and cross-project intelligence" for the
-full design (ProfileManager, `dev-session profile` commands, privacy constraints, annotation correction loop).
+full design (ProfileManager, `dev-sesssion profile` commands, privacy constraints, annotation correction loop).
 The design is sound; the sequencing was premature.

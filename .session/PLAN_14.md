@@ -25,13 +25,13 @@ tasks:
     status: todo
   - text: "Security: rate limit 60 tool calls/min/connection — returns structured error, does not crash server; no arbitrary connection kill"
     status: todo
-  - text: "`dev-session mcp start` — starts server process, writes pid, validates no existing pid before starting"
+  - text: "`dev-sesssion mcp start` — starts server process, writes pid, validates no existing pid before starting"
     status: todo
-  - text: "`dev-session mcp config` — prints JSON block for `claude_desktop_config.json`; also prints CLAUDE.md snippet"
+  - text: "`dev-sesssion mcp config` — prints JSON block for `claude_desktop_config.json`; also prints CLAUDE.md snippet"
     status: todo
-  - text: "`dev-session mcp ping` — starts server ephemerally, calls list-tools, prints result, exits"
+  - text: "`dev-sesssion mcp ping` — starts server ephemerally, calls list-tools, prints result, exits"
     status: todo
-  - text: "`ClaudeBootstrapFormatter.formatMcpBlock(mcpConfig)` — generates CLAUDE.md section; `dev-session update` auto-appends when `.session/mcp-token.txt` exists"
+  - text: "`ClaudeBootstrapFormatter.formatMcpBlock(mcpConfig)` — generates CLAUDE.md section; `dev-sesssion update` auto-appends when `.session/mcp-token.txt` exists"
     status: todo
   - text: "Unit: `mark_task_done` with invalid `session_token` returns auth error"
     status: todo
@@ -45,15 +45,15 @@ tasks:
     status: todo
   - text: "Integration: `get_session_context` returns correct task list from SESSION_STATE.md"
     status: todo
-  - text: "E2e: `dev-session mcp config` produces valid JSON block"
+  - text: "E2e: `dev-sesssion mcp config` produces valid JSON block"
     status: todo
-  - text: "E2e: `dev-session mcp start` writes `mcp.pid`; SIGINT removes pid and exits cleanly"
+  - text: "E2e: `dev-sesssion mcp start` writes `mcp.pid`; SIGINT removes pid and exits cleanly"
     status: todo
 ---
 
 ## Chunk 14 — MCP server (basic, v1-compatible)
 
-**Goal:** Expose dev-session's session state as MCP tools so AI agents can read and update session context
+**Goal:** Expose dev-sesssion's session state as MCP tools so AI agents can read and update session context
 programmatically. This chunk ships a **v1-compatible** server — it works with the existing flat file model.
 Layered context tools (`get_file_at_layer`) are added in Chunk 15 when that infrastructure exists.
 
@@ -98,8 +98,8 @@ packages/mcp/
 - [ ] MCP tool: `get_context_budget`
 - [ ] Security: session_token (0o600), path validation, audit log with 10MB rotation
 - [ ] Security: rate limit 60/min/connection (structured error, no crash)
-- [ ] `dev-session mcp start` / `mcp config` / `mcp ping`
-- [ ] `ClaudeBootstrapFormatter.formatMcpBlock()` + auto-append in `dev-session update`
+- [ ] `dev-sesssion mcp start` / `mcp config` / `mcp ping`
+- [ ] `ClaudeBootstrapFormatter.formatMcpBlock()` + auto-append in `dev-sesssion update`
 - [ ] Unit: invalid session_token → auth error; path traversal → rejected; rate limiter fires; no-index → 404
 - [ ] Integration: server starts + registers tools + responds to list-tools; `get_session_context` correct
 - [ ] E2e: `mcp config` valid JSON; `mcp start` writes pid, SIGINT cleans up

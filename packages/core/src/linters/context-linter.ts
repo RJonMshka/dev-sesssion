@@ -88,7 +88,7 @@ const AT_MENTION_RE = /@([\w./-]+\.\w+)/g;
 // ---------------------------------------------------------------------------
 
 /**
- * Static analysis linter for dev-session context files.
+ * Static analysis linter for dev-sesssion context files.
  *
  * All methods are pure/side-effect-free except `detectDeadReferences`
  * which reads the filesystem to check path existence.

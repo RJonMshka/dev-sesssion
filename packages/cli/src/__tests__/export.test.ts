@@ -1,8 +1,8 @@
 /**
- * Tests for the `dev-session export` command.
+ * Tests for the `dev-sesssion export` command.
  *
  * Tests --to claude (SESSION_STATE → CLAUDE.md section) and
- * --to cursor (FILE_INDEX active chunk → .cursor/rules/dev-session.mdc).
+ * --to cursor (FILE_INDEX active chunk → .cursor/rules/dev-sesssion.mdc).
  */
 
 import * as fs from "node:fs";
@@ -132,12 +132,12 @@ describe("runExport --to claude", () => {
 		);
 	});
 
-	it("creates CLAUDE.md with dev-session section when it does not exist", async () => {
+	it("creates CLAUDE.md with dev-sesssion section when it does not exist", async () => {
 		await runExport({ ...BASE_OPTS, cwd: tmpDir, to: "claude" });
 
 		const content = fs.readFileSync(path.join(tmpDir, "CLAUDE.md"), "utf-8");
-		expect(content).toContain("<!-- dev-session:start -->");
-		expect(content).toContain("<!-- dev-session:end -->");
+		expect(content).toContain("<!-- dev-sesssion:start -->");
+		expect(content).toContain("<!-- dev-sesssion:end -->");
 		expect(content).toContain("## Active Chunk: 2");
 	});
 
@@ -172,17 +172,17 @@ describe("runExport --to claude", () => {
 		expect(content).toContain("`CLAUDE.md`");
 	});
 
-	it("updates existing dev-session section in CLAUDE.md", async () => {
+	it("updates existing dev-sesssion section in CLAUDE.md", async () => {
 		const existing = [
 			"# My Project",
 			"",
 			"Some existing content.",
 			"",
-			"<!-- dev-session:start -->",
+			"<!-- dev-sesssion:start -->",
 			"",
 			"## Active Chunk: 1",
 			"",
-			"<!-- dev-session:end -->",
+			"<!-- dev-sesssion:end -->",
 			"",
 			"More content after.",
 		].join("\n");
@@ -196,7 +196,7 @@ describe("runExport --to claude", () => {
 		expect(content).toContain("Some existing content.");
 		expect(content).toContain("More content after.");
 		// Only one set of markers
-		expect((content.match(/<!-- dev-session:start -->/g) ?? []).length).toBe(1);
+		expect((content.match(/<!-- dev-sesssion:start -->/g) ?? []).length).toBe(1);
 	});
 
 	it("does not write anything in dry-run mode", async () => {
@@ -273,10 +273,10 @@ describe("runExport --to cursor", () => {
 		);
 	});
 
-	it("creates .cursor/rules/dev-session.mdc with frontmatter globs", async () => {
+	it("creates .cursor/rules/dev-sesssion.mdc with frontmatter globs", async () => {
 		await runExport({ ...BASE_OPTS, cwd: tmpDir, to: "cursor" });
 
-		const mdcPath = path.join(tmpDir, ".cursor", "rules", "dev-session.mdc");
+		const mdcPath = path.join(tmpDir, ".cursor", "rules", "dev-sesssion.mdc");
 		expect(fs.existsSync(mdcPath)).toBe(true);
 
 		const content = fs.readFileSync(mdcPath, "utf-8");
@@ -290,7 +290,7 @@ describe("runExport --to cursor", () => {
 	it("includes active chunk number in mdc description", async () => {
 		await runExport({ ...BASE_OPTS, cwd: tmpDir, to: "cursor" });
 
-		const mdcPath = path.join(tmpDir, ".cursor", "rules", "dev-session.mdc");
+		const mdcPath = path.join(tmpDir, ".cursor", "rules", "dev-sesssion.mdc");
 		const content = fs.readFileSync(mdcPath, "utf-8");
 		expect(content).toContain("active chunk 2");
 	});
@@ -307,14 +307,14 @@ describe("runExport --to cursor", () => {
 	it("does not write anything in dry-run mode", async () => {
 		await runExport({ ...BASE_OPTS, cwd: tmpDir, to: "cursor", dryRun: true });
 
-		const mdcPath = path.join(tmpDir, ".cursor", "rules", "dev-session.mdc");
+		const mdcPath = path.join(tmpDir, ".cursor", "rules", "dev-sesssion.mdc");
 		expect(fs.existsSync(mdcPath)).toBe(false);
 	});
 
 	it("lists always-include and chunk files separately in body", async () => {
 		await runExport({ ...BASE_OPTS, cwd: tmpDir, to: "cursor" });
 
-		const mdcPath = path.join(tmpDir, ".cursor", "rules", "dev-session.mdc");
+		const mdcPath = path.join(tmpDir, ".cursor", "rules", "dev-sesssion.mdc");
 		const content = fs.readFileSync(mdcPath, "utf-8");
 		expect(content).toContain("## Always include");
 		expect(content).toContain("## Chunk 2 files");
@@ -346,7 +346,7 @@ last_updated: "2026-04-08"
 
 		await runExport({ ...BASE_OPTS, cwd: tmpDir, to: "cursor" });
 
-		const mdcPath = path.join(tmpDir, ".cursor", "rules", "dev-session.mdc");
+		const mdcPath = path.join(tmpDir, ".cursor", "rules", "dev-sesssion.mdc");
 		const content = fs.readFileSync(mdcPath, "utf-8");
 		// CLAUDE.md should appear only once in the globs list
 		const globOccurrences = (content.match(/"CLAUDE\.md"/g) ?? []).length;
@@ -391,7 +391,7 @@ last_updated: "2026-04-08"
 	it("completes without writing when no files match active chunk", async () => {
 		await expect(runExport({ ...BASE_OPTS, cwd: tmpDir, to: "cursor" })).resolves.toBeUndefined();
 
-		const mdcPath = path.join(tmpDir, ".cursor", "rules", "dev-session.mdc");
+		const mdcPath = path.join(tmpDir, ".cursor", "rules", "dev-sesssion.mdc");
 		expect(fs.existsSync(mdcPath)).toBe(false);
 	});
 });

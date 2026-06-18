@@ -1,5 +1,5 @@
 /**
- * E2E tests for the dev-session CLI.
+ * E2E tests for the dev-sesssion CLI.
  *
  * Each test runs the compiled CLI binary via `execa` — no imports of
  * CLI internals. Tests create isolated temp directories and assert on
@@ -19,7 +19,7 @@ import { runCli } from "../helpers/run-cli.js";
 let tmpDir: string;
 
 beforeEach(() => {
-	tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "dev-session-e2e-"));
+	tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "dev-sesssion-e2e-"));
 });
 
 afterEach(() => {
@@ -54,16 +54,16 @@ function writePlan(dir: string): void {
 // Meta commands
 // ---------------------------------------------------------------------------
 
-describe("dev-session --help", () => {
+describe("dev-sesssion --help", () => {
 	it("exits 0 and prints usage", async () => {
 		const result = await runCli(["--help"]);
 		expect(result.exitCode).toBe(0);
-		expect(result.stdout).toContain("dev-session");
+		expect(result.stdout).toContain("dev-sesssion");
 		expect(result.stdout).toContain("init");
 	});
 });
 
-describe("dev-session --version", () => {
+describe("dev-sesssion --version", () => {
 	it("exits 0 and prints a version string", async () => {
 		const result = await runCli(["--version"]);
 		expect(result.exitCode).toBe(0);
@@ -82,7 +82,7 @@ describe("unknown command", () => {
 // init
 // ---------------------------------------------------------------------------
 
-describe("dev-session init", () => {
+describe("dev-sesssion init", () => {
 	it("creates .session/ and core files from a PLAN.md (migration path A)", async () => {
 		writePackageJson(tmpDir);
 		writePlan(tmpDir);
@@ -149,8 +149,8 @@ describe("dev-session init", () => {
 // init --adapter override
 // ---------------------------------------------------------------------------
 
-describe("dev-session init --adapter windsurf", () => {
-	it("runs the Windsurf adapter and writes a dev-session section to .windsurfrules", async () => {
+describe("dev-sesssion init --adapter windsurf", () => {
+	it("runs the Windsurf adapter and writes a dev-sesssion section to .windsurfrules", async () => {
 		writePackageJson(tmpDir);
 		writePlan(tmpDir);
 
@@ -162,10 +162,10 @@ describe("dev-session init --adapter windsurf", () => {
 		expect(fs.existsSync(rulesPath)).toBe(true);
 
 		const rules = fs.readFileSync(rulesPath, "utf-8");
-		expect(rules).toContain("# dev-session:start");
-		expect(rules).toContain("# dev-session:end");
-		expect(rules).toContain("## dev-session");
-		expect(rules).toContain("This project uses dev-session");
+		expect(rules).toContain("# dev-sesssion:start");
+		expect(rules).toContain("# dev-sesssion:end");
+		expect(rules).toContain("## dev-sesssion");
+		expect(rules).toContain("This project uses dev-sesssion");
 	});
 
 	it("forces the Windsurf adapter even with no Windsurf markers present", async () => {
@@ -203,7 +203,7 @@ describe("dev-session init --adapter windsurf", () => {
 // status (requires an initialised session)
 // ---------------------------------------------------------------------------
 
-describe("dev-session status", () => {
+describe("dev-sesssion status", () => {
 	beforeEach(async () => {
 		writePackageJson(tmpDir);
 		writePlan(tmpDir);
@@ -232,7 +232,7 @@ describe("dev-session status", () => {
 // health
 // ---------------------------------------------------------------------------
 
-describe("dev-session health", () => {
+describe("dev-sesssion health", () => {
 	beforeEach(async () => {
 		writePackageJson(tmpDir);
 		writePlan(tmpDir);
@@ -259,7 +259,7 @@ describe("dev-session health", () => {
 // prompt
 // ---------------------------------------------------------------------------
 
-describe("dev-session prompt", () => {
+describe("dev-sesssion prompt", () => {
 	beforeEach(async () => {
 		writePackageJson(tmpDir);
 		writePlan(tmpDir);
@@ -286,7 +286,7 @@ describe("dev-session prompt", () => {
 // index
 // ---------------------------------------------------------------------------
 
-describe("dev-session index audit", () => {
+describe("dev-sesssion index audit", () => {
 	beforeEach(async () => {
 		writePackageJson(tmpDir);
 		writePlan(tmpDir);

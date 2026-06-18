@@ -13,7 +13,7 @@ tasks:
     status: todo
   - text: "`AutoExtractor.extractFile()` updated: calls `AnnotationParser.parseFile()` and merges annotations before returning — callers get a fully merged ParsedFile with no awareness of two phases"
     status: todo
-  - text: "`dev-session index` command updated: reports annotation coverage ('M of N public symbols have @ai-summary')"
+  - text: "`dev-sesssion index` command updated: reports annotation coverage ('M of N public symbols have @ai-summary')"
     status: todo
   - text: "Unit: `@ai-surface: private` on exported symbol excludes it from renderLayer0 and renderLayer1"
     status: todo
@@ -29,7 +29,7 @@ tasks:
     status: todo
   - text: "Adversarial: malformed `@ai-layer-hint: banana` — falls back to default, no throw"
     status: todo
-  - text: "E2e: `dev-session index` on fixture with mixed annotated + unannotated files — annotated values take precedence; unannotated use auto-extracted values"
+  - text: "E2e: `dev-sesssion index` on fixture with mixed annotated + unannotated files — annotated values take precedence; unannotated use auto-extracted values"
     status: todo
 ---
 
@@ -51,7 +51,7 @@ tasks:
 - [ ] `FileAnnotations` type — sparse; only annotated symbols appear
 - [ ] `AnnotationParser.mergeInto(file, annotations): ParsedFile` — override logic
 - [ ] `AutoExtractor.extractFile()` updated: calls AnnotationParser internally, returns merged result
-- [ ] `dev-session index` annotation coverage report
+- [ ] `dev-sesssion index` annotation coverage report
 - [ ] Unit: `@ai-surface: private` excludes from Layer 0/1
 - [ ] Unit: `@ai-summary` overrides auto-extracted JSDoc
 - [ ] Unit: `@ai-layer-hint: 0` sets correct layer

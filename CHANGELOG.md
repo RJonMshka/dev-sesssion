@@ -2,7 +2,7 @@
 
 ### ⚠ BREAKING CHANGES
 
-* first stable release of dev-session v1.0.0
+* first stable release of dev-sesssion v1.0.0
 
 ### Features
 

@@ -11,7 +11,7 @@ export const MAX_PROMPT_LINES = 20;
  */
 export const NextPromptSchema = z
 	.object({
-		/** The project name (e.g., "dev-session"). */
+		/** The project name (e.g., "dev-sesssion"). */
 		project_name: z.string().min(1),
 		/** Description of the active chunk (e.g., "3 — Core data model"). */
 		active_chunk: z.string().min(1),

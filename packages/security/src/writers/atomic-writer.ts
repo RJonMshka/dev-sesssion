@@ -66,7 +66,7 @@ export interface AtomicWriteResult {
 /**
  * Atomic file writer with integrated secret scanning.
  *
- * Every file write in dev-session must go through this writer.
+ * Every file write in dev-sesssion must go through this writer.
  * It enforces:
  * 1. Secret scanning via {@link WriteGuard} (unless explicitly skipped)
  * 2. Atomic writes via `write-file-atomic` (write to .tmp, then rename)

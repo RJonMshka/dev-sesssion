@@ -1,5 +1,5 @@
 /**
- * `dev-session index` commands.
+ * `dev-sesssion index` commands.
  *
  * - `index` — full regen of ai-index.yaml (AutoExtractor → AiIndexBuilder → save)
  * - `index --update` — incremental regen (mtime-based, skips unchanged files)
@@ -241,14 +241,14 @@ function runIndexShow(filePath: string, sessionDir: ValidatedPath): void {
 	if (!existingIndex) {
 		throw new CliError({
 			message: "No ai-index.yaml found",
-			suggestion: "Run `dev-session index` first to generate the index.",
+			suggestion: "Run `dev-sesssion index` first to generate the index.",
 		});
 	}
 
 	const entry = existingIndex.files[filePath];
 	if (!entry) {
 		log.warn(`No index entry for: ${filePath}`);
-		log.info("Tip: run `dev-session index` to regenerate the full index.");
+		log.info("Tip: run `dev-sesssion index` to regenerate the full index.");
 		return;
 	}
 
@@ -274,7 +274,7 @@ export function runIndexStats(sessionDir: ValidatedPath): void {
 	if (!index) {
 		throw new CliError({
 			message: "No ai-index.yaml found",
-			suggestion: "Run `dev-session index` first to generate the index.",
+			suggestion: "Run `dev-sesssion index` first to generate the index.",
 		});
 	}
 
@@ -344,7 +344,7 @@ export async function runIndexAdd(options: IndexAddOptions): Promise<void> {
 		// Default: tag to active chunk
 		const state = SessionStateManager.load(sessionDir);
 		chunkTags = [state.active_chunk];
-		purpose = `Added via dev-session index add`;
+		purpose = `Added via dev-sesssion index add`;
 	} else {
 		// Load available chunks for selection
 		const allChunks = PlanChunkManager.loadAll(sessionDir);
@@ -486,7 +486,7 @@ function resolveSessionDir(cwd: string): ValidatedPath {
 	if (!fs.existsSync(sessionDir)) {
 		throw new CliError({
 			message: "No .session/ directory found",
-			suggestion: "Run `dev-session init` first to initialize the project.",
+			suggestion: "Run `dev-sesssion init` first to initialize the project.",
 		});
 	}
 

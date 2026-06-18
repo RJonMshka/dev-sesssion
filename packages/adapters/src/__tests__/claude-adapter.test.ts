@@ -87,7 +87,7 @@ describe("ClaudeAdapter", () => {
 	});
 
 	describe("setup", () => {
-		it("creates CLAUDE.md with dev-session section when none exists", async () => {
+		it("creates CLAUDE.md with dev-sesssion section when none exists", async () => {
 			const ctx = makeSetupContext({ readFile: makeReadFile({}) });
 			const result = await ClaudeAdapter.setup?.(ctx);
 
@@ -97,7 +97,7 @@ describe("ClaudeAdapter", () => {
 			expect(ctx.writeCalls[0]?.path).toBe("CLAUDE.md");
 			expect(ctx.writeCalls[0]?.content).toContain(SECTION_START);
 			expect(ctx.writeCalls[0]?.content).toContain(SECTION_END);
-			expect(ctx.writeCalls[0]?.content).toContain("dev-session");
+			expect(ctx.writeCalls[0]?.content).toContain("dev-sesssion");
 		});
 
 		it("updates existing CLAUDE.md preserving other content", async () => {
@@ -111,7 +111,7 @@ describe("ClaudeAdapter", () => {
 			expect(ctx.writeCalls[0]?.content).toContain(SECTION_START);
 		});
 
-		it("replaces existing dev-session section", async () => {
+		it("replaces existing dev-sesssion section", async () => {
 			const existing = `# Project\n\n${SECTION_START}\nold content\n${SECTION_END}\n\nOther stuff\n`;
 			const ctx = makeSetupContext({ readFile: makeReadFile({ "CLAUDE.md": existing }) });
 			await ClaudeAdapter.setup?.(ctx);
@@ -120,7 +120,7 @@ describe("ClaudeAdapter", () => {
 			expect(written).toContain("# Project");
 			expect(written).toContain("Other stuff");
 			expect(written).not.toContain("old content");
-			expect(written).toContain("dev-session");
+			expect(written).toContain("dev-sesssion");
 			// Only one pair of markers
 			expect(written.split(SECTION_START).length).toBe(2);
 		});
@@ -281,7 +281,7 @@ describe("ClaudeAdapter", () => {
 describe("generateSessionSection", () => {
 	it("includes session workflow instructions", () => {
 		const section = generateSessionSection("my-app", ".session");
-		expect(section).toContain("dev-session");
+		expect(section).toContain("dev-sesssion");
 		expect(section).toContain("SESSION_STATE.md");
 		expect(section).toContain("FILE_INDEX.md");
 		expect(section).toContain("NEXT_PROMPT.md");

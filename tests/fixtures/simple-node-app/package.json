@@ -1,7 +1,7 @@
 {
 	"name": "simple-node-app",
 	"version": "1.0.0",
-	"description": "A simple Express REST API — dev-session benchmark fixture",
+	"description": "A simple Express REST API — dev-sesssion benchmark fixture",
 	"type": "module",
 	"scripts": {
 		"start": "node dist/server.js",

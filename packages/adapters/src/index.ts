@@ -1,7 +1,7 @@
 /**
  * @dev-session/adapters
  *
- * Tool-specific adapters for dev-session.
+ * Tool-specific adapters for dev-sesssion.
  * Provides full lifecycle adapters and bootstrap formatters for Claude Code, opencode, Cursor, and Windsurf.
  *
  * Use {@link getAdapterForTool} to resolve a detected tool to its full adapter,

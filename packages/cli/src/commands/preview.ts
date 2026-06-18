@@ -1,5 +1,5 @@
 /**
- * `dev-session preview` command.
+ * `dev-sesssion preview` command.
  *
  * Assembles the full bootstrap context exactly as the active adapter's
  * formatter would produce it, and displays a token breakdown table so
@@ -411,7 +411,7 @@ export async function runPreview(options: PreviewOptions): Promise<void> {
 
 	if (aiIndex === null) {
 		log.info(
-			"No ai-index.yaml — files counted at full size. Run `dev-session index` to enable layered loading.",
+			"No ai-index.yaml — files counted at full size. Run `dev-sesssion index` to enable layered loading.",
 		);
 	} else if (layeredSavings > 0) {
 		log.info(
@@ -422,7 +422,7 @@ export async function runPreview(options: PreviewOptions): Promise<void> {
 
 	if (overBudget) {
 		log.warn(
-			`Context is over budget. Run \`dev-session trim --budget ${String(budgetCap)}\` to reduce.`,
+			`Context is over budget. Run \`dev-sesssion trim --budget ${String(budgetCap)}\` to reduce.`,
 		);
 	}
 
@@ -460,7 +460,7 @@ function resolveSessionDir(cwd: string): ValidatedPath {
 	if (!fs.existsSync(sessionDir)) {
 		throw new CliError({
 			message: "No .session/ directory found",
-			suggestion: "Run `dev-session init` first to initialize the project.",
+			suggestion: "Run `dev-sesssion init` first to initialize the project.",
 		});
 	}
 

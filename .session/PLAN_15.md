@@ -9,27 +9,27 @@ tasks:
     status: todo
   - text: "`ResolvedContext` type: `{ files: Array<{ path, layer, content, tokens, tokenAccurate }>, totalTokens, budgetUsed, overBudget }`"
     status: todo
-  - text: "`dev-session advance` migrates existing `trim-overrides.json` → `session.yaml` `excludes:` key on first run; removes `trim-overrides.json` after migration"
+  - text: "`dev-sesssion advance` migrates existing `trim-overrides.json` → `session.yaml` `excludes:` key on first run; removes `trim-overrides.json` after migration"
     status: todo
-  - text: "`dev-session layers` command — table: file | layer | tokens at current layer | annotation hint; total cost + budget %; warns if any Layer 2 file lacks `@ai-summary`"
+  - text: "`dev-sesssion layers` command — table: file | layer | tokens at current layer | annotation hint; total cost + budget %; warns if any Layer 2 file lacks `@ai-summary`"
     status: todo
-  - text: "`dev-session expand <path>` — calls `LayerManager.promote()`, saves `session.yaml`, prints 'layer 0→1 (+220 tokens, budget now 68%)', regenerates NEXT_PROMPT.md"
+  - text: "`dev-sesssion expand <path>` — calls `LayerManager.promote()`, saves `session.yaml`, prints 'layer 0→1 (+220 tokens, budget now 68%)', regenerates NEXT_PROMPT.md"
     status: todo
-  - text: "`dev-session collapse <path>` — calls `LayerManager.demote()`, saves, prints diff, regenerates NEXT_PROMPT.md"
+  - text: "`dev-sesssion collapse <path>` — calls `LayerManager.demote()`, saves, prints diff, regenerates NEXT_PROMPT.md"
     status: todo
-  - text: "`dev-session layer <path> --set <0|1|2>` — explicit override via `LayerManager.setLayer()`"
+  - text: "`dev-sesssion layer <path> --set <0|1|2>` — explicit override via `LayerManager.setLayer()`"
     status: todo
-  - text: "`dev-session layers init` — for each FILE_INDEX active-chunk file, looks up `@ai-layer-hint`; files with hint 0/1 set at hint; no hint + file < 100 lines → layer 2; no hint + larger → layer 1; writes initial `session.yaml`"
+  - text: "`dev-sesssion layers init` — for each FILE_INDEX active-chunk file, looks up `@ai-layer-hint`; files with hint 0/1 set at hint; no hint + file < 100 lines → layer 2; no hint + larger → layer 1; writes initial `session.yaml`"
     status: todo
-  - text: "`dev-session layers inspect <path>` — shows what each layer would render for a file (Layer 0 preview, Layer 1 signature block, Layer 2 line count)"
+  - text: "`dev-sesssion layers inspect <path>` — shows what each layer would render for a file (Layer 0 preview, Layer 1 signature block, Layer 2 line count)"
     status: todo
   - text: "`BootstrapFormatter` interface gains `formatLayeredContext(resolved: ResolvedContext): string`; implemented for Claude + opencode adapters (existing 2); Layer 0 inline, Layer 1 `@path` + note, Layer 2 plain `@path`"
     status: todo
   - text: "`NextPromptWriter.generateWithFormatter()` updated: accepts optional `ResolvedContext`; uses `formatLayeredContext()` when present"
     status: todo
-  - text: "`dev-session advance` resets `session.yaml` layers to `@ai-layer-hint` defaults (session promotions dropped, hints carry forward); clears `excludes:` (was: cleared trim-overrides.json)"
+  - text: "`dev-sesssion advance` resets `session.yaml` layers to `@ai-layer-hint` defaults (session promotions dropped, hints carry forward); clears `excludes:` (was: cleared trim-overrides.json)"
     status: todo
-  - text: "`ContextBudgetCalculator.estimate()` accepts optional `ResolvedContext`; uses layer-accurate token costs when present; `dev-session status` shows layer-aware breakdown"
+  - text: "`ContextBudgetCalculator.estimate()` accepts optional `ResolvedContext`; uses layer-accurate token costs when present; `dev-sesssion status` shows layer-aware breakdown"
     status: todo
   - text: "MCP tool `get_file_at_layer` added to Chunk 14's server — returns file at specified layer via `AiIndexManager.renderLayer0/1` or full read at layer 2; all path inputs validated"
     status: todo
@@ -45,15 +45,15 @@ tasks:
     status: todo
   - text: "Unit: `trim-overrides.json` migration — file moved to `session.yaml` excludes key, original deleted"
     status: todo
-  - text: "E2e: `dev-session expand` updates `session.yaml` and regenerates NEXT_PROMPT.md"
+  - text: "E2e: `dev-sesssion expand` updates `session.yaml` and regenerates NEXT_PROMPT.md"
     status: todo
-  - text: "E2e: `dev-session layers init` on fixture project with mixed hints"
+  - text: "E2e: `dev-sesssion layers init` on fixture project with mixed hints"
     status: todo
-  - text: "E2e: `dev-session advance` resets session-specific promotions, preserves hint defaults"
+  - text: "E2e: `dev-sesssion advance` resets session-specific promotions, preserves hint defaults"
     status: todo
   - text: "Integration: `ClaudeBootstrapFormatter.formatLayeredContext()` produces correct `@path` syntax per layer"
     status: todo
-  - text: "Snapshot: `dev-session layers` table output (strip ANSI)"
+  - text: "Snapshot: `dev-sesssion layers` table output (strip ANSI)"
     status: todo
 ---
 
@@ -82,15 +82,15 @@ as `excludes:` key) and `layer-overrides.json` — **one file for session state,
 - [ ] `SessionYaml` type + `SessionYamlSchema` — `context_budget`, `active_adapter`, `files`, `excludes` (absorbs trim-overrides)
 - [ ] `LayerManager` class — `load`, `save`, `getLayer`, `promote`, `demote`, `setLayer`, `resolveContextContent`
 - [ ] `ResolvedContext` type
-- [ ] `dev-session advance` migrates `trim-overrides.json` → `session.yaml` `excludes:` on first run
-- [ ] `dev-session layers` — table display
-- [ ] `dev-session expand` / `collapse` — promote/demote + NEXT_PROMPT regen
-- [ ] `dev-session layer <path> --set <0|1|2>` — explicit override
-- [ ] `dev-session layers init` — initializes session.yaml from hints + FILE_INDEX
-- [ ] `dev-session layers inspect <path>` — layer preview
+- [ ] `dev-sesssion advance` migrates `trim-overrides.json` → `session.yaml` `excludes:` on first run
+- [ ] `dev-sesssion layers` — table display
+- [ ] `dev-sesssion expand` / `collapse` — promote/demote + NEXT_PROMPT regen
+- [ ] `dev-sesssion layer <path> --set <0|1|2>` — explicit override
+- [ ] `dev-sesssion layers init` — initializes session.yaml from hints + FILE_INDEX
+- [ ] `dev-sesssion layers inspect <path>` — layer preview
 - [ ] `BootstrapFormatter.formatLayeredContext()` — added to interface + implemented for Claude + opencode
 - [ ] `NextPromptWriter.generateWithFormatter()` accepts ResolvedContext
-- [ ] `dev-session advance` resets layers to hint defaults
+- [ ] `dev-sesssion advance` resets layers to hint defaults
 - [ ] `ContextBudgetCalculator.estimate()` accepts ResolvedContext; `status` shows layer breakdown
 - [ ] MCP: `get_file_at_layer` tool added to Chunk 14's server
 - [ ] Export: `LayerManager`, `SessionYaml`, `ResolvedContext`

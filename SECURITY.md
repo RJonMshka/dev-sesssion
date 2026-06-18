@@ -8,7 +8,7 @@
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in dev-session, please report it responsibly.
+If you discover a security vulnerability in dev-sesssion, please report it responsibly.
 
 **Do NOT open a public GitHub issue for security vulnerabilities.**
 
@@ -33,7 +33,7 @@ Instead, please email the maintainers directly or use GitHub's private vulnerabi
 
 ## Security Design Principles
 
-dev-session follows these security principles by design:
+dev-sesssion follows these security principles by design:
 
 1. **No JavaScript execution in frontmatter** — uses `@11ty/gray-matter` (safe fork) instead of upstream `gray-matter`
 2. **Path traversal prevention** — all external paths validated through `PathValidator.safeResolvePath()` with boundary checks

@@ -2,7 +2,7 @@
  * Manager for reading and writing `.session/trim-overrides.json`.
  *
  * Trim overrides record files the user has excluded from the bootstrap
- * context for the current session. They are cleared on `dev-session advance`.
+ * context for the current session. They are cleared on `dev-sesssion advance`.
  *
  * @packageDocumentation
  */
@@ -85,7 +85,7 @@ export const TrimOverridesManager = {
 	/**
 	 * Deletes the trim-overrides.json file if it exists.
 	 *
-	 * Called by `dev-session advance` to reset overrides for the new chunk.
+	 * Called by `dev-sesssion advance` to reset overrides for the new chunk.
 	 *
 	 * @param sessionDir - Validated path to the `.session/` directory.
 	 */

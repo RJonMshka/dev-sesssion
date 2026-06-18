@@ -55,7 +55,7 @@ function firstText(result: unknown): string {
 	return content[0]?.text ?? "";
 }
 
-describe("dev-session MCP server", () => {
+describe("dev-sesssion MCP server", () => {
 	it("advertises all six session tools", async () => {
 		seedSession();
 		const client = await connectClient();

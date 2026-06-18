@@ -1,5 +1,5 @@
 /**
- * Detection phase for `dev-session init`.
+ * Detection phase for `dev-sesssion init`.
  *
  * Runs automatic, prompt-free detection of the project environment:
  * existing PLAN.md (with line/heading/chunk stats), CLAUDE.md / AGENTS.md

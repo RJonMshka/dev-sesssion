@@ -1,5 +1,5 @@
 /**
- * Tests for the `dev-session health` command and `HealthChecker` core logic.
+ * Tests for the `dev-sesssion health` command and `HealthChecker` core logic.
  *
  * Uses a real temp directory with SESSION_STATE.md, FILE_INDEX.md, and PLAN_1.md
  * to verify audit checks and --fix behaviour.

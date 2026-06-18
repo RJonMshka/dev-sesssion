@@ -20,7 +20,7 @@ Without team mode, `git status` will show these personal files as untracked on e
 Pass `--team` to `init`:
 
 ```bash
-dev-session init --team
+dev-sesssion init --team
 ```
 
 Or select "Team" in the interactive wizard when prompted.
@@ -34,7 +34,7 @@ Or select "Team" in the interactive wizard when prompted.
 Adds personal session files to `.gitignore`:
 
 ```gitignore
-# dev-session (ephemeral session state)
+# dev-sesssion (ephemeral session state)
 .session/SESSION_STATE.md
 .session/NEXT_PROMPT.md
 .session/DONE_LOG.md
@@ -47,7 +47,7 @@ These files are generated locally on each developer's machine. They are never co
 Adds a merge strategy for the shared file index:
 
 ```gitattributes
-# dev-session (team merge strategy)
+# dev-sesssion (team merge strategy)
 .session/FILE_INDEX.md merge=ours
 ```
 
@@ -74,30 +74,30 @@ In team mode, the `.gitignore` patch is applied automatically (no confirmation p
 
 ## Team workflow
 
-1. **One developer** runs `dev-session init --team` and commits the shared files:
+1. **One developer** runs `dev-sesssion init --team` and commits the shared files:
    ```bash
-   dev-session init --team
+   dev-sesssion init --team
    git add .session/PLAN_*.md .session/FILE_INDEX.md .session/ROUTINES.md
    git add .gitignore .gitattributes
-   git commit -m "chore: add dev-session"
+   git commit -m "chore: add dev-sesssion"
    ```
 
-2. **Other developers** pull and run `dev-session init` to generate their local session state:
+2. **Other developers** pull and run `dev-sesssion init` to generate their local session state:
    ```bash
    git pull
-   dev-session init        # detects existing .session/, asks to reinitialize
+   dev-sesssion init        # detects existing .session/, asks to reinitialize
    ```
 
 3. **Everyone** uses the same commands to manage their sessions:
    ```bash
-   dev-session status
-   dev-session update
-   dev-session advance
+   dev-sesssion status
+   dev-sesssion update
+   dev-sesssion advance
    ```
 
 4. **When a chunk is completed**, the developer who advances commits the updated shared files:
    ```bash
-   dev-session advance
+   dev-sesssion advance
    git add .session/FILE_INDEX.md .session/PLAN_*.md
    git commit -m "chore: advance to chunk 4"
    ```
@@ -106,10 +106,10 @@ In team mode, the `.gitignore` patch is applied automatically (no confirmation p
 
 ## Monorepo teams
 
-For monorepos with multiple packages, use `dev-session migrate` to set up team mode in each package:
+For monorepos with multiple packages, use `dev-sesssion migrate` to set up team mode in each package:
 
 ```bash
-dev-session migrate --team
+dev-sesssion migrate --team
 ```
 
 Each package gets its own `.session/` with its own plan and file index. Personal state files are kept out of git per-package.

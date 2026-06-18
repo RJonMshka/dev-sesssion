@@ -11,7 +11,7 @@ tasks:
     status: done
   - text: "Add regression tests for every bug found during internal use"
     status: todo
-  - text: "Performance benchmark: `dev-session status` must complete < 500ms on 200-file project"
+  - text: "Performance benchmark: `dev-sesssion status` must complete < 500ms on 200-file project"
     status: done
   - text: "`README.md` — quick start (5 steps), core concepts, CLI reference, API reference"
     status: done
@@ -51,7 +51,7 @@ tasks:
     status: todo
   - text: "Publish blog post: \"Why your AI sessions keep losing context\""
     status: todo
-  - text: "Record 3-min demo: `npx dev-session init` on a real Next.js project"
+  - text: "Record 3-min demo: `npx dev-sesssion init` on a real Next.js project"
     status: todo
   - text: "Post to r/ClaudeAI, r/cursor, Hacker News, dev.to"
     status: todo

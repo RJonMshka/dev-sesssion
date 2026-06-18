@@ -6,7 +6,7 @@ windows without re-reading the whole codebase.
 
 The protocol is deliberately **plain-text and tool-agnostic**: every file is
 Markdown or YAML/JSON that a human can read and edit, and that any tool can
-parse. `dev-session` is the reference implementation, but nothing in this spec
+parse. `dev-sesssion` is the reference implementation, but nothing in this spec
 is specific to it. This document describes version **1.0** of the format.
 
 > Status: stable. Additive changes (new optional fields, new files) are allowed

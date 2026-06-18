@@ -211,13 +211,13 @@ last_updated: "2026-06-16"
 | packages/adapters/package.json | Fixed: duplicate license key removed |
 | tests/e2e/cli.e2e.test.ts | E2E tests — 15 subprocess tests via execa (init, status, health, prompt, index) |
 | tests/helpers/run-cli.ts | execa wrapper — strips ANSI, reject:false, uses cli-runner.cjs |
-| tests/helpers/cli-runner.cjs | CJS wrapper calling run() directly (not named dev-session.* to avoid double-run) |
+| tests/helpers/cli-runner.cjs | CJS wrapper calling run() directly (not named dev-sesssion.* to avoid double-run) |
 | tests/setup/e2e-global-setup.ts | Vitest globalSetup — builds CLI if dist missing before E2E |
 | vitest.config.ts | Updated: globalSetup added to e2e project config |
 | .github/workflows/ci.yml | Updated: build step moved before test step |
 | packages/core/src/parsers/plan-parser.ts | Fixed: toMarkdown() now writes YAML frontmatter (required by PlanChunkManager) |
 | packages/cli/src/commands/final-writes.ts | Fixed: added_at uses full ISO datetime, not date-only string |
-| packages/cli/src/commands/export.ts | export command — --to claude (SESSION_STATE → CLAUDE.md section) and --to cursor (FILE_INDEX → .cursor/rules/dev-session.mdc) |
+| packages/cli/src/commands/export.ts | export command — --to claude (SESSION_STATE → CLAUDE.md section) and --to cursor (FILE_INDEX → .cursor/rules/dev-sesssion.mdc) |
 | packages/cli/src/__tests__/export.test.ts | export command tests (19 tests) |
 | README.md | Full project README — problem, how it works, quick start, commands, adapters, team mode, security, contributing |
 | docs/getting-started.md | Installation, .session/ structure, first session walkthrough, advance, --yes mode |
@@ -309,7 +309,7 @@ last_updated: "2026-06-16"
 | packages/core/src/annotation/ai-index-manager.ts | AiIndexManager — load, save (atomic + SecretScanner), queryByLayer, queryByTag, queryByChunk, renderLayer0/1/2, stats |
 | packages/core/src/annotation/index.ts | Annotation module barrel export |
 | packages/core/src/index.ts | Updated: exports AutoExtractor, AiIndexBuilder, AiIndexManager, AiIndex, FileEntry, SymbolEntry, ParsedFile, ParsedSymbol |
-| packages/cli/src/commands/index-cmd.ts | Updated: dev-session index — full regen, --update (mtime-based), --dry-run, --file, --show, stats subcommand |
+| packages/cli/src/commands/index-cmd.ts | Updated: dev-sesssion index — full regen, --update (mtime-based), --dry-run, --file, --show, stats subcommand |
 | packages/cli/src/commands/final-writes.ts | Updated: ai-index.yaml added to .gitignore (personal); team mode keeps it committed |
 | packages/core/src/formatters/bootstrap-formatter.ts | Updated: formatAiIndex(index, layer) added to BootstrapFormatter interface |
 | packages/core/src/formatters/plain-text-formatter.ts | Updated: formatAiIndex() — plain text layer 0/1/2 rendering |
@@ -319,7 +319,7 @@ last_updated: "2026-06-16"
 | packages/core/src/__tests__/auto-extractor.test.ts | AutoExtractor unit tests (all export kinds, existing JSDoc, parse error handling) — 14 tests |
 | packages/core/src/__tests__/ai-index-builder.test.ts | AiIndexBuilder unit tests (build, merge add/remove/modify, serialize determinism) — 20 tests |
 | packages/core/src/__tests__/ai-index-manager.test.ts | AiIndexManager unit tests (renderLayer0/1, queryByChunk, stats) — 12 tests |
-| tests/e2e/ai-index.e2e.test.ts | E2e: dev-session index on fixture, --update, --dry-run, stats, --show — 8 tests |
+| tests/e2e/ai-index.e2e.test.ts | E2e: dev-sesssion index on fixture, --update, --dry-run, stats, --show — 8 tests |
 | tests/fixtures/ts-project/ | Fixture TypeScript project with existing JSDoc for E2e tests |
 
 ## Chunk 13B — @ai-* annotation refinement
@@ -338,7 +338,7 @@ last_updated: "2026-06-16"
 > Built facade-in-core, not a separate `packages/mcp`. The original speculative
 > file list (a standalone package with session_token auth + pid management) was
 > superseded: the MCP layer reuses the existing managers via a `SessionManager`
-> facade, and the server is a thin `dev-session mcp` CLI command over stdio.
+> facade, and the server is a thin `dev-sesssion mcp` CLI command over stdio.
 
 | File | Purpose |
 |---|---|
@@ -346,7 +346,7 @@ last_updated: "2026-06-16"
 | packages/core/src/index.ts | Updated: exports SessionManager + ActiveChunkInfo/IndexQuery/MarkTaskResult types |
 | packages/cli/src/mcp/server.ts | MCP server — createMcpServer(manager) + startStdioServer(); stdio transport |
 | packages/cli/src/mcp/tools.ts | registerSessionTools — 6 tools mapped 1:1 to the facade; zod-validated args; sanitized errors |
-| packages/cli/src/commands/mcp.ts | `dev-session mcp [--read-only]` command |
+| packages/cli/src/commands/mcp.ts | `dev-sesssion mcp [--read-only]` command |
 | packages/cli/src/cli.ts | Updated: registers mcp command |
 | packages/cli/package.json | Updated: + @modelcontextprotocol/sdk, zod deps |
 | packages/core/src/__tests__/session-manager.test.ts | Facade unit tests (all 6 ops, path traversal, read-only, query validation) |
@@ -383,7 +383,7 @@ last_updated: "2026-06-16"
 |---|---|
 | packages/core/src/schemas/project-info.ts | Updated: WINDSURF added to DetectedTool enum; Zod schema includes "windsurf" |
 | packages/core/src/detectors/project-detector.ts | Updated: detects .windsurfrules and .windsurf/ markers |
-| packages/adapters/src/windsurf-adapter.ts | WindsurfAdapter — .windsurfrules section management with # dev-session:start/end markers |
+| packages/adapters/src/windsurf-adapter.ts | WindsurfAdapter — .windsurfrules section management with # dev-sesssion:start/end markers |
 | packages/adapters/src/windsurf-bootstrap-formatter.ts | WindsurfBootstrapFormatter — plain paths, Ignore directive (mirrors CursorBootstrapFormatter) |
 | packages/adapters/src/registry.ts | Updated: WINDSURF → WindsurfAdapter in ADAPTER_MAP |
 | packages/adapters/src/index.ts | Updated: exports WindsurfAdapter + WindsurfBootstrapFormatter |

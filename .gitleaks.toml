@@ -1,4 +1,4 @@
-# gitleaks configuration for dev-session
+# gitleaks configuration for dev-sesssion
 #
 # Extends the upstream default ruleset, then allowlists the security
 # package's adversarial test fixtures. Those files INTENTIONALLY embed

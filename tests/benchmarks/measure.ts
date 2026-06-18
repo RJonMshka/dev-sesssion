@@ -1,8 +1,8 @@
 /**
- * Core measurement functions for the dev-session token savings benchmark.
+ * Core measurement functions for the dev-sesssion token savings benchmark.
  *
  * measureBaseline()          — counts tokens for every non-ignored file ("WITHOUT tool")
- * measureWithTool()          — runs dev-session and reads its context budget ("WITH tool")
+ * measureWithTool()          — runs dev-sesssion and reads its context budget ("WITH tool")
  * measureDeveloperPatterns() — models how a developer would manually load context
  * measureNextPrompt()        — counts tokens in the generated NEXT_PROMPT.md handoff
  */
@@ -41,7 +41,7 @@ function sumTokens(files: WalkedFile[]): number {
 /**
  * Measure "WITHOUT tool" — total tokens to load every non-ignored file.
  *
- * Uses the same bytes/4 heuristic as dev-session's ContextBudgetCalculator.
+ * Uses the same bytes/4 heuristic as dev-sesssion's ContextBudgetCalculator.
  */
 export async function measureBaseline(projectDir: string): Promise<TokenReport> {
 	const files = GitignoreAwareWalker.walk(projectDir);
@@ -66,13 +66,13 @@ export async function measureBaseline(projectDir: string): Promise<TokenReport> 
 }
 
 // ---------------------------------------------------------------------------
-// "WITH tool" — dev-session context budget
+// "WITH tool" — dev-sesssion context budget
 // ---------------------------------------------------------------------------
 
 /**
- * Measure "WITH tool" — dev-session's context budget for the active chunk.
+ * Measure "WITH tool" — dev-sesssion's context budget for the active chunk.
  *
- * Runs `dev-session init --yes` if .session/ doesn't exist, then reads
+ * Runs `dev-sesssion init --yes` if .session/ doesn't exist, then reads
  * `status --json` to get the budget.
  *
  * @returns Token report + whether init was run.
@@ -87,14 +87,14 @@ export async function measureWithTool(
 	if (!skipInit && !fs.existsSync(sessionDir)) {
 		const initResult = await runCli(["init", "--yes", "--cwd", projectDir]);
 		if (!initResult.ok) {
-			throw new Error(`dev-session init failed:\n${initResult.stderr}`);
+			throw new Error(`dev-sesssion init failed:\n${initResult.stderr}`);
 		}
 		initialized = true;
 	}
 
 	const statusResult = await runCli(["status", "--json", "--cwd", projectDir]);
 	if (!statusResult.ok) {
-		throw new Error(`dev-session status --json failed:\n${statusResult.stderr}`);
+		throw new Error(`dev-sesssion status --json failed:\n${statusResult.stderr}`);
 	}
 
 	let statusJson: {
@@ -323,7 +323,7 @@ export async function measureDeveloperPatterns(projectDir: string): Promise<Deve
 }
 
 /**
- * Count tokens in the NEXT_PROMPT.md handoff that dev-session generates.
+ * Count tokens in the NEXT_PROMPT.md handoff that dev-sesssion generates.
  *
  * Returns zeros if the file doesn't exist (session not yet initialized).
  *
