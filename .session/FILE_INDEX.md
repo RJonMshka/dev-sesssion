@@ -68,6 +68,7 @@ last_updated: "2026-06-16"
 | packages/security/src/__tests__/write-guard.test.ts | Unit tests for WriteGuard (14 tests) |
 | packages/security/src/__tests__/atomic-writer.test.ts | Unit tests for AtomicWriter (14 tests) |
 | packages/security/src/__tests__/path-validator.adversarial.test.ts | Adversarial tests for PathValidator (26 tests) |
+| packages/security/src/__tests__/path-validator.property.test.ts | Property-based (fast-check) tests for PathValidator — safety invariant + reject classes (10 tests) |
 | packages/security/src/__tests__/content-sanitizer.adversarial.test.ts | Adversarial tests for ContentSanitizer (25 tests) |
 | packages/security/src/__tests__/frontmatter-parser.adversarial.test.ts | Adversarial tests for FrontmatterParser (19 tests) |
 | packages/security/src/__tests__/secret-scanner.adversarial.test.ts | Adversarial tests for SecretScanner (30 tests) |
@@ -110,6 +111,7 @@ last_updated: "2026-06-16"
 | packages/core/src/__tests__/plan-chunk-manager.test.ts | PlanChunkManager tests (10 tests) |
 | packages/core/src/__tests__/next-prompt-writer.test.ts | NextPromptWriter tests (10 tests) |
 | packages/core/src/__tests__/plan-parser.test.ts | PlanParser tests (16 tests) |
+| packages/core/src/__tests__/plan-parser.property.test.ts | Property-based (fast-check) tests for PlanParser — round-trip, empty/non-empty, boundary invariants (6 tests) |
 | packages/core/src/__tests__/project-detector.test.ts | ProjectDetector tests (12 tests) |
 | packages/core/src/__tests__/gitignore-aware-walker.test.ts | GitignoreAwareWalker tests (16 tests) |
 

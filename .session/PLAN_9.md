@@ -8,7 +8,7 @@ tasks:
   - text: "Add missing adversarial tests for any security function not yet tested"
     status: done
   - text: "Add property-based tests (using `fast-check`) for `PathValidator` and `PlanParser`"
-    status: todo
+    status: done
   - text: "Add regression tests for every bug found during internal use"
     status: todo
   - text: "Performance benchmark: `dev-session status` must complete < 500ms on 200-file project"
@@ -94,7 +94,13 @@ infrastructure. What's left is either external/manual or a tracked follow-up.
 
 ### Follow-up (real work, not blocked)
 
-- Property-based tests (`fast-check`) for `PathValidator` and `PlanParser`.
+- ~~Property-based tests (`fast-check`) for `PathValidator` and `PlanParser`.~~
+  DONE 2026-06-17: `fast-check` 4.8.0 added to root devDeps (not core/security —
+  respects the no-deps rule). `path-validator.property.test.ts` (10) asserts the
+  core safety invariant (any string → throw or in-boundary) + reject classes;
+  `plan-parser.property.test.ts` (6) asserts toMarkdown↔fromMarkdown round-trip,
+  empty-throws/non-empty-never-throws, and detectBoundaries invariants. 1092 unit
+  tests green.
 - Vitepress docs site → GitHub Pages.
 
 ### External / manual (cannot be done from the codebase)
