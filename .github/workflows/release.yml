@@ -40,6 +40,9 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Copy README into CLI package
+        run: cp README.md packages/cli/README.md
+
       - name: Release
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
