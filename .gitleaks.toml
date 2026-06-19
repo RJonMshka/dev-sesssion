@@ -16,6 +16,7 @@ description = "Secret-scanner test fixtures contain planted fake credentials by 
 paths = [
   '''packages/security/src/__tests__/secret-scanner\.test\.ts''',
   '''packages/security/src/__tests__/secret-scanner\.adversarial\.test\.ts''',
+  '''packages/security/src/__tests__/write-guard\.test\.ts''',
   '''packages/security/src/__tests__/write-guard\.adversarial\.test\.ts''',
   '''packages/security/src/__tests__/atomic-writer\.adversarial\.test\.ts''',
 ]
