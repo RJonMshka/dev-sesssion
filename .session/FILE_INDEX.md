@@ -128,6 +128,7 @@ last_updated: "2026-06-16"
 | File | Purpose |
 |---|---|
 | packages/cli/src/cli.ts | Commander program setup with global options |
+| packages/cli/src/read-version.ts | Shared runtime version reader (CLI --version + MCP handshake); src depth-1 so ../package.json resolves in source and dist bundle |
 | packages/cli/src/index.ts | CLI entry point + auto-run |
 | packages/cli/src/commands/init.ts | Init command orchestrator (detection + migration + final writes) |
 | packages/cli/src/commands/detect.ts | Detection phase — PLAN.md, tool files, package.json, .session/ |

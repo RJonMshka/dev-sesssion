@@ -8,7 +8,6 @@
  * @module
  */
 
-import { readFileSync } from "node:fs";
 import { Command } from "commander";
 import { registerAdvanceCommand } from "./commands/advance.js";
 import { registerCompactCommand } from "./commands/compact.js";
@@ -26,28 +25,9 @@ import { registerPromptCommand } from "./commands/prompt.js";
 import { registerStatusCommand } from "./commands/status.js";
 import { registerTrimCommand } from "./commands/trim.js";
 import { registerUpdateCommand } from "./commands/update.js";
+import { readVersion } from "./read-version.js";
 import { handleError } from "./utils/error-handler.js";
 import { installSignalHandlers } from "./utils/signal-handler.js";
-
-/**
- * The CLI version, read at runtime from the package's own package.json.
- *
- * `../package.json` resolves correctly relative to the module in every form:
- * source (`src/cli.ts`), the bundle (`dist/index.{c,m}js`), and the published
- * package (`node_modules/dev-sesssion/`). Read at runtime — not baked at build
- * time — because semantic-release sets the version after the build step runs.
- *
- * @returns The semver string from package.json, or "0.0.0" if it can't be read.
- */
-function readVersion(): string {
-	try {
-		const raw = readFileSync(new URL("../package.json", import.meta.url), "utf8");
-		const pkg = JSON.parse(raw) as { version?: unknown };
-		return typeof pkg.version === "string" ? pkg.version : "0.0.0";
-	} catch {
-		return "0.0.0";
-	}
-}
 
 /**
  * Create and configure the Commander program.

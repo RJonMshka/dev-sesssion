@@ -63,6 +63,12 @@ export interface AdvanceResult {
 	readonly tasksRemaining: number;
 	/** Whether a force-advance was needed (incomplete tasks). */
 	readonly forceAdvanced: boolean;
+	/**
+	 * True when there is no next chunk to advance to — the current chunk is the
+	 * last one. This is a clean terminal state (exit 0), not an error: no archive
+	 * or advance is performed and `newChunkId` equals the current chunk.
+	 */
+	readonly allChunksComplete: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -72,9 +78,13 @@ export interface AdvanceResult {
 /**
  * Execute the advance command.
  *
+ * When the active chunk is the last one, this resolves with
+ * `allChunksComplete: true` (a clean terminal state) rather than throwing — so
+ * scripts and CI see exit 0, not a failure.
+ *
  * @param options - Resolved CLI options
  * @returns Advance result summary
- * @throws CliError if no session is found, user cancels, or no next chunk
+ * @throws CliError if no session is found or the user cancels
  */
 export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult> {
 	const sessionDir = resolveSessionDir(options.cwd);
@@ -126,10 +136,21 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 	const nextChunkExists = allChunks.some((c) => c.chunk_id === nextChunkId);
 
 	if (!nextChunkExists) {
-		throw new CliError({
-			message: `No PLAN_${String(nextChunkId)}.md found — cannot advance beyond the last chunk.`,
-			suggestion: "All chunks are complete. Consider running `dev-sesssion status` to review.",
-		});
+		// Reaching the last chunk is a clean terminal state, not an error: nothing
+		// to archive or advance to. Return a passing result so callers exit 0.
+		log.success(
+			`Chunk ${String(currentChunkId)} is the last chunk — no PLAN_${String(nextChunkId)}.md to advance to.`,
+		);
+		log.info("All chunks complete. Run `dev-sesssion status` to review.");
+
+		return {
+			archivedChunkId: currentChunkId,
+			newChunkId: currentChunkId,
+			newChunkTitle: currentChunk.title,
+			tasksRemaining: currentChunk.tasks.filter((t) => t.status !== TaskStatus.DONE).length,
+			forceAdvanced,
+			allChunksComplete: true,
+		};
 	}
 
 	// -----------------------------------------------------------------------
@@ -252,6 +273,7 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 		newChunkTitle: newChunk.title,
 		tasksRemaining,
 		forceAdvanced,
+		allChunksComplete: false,
 	};
 }
 

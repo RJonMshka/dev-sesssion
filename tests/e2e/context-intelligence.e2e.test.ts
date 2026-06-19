@@ -249,6 +249,28 @@ describe("dev-sesssion lint-context", () => {
 			fs.rmSync(emptyDir, { recursive: true, force: true });
 		}
 	});
+
+	it("--json emits parseable JSON (not spinner text) when no files are in context", async () => {
+		// Strip FILE_INDEX.md to an empty index so no files resolve to the chunk.
+		const indexPath = path.join(tmpDir, ".session", "FILE_INDEX.md");
+		fs.writeFileSync(
+			indexPath,
+			`---\nversion: 1\nlast_updated: "2026-06-19"\n---\n\n# File Index\n`,
+		);
+
+		const result = await runCli(["lint-context", "--json", "--cwd", tmpDir]);
+		expect(result.exitCode).toBe(0);
+
+		// The no-files path must produce a valid JSON object, not styled output.
+		const p = JSON.parse(result.stdout) as {
+			passed: boolean;
+			summary: { total: number };
+			findings: unknown[];
+		};
+		expect(p.passed).toBe(true);
+		expect(p.summary.total).toBe(0);
+		expect(p.findings).toEqual([]);
+	});
 });
 
 // ---------------------------------------------------------------------------

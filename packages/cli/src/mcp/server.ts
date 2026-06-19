@@ -13,13 +13,20 @@ import { SessionManager } from "@dev-session/core";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
+import { readVersion } from "../read-version.js";
 import { registerSessionTools } from "./tools.js";
 
 /** The MCP server name advertised to clients. */
 export const MCP_SERVER_NAME = "dev-sesssion";
 
-/** The MCP server version advertised to clients. */
-export const MCP_SERVER_VERSION = "1.0.0";
+/**
+ * The MCP server version advertised to clients.
+ *
+ * Read at runtime from the package's own `package.json` (same source as the
+ * CLI `--version` flag) so the handshake reports the real published version
+ * rather than a stale hardcoded string.
+ */
+export const MCP_SERVER_VERSION = readVersion();
 
 /** Options for starting the MCP server. */
 export interface McpServerOptions {

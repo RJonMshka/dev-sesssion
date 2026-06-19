@@ -9,6 +9,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { createMcpServer } from "../mcp/server.js";
+import { readVersion } from "../read-version.js";
 
 let projectRoot: string;
 
@@ -56,6 +57,16 @@ function firstText(result: unknown): string {
 }
 
 describe("dev-sesssion MCP server", () => {
+	it("advertises the real package version in the handshake (not a hardcoded string)", async () => {
+		seedSession();
+		const client = await connectClient();
+		const info = client.getServerVersion();
+		expect(info?.name).toBe("dev-sesssion");
+		// Must match the package's actual version, read at runtime — never "1.0.0".
+		expect(info?.version).toBe(readVersion());
+		await client.close();
+	});
+
 	it("advertises all six session tools", async () => {
 		seedSession();
 		const client = await connectClient();

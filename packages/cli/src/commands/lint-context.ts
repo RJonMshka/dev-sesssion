@@ -123,7 +123,20 @@ export async function runLintContext(options: LintContextOptions): Promise<void>
 	const targetFiles = [...alwaysInclude, ...chunkFiles];
 
 	if (targetFiles.length === 0) {
-		log.info("No files in context to lint.");
+		// Emit a valid (passing) JSON object so `--json` consumers can parse the
+		// no-files case instead of choking on styled spinner text.
+		if (options.json) {
+			const empty: LintContextJson = {
+				findings: [],
+				summary: { errors: 0, warnings: 0, infos: 0, total: 0 },
+				passed: true,
+			};
+			process.stdout.write(`${JSON.stringify(empty, null, 2)}\n`);
+			return;
+		}
+		log.info(
+			`No files in context to lint. Tag files under the "## Always Include" section or the "## Chunk ${String(state.active_chunk)}" section of FILE_INDEX.md.`,
+		);
 		return;
 	}
 

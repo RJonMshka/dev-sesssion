@@ -1,6 +1,8 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { SessionStateManager } from "@dev-session/core";
+import { PathValidator } from "@dev-session/security";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { runAdvance } from "../commands/advance.js";
 
@@ -187,19 +189,27 @@ describe("runAdvance", () => {
 		expect(result.newChunkId).toBe(2);
 	});
 
-	it("throws when no next chunk exists", async () => {
+	it("reports a clean terminal state (no throw) when no next chunk exists", async () => {
 		setupSession();
 
 		// Remove PLAN_2.md so there's no next chunk
 		fs.unlinkSync(path.join(tmpDir, ".session", "PLAN_2.md"));
 
-		await expect(
-			runAdvance({
-				cwd: tmpDir,
-				yes: true,
-				verbose: false,
-			}),
-		).rejects.toThrow("cannot advance beyond the last chunk");
+		const result = await runAdvance({
+			cwd: tmpDir,
+			yes: true,
+			verbose: false,
+		});
+
+		// "All chunks complete" must not look like an error to scripts/CI: it
+		// returns normally (exit 0) and leaves the active chunk untouched.
+		expect(result.allChunksComplete).toBe(true);
+		expect(result.newChunkId).toBe(1);
+		expect(result.archivedChunkId).toBe(1);
+
+		// State is not advanced past the last chunk.
+		const state = SessionStateManager.load(PathValidator.safeResolvePath(".session", tmpDir));
+		expect(state.active_chunk).toBe(1);
 	});
 
 	it("throws when no .session/ exists", async () => {
