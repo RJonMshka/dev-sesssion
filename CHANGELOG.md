@@ -1,3 +1,9 @@
+## [2.0.2](https://github.com/RJonMshka/dev-sesssion/compare/v2.0.1...v2.0.2) (2026-06-19)
+
+### Bug Fixes
+
+* three v2.0.1 smoke-test bugs (lint-context --json, mcp version, advance exit code) ([ac920ac](https://github.com/RJonMshka/dev-sesssion/commit/ac920accb85b1193192d2647a1d8e7cba5507312))
+
 ## [2.0.1](https://github.com/RJonMshka/dev-sesssion/compare/v2.0.0...v2.0.1) (2026-06-19)
 
 ### Bug Fixes
