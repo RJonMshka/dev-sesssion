@@ -1,3 +1,9 @@
+## [2.0.1](https://github.com/RJonMshka/dev-sesssion/compare/v2.0.0...v2.0.1) (2026-06-19)
+
+### Bug Fixes
+
+* **release:** copy README into CLI package before npm publish ([370ce2e](https://github.com/RJonMshka/dev-sesssion/commit/370ce2e26b2fdfe1c6acb8798d7ad97cb50bff4e))
+
 ## [2.0.0](https://github.com/RJonMshka/dev-sesssion/compare/v1.0.2...v2.0.0) (2026-06-19)
 
 ### ⚠ BREAKING CHANGES
