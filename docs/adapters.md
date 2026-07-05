@@ -13,7 +13,8 @@ An adapter controls how `dev-sesssion` formats `NEXT_PROMPT.md` and how it integ
 | `CLAUDE.md` | Claude Code |
 | `AGENTS.md` | opencode |
 | `.cursorrules` | Cursor |
-| (none found) | Claude Code (fallback) |
+| `.windsurfrules` or `.windsurf/` | Windsurf |
+| (none found) | Plain text (fallback) |
 
 Override detection with `--adapter <name>` on any command:
 
@@ -107,6 +108,51 @@ Ignore: **/__tests__/**, **/dist/**
 **Setup (on init):**
 
 Writes a `# dev-sesssion` section in `.cursorrules`.
+
+---
+
+## Windsurf
+
+**Detected by:** `.windsurfrules` or a `.windsurf/` directory
+
+**NEXT_PROMPT.md format:**
+
+Same as Cursor — plain file paths with `Ignore:` directives:
+
+```
+Project: my-app
+Active chunk: 3 — API layer
+Budget: ~8,400 / 200,000 tokens (4%)
+
+Tasks:
+- [ ] Implement /users endpoint
+- [ ] Add request validation
+
+Load: src/api/users.ts, src/api/middleware.ts, src/schemas/user.ts
+
+Ignore: **/__tests__/**, **/dist/**
+```
+
+**Setup (on init):**
+
+Writes a `# dev-session:start` … `# dev-session:end` section in `.windsurfrules`.
+
+---
+
+## Custom adapters
+
+Using a tool that isn't listed? Programmatic consumers can register their own
+adapter at runtime:
+
+```typescript
+import { registerAdapter } from "@dev-session/adapters";
+
+registerAdapter(MyToolAdapter);
+```
+
+Once registered, the adapter resolves by name everywhere, including
+`--adapter <name>`. See [authoring-adapters.md](authoring-adapters.md) for the
+full guide.
 
 ---
 

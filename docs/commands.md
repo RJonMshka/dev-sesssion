@@ -9,7 +9,7 @@ All commands support these global flags:
 | `--dry-run` | Show what would be written without writing anything |
 | `-v, --verbose` | Detailed output |
 | `--strict` | Block (exit 1) on secret detection instead of warning |
-| `--adapter <name>` | Override adapter auto-detection: `claude`, `opencode`, `cursor` |
+| `--adapter <name>` | Override adapter auto-detection: `claude`, `opencode`, `cursor`, `windsurf` |
 
 ---
 

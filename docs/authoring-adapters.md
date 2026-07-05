@@ -7,11 +7,16 @@ the session into the tool's native config files.
 This guide is for adding a *new* adapter. For using the adapters that already
 ship (Claude Code, opencode, Cursor, Windsurf), see [adapters.md](adapters.md).
 
-> **Where adapters live today.** Adapters are resolved from a built-in registry
-> (`ADAPTER_MAP` in `packages/adapters/src/registry.ts`). The supported path for
-> a new adapter is to add it to that registry via a pull request. A pluggable
-> external-adapter mechanism (`dev-sesssion-adapter-*` packages + a registry) is
-> on the roadmap but not yet available — see PROTOCOL.md and the project plan.
+> **Two ways to ship an adapter.**
+>
+> 1. **Built-in** — add it to the registry in
+>    `packages/adapters/src/registry.ts` via a pull request. This is the path
+>    for adapters that should auto-detect and ship with the CLI.
+> 2. **Custom, in-process** — call `registerAdapter(myAdapter)` from
+>    `@dev-session/adapters` before invoking the CLI programmatically. The
+>    adapter then resolves by name everywhere, including the `--adapter` flag.
+>    Registration lives for the current process only; a published
+>    `dev-sesssion-adapter-*` discovery mechanism is still on the roadmap.
 
 ---
 
@@ -126,15 +131,24 @@ duplicates.
 
 ## Step 4 — Register the adapter
 
-In `packages/adapters/src/registry.ts`, add your adapter to `ADAPTER_MAP`:
+**Built-in adapter:** in `packages/adapters/src/registry.ts`, add your adapter
+to `BUILTIN_ADAPTERS`:
 
 ```typescript
 [DetectedTool.MYTOOL]: MyToolAdapter,
 ```
 
-Export it from `packages/adapters/src/index.ts`. To allow the
-`--adapter mytool` override, add the name to `VALID_ADAPTER_NAMES` in
-`packages/cli/src/utils/resolve-adapter.ts` and update the CLI help text.
+Export it from `packages/adapters/src/index.ts` and update the CLI help text.
+The `--adapter mytool` override works automatically — valid flag values are
+derived from the registry, so there is no second list to maintain.
+
+**Custom adapter (no fork needed):** register it at runtime instead:
+
+```typescript
+import { registerAdapter } from "@dev-session/adapters";
+
+registerAdapter(MyToolAdapter); // name must be lowercase kebab-case and unique
+```
 
 ---
 
@@ -163,5 +177,5 @@ complete example to copy.
 - [ ] `BootstrapFormatter` implemented (honours `resolvedLayers`)
 - [ ] Adapter object with `config` (+ hooks as needed)
 - [ ] Hooks use injected `readFile`/`writeFile` only; idempotent section markers
-- [ ] Registered in `ADAPTER_MAP`, exported, added to `VALID_ADAPTER_NAMES`
+- [ ] Registered (built-in: `BUILTIN_ADAPTERS` + export; custom: `registerAdapter()`)
 - [ ] Detector / formatter / adapter / registry / e2e tests pass

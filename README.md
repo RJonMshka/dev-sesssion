@@ -126,7 +126,9 @@ The next session opens on the Webhooks chunk. No manual file wrangling, no stale
 | `--dry-run` | Preview writes without writing |
 | `-v, --verbose` | Detailed output |
 | `--strict` | Block on secret detection instead of warning |
-| `--adapter <name>` | Override adapter detection (`claude`, `opencode`, `cursor`) |
+| `--adapter <name>` | Override adapter detection (`claude`, `opencode`, `cursor`, `windsurf`) |
+
+Full command reference: [docs/commands.md](https://github.com/RJonMshka/dev-sesssion/blob/main/docs/commands.md).
 
 ---
 
@@ -139,8 +141,12 @@ The next session opens on the Webhooks chunk. No manual file wrangling, no stale
 | **Claude Code** | `CLAUDE.md` present | `@`-file mentions in `NEXT_PROMPT.md` |
 | **opencode** | `AGENTS.md` present | `Exclude:` directives |
 | **Cursor** | `.cursorrules` present | `Ignore:` directives |
+| **Windsurf** | `.windsurfrules` present | `Ignore:` directives |
 
-Override detection with `--adapter <name>`.
+Override detection with `--adapter <name>`. Using a tool that isn't listed?
+Programmatic consumers can plug in their own adapter with `registerAdapter()`
+from `@dev-session/adapters` — see
+[Authoring adapters](https://github.com/RJonMshka/dev-sesssion/blob/main/docs/authoring-adapters.md).
 
 ---
 
@@ -186,19 +192,16 @@ Detects pnpm, npm, Yarn, Nx, and Turborepo workspaces.
 
 | Doc | What's in it |
 |---|---|
-| [docs/getting-started.md](./docs/getting-started.md) | Installation, `.session/` structure, first-session walkthrough |
-| [docs/commands.md](./docs/commands.md) | Full command reference + global flags |
-| [docs/adapters.md](./docs/adapters.md) | Using the Claude Code / opencode / Cursor / Windsurf adapters |
-| [docs/authoring-adapters.md](./docs/authoring-adapters.md) | How to write a new adapter |
-| [docs/team-mode.md](./docs/team-mode.md) | Shared vs personal files, gitattributes, monorepos |
-| [PROTOCOL.md](./PROTOCOL.md) | The Session Protocol v1.0 spec (the `.session/` format) |
-| [SECURITY.md](./SECURITY.md) | Threat model and vulnerability disclosure |
+| [Getting started](https://github.com/RJonMshka/dev-sesssion/blob/main/docs/getting-started.md) | Installation, `.session/` structure, first-session walkthrough |
+| [Authoring adapters](https://github.com/RJonMshka/dev-sesssion/blob/main/docs/authoring-adapters.md) | How to write a new adapter |
+| [PROTOCOL.md](https://github.com/RJonMshka/dev-sesssion/blob/main/PROTOCOL.md) | The Session Protocol v1.0 spec (the `.session/` format) |
+| [SECURITY.md](https://github.com/RJonMshka/dev-sesssion/blob/main/SECURITY.md) | Threat model and vulnerability disclosure |
 
 ---
 
 ## Contributing
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup, conventions, and the pull request process.
+See [CONTRIBUTING.md](https://github.com/RJonMshka/dev-sesssion/blob/main/CONTRIBUTING.md) for development setup, conventions, and the pull request process.
 
 ```bash
 pnpm install && pnpm build && pnpm test
