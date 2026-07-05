@@ -1,14 +1,35 @@
-import { DetectedTool, PlainTextFormatter } from "@dev-session/core";
-import { describe, expect, it } from "vitest";
+import type { Adapter } from "@dev-session/core";
+import { CliError, DetectedTool, PlainTextFormatter } from "@dev-session/core";
+import { afterEach, describe, expect, it } from "vitest";
 import { ClaudeAdapter } from "../claude-adapter.js";
 import { ClaudeBootstrapFormatter } from "../claude-bootstrap-formatter.js";
 import { CursorAdapter } from "../cursor-adapter.js";
 import { CursorBootstrapFormatter } from "../cursor-bootstrap-formatter.js";
 import { OpencodeAdapter } from "../opencode-adapter.js";
 import { OpencodeBootstrapFormatter } from "../opencode-bootstrap-formatter.js";
-import { getAdapterForTool, getFormatterForTool, getRegisteredTools } from "../registry.js";
+import {
+	getAdapterByName,
+	getAdapterForTool,
+	getFormatterForTool,
+	getRegisteredTools,
+	registerAdapter,
+	unregisterAdapter,
+} from "../registry.js";
 import { WindsurfAdapter } from "../windsurf-adapter.js";
 import { WindsurfBootstrapFormatter } from "../windsurf-bootstrap-formatter.js";
+
+function makeCustomAdapter(name: string): Adapter {
+	return {
+		config: {
+			name,
+			display_name: `Custom (${name})`,
+			detect_files: [`.${name}rc`],
+			output_files: [`.${name}rc`],
+			config_version: 1,
+		},
+		formatter: PlainTextFormatter,
+	};
+}
 
 describe("getAdapterForTool", () => {
 	it("returns ClaudeAdapter for claude", () => {
@@ -138,5 +159,89 @@ describe("getRegisteredTools", () => {
 		const tools = getRegisteredTools();
 		expect(Array.isArray(tools)).toBe(true);
 		expect(tools.length).toBe(5);
+	});
+});
+
+describe("registerAdapter", () => {
+	afterEach(() => {
+		unregisterAdapter("zed");
+		unregisterAdapter("my-tool");
+	});
+
+	it("registers a custom adapter resolvable by name", () => {
+		const zed = makeCustomAdapter("zed");
+		registerAdapter(zed);
+
+		expect(getAdapterByName("zed")).toBe(zed);
+		expect(getRegisteredTools()).toContain("zed");
+	});
+
+	it("makes a custom adapter resolve where the fallback previously applied", () => {
+		expect(getAdapterForTool("zed" as "unknown").config.name).toBe("plain");
+
+		registerAdapter(makeCustomAdapter("zed"));
+		expect(getAdapterForTool("zed" as "unknown").config.name).toBe("zed");
+		expect(getFormatterForTool("zed" as "unknown")).toBe(PlainTextFormatter);
+	});
+
+	it("accepts kebab-case names", () => {
+		registerAdapter(makeCustomAdapter("my-tool"));
+		expect(getAdapterByName("my-tool")?.config.name).toBe("my-tool");
+	});
+
+	it.each([
+		"",
+		"My Tool",
+		"UPPER",
+		"1tool",
+		"-tool",
+		"__proto__",
+		"tool_x",
+		"a/b",
+	])("rejects invalid name %j with CliError", (name) => {
+		expect(() => registerAdapter(makeCustomAdapter(name))).toThrow(CliError);
+		expect(getAdapterByName(name)).toBeUndefined();
+	});
+
+	it.each([
+		"claude",
+		"opencode",
+		"cursor",
+		"windsurf",
+		"unknown",
+		"plain",
+	])("rejects the reserved name %j", (name) => {
+		expect(() => registerAdapter(makeCustomAdapter(name))).toThrow(CliError);
+	});
+
+	it("rejects a duplicate custom registration", () => {
+		registerAdapter(makeCustomAdapter("zed"));
+		expect(() => registerAdapter(makeCustomAdapter("zed"))).toThrow(/already registered/);
+	});
+
+	it("does not pollute built-in resolution via prototype-key names", () => {
+		expect(getAdapterByName("__proto__")).toBeUndefined();
+		expect(getAdapterByName("constructor")).toBeUndefined();
+		expect(getAdapterByName("hasOwnProperty")).toBeUndefined();
+	});
+});
+
+describe("unregisterAdapter", () => {
+	it("removes a custom adapter and restores fallback resolution", () => {
+		registerAdapter(makeCustomAdapter("zed"));
+		expect(unregisterAdapter("zed")).toBe(true);
+
+		expect(getAdapterByName("zed")).toBeUndefined();
+		expect(getAdapterForTool("zed" as "unknown").config.name).toBe("plain");
+		expect(getRegisteredTools()).not.toContain("zed");
+	});
+
+	it("returns false for names that were never registered", () => {
+		expect(unregisterAdapter("never-registered")).toBe(false);
+	});
+
+	it("cannot remove built-in adapters", () => {
+		expect(unregisterAdapter(DetectedTool.CLAUDE)).toBe(false);
+		expect(getAdapterForTool(DetectedTool.CLAUDE)).toBe(ClaudeAdapter);
 	});
 });

@@ -6,13 +6,23 @@
  * @module
  */
 
-import { getAdapterForTool } from "@dev-session/adapters";
+import { getAdapterByName, getAdapterForTool, getRegisteredTools } from "@dev-session/adapters";
 import type { Adapter, DetectedToolValue } from "@dev-session/core";
 import { DetectedTool, ProjectDetector } from "@dev-session/core";
 import { CliError } from "@dev-session/security";
 
-/** Valid adapter names that can be passed via --adapter flag. */
-const VALID_ADAPTER_NAMES = new Set(["claude", "opencode", "cursor", "windsurf"]);
+/**
+ * Adapter names accepted by the --adapter flag: everything in the registry
+ * (built-in and custom) except the internal "unknown" fallback key.
+ *
+ * Derived from the registry so a newly registered adapter is automatically
+ * a valid flag value — no second hand-maintained list to forget.
+ *
+ * @returns The accepted adapter names.
+ */
+function validAdapterNames(): readonly string[] {
+	return getRegisteredTools().filter((name) => name !== DetectedTool.UNKNOWN);
+}
 
 /**
  * Resolves the adapter to use for the current project.
@@ -33,15 +43,16 @@ export function resolveAdapter(
 ): { adapter: Adapter; tool: DetectedToolValue; source: "flag" | "detect" | "fallback" } {
 	// 1. Explicit flag
 	if (adapterFlag !== undefined) {
-		if (!VALID_ADAPTER_NAMES.has(adapterFlag)) {
+		const adapter =
+			adapterFlag === DetectedTool.UNKNOWN ? undefined : getAdapterByName(adapterFlag);
+		if (adapter === undefined) {
 			throw new CliError({
 				message: `Unknown adapter: "${adapterFlag}"`,
-				suggestion: `Valid adapters: ${[...VALID_ADAPTER_NAMES].join(", ")}`,
+				suggestion: `Valid adapters: ${validAdapterNames().join(", ")}`,
 			});
 		}
 
-		const tool = adapterFlag as DetectedToolValue;
-		return { adapter: getAdapterForTool(tool), tool, source: "flag" };
+		return { adapter, tool: adapterFlag as DetectedToolValue, source: "flag" };
 	}
 
 	// 2. Auto-detect
