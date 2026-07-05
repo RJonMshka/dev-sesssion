@@ -85,7 +85,6 @@ export interface UpdateResult {
 export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 	const sessionDir = resolveSessionDir(options.cwd);
 
-	// Load current state
 	let state = SessionStateManager.load(sessionDir);
 	const chunk = PlanChunkManager.loadActive(sessionDir, state);
 	const allEntries = FileIndexManager.load(sessionDir);
@@ -94,13 +93,10 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 	let notesAdded = 0;
 	let lastWorkedUpdated = false;
 
-	// -----------------------------------------------------------------------
 	// Step 1: Interactive task marking
-	// -----------------------------------------------------------------------
 	if (!options.yes && chunk.tasks.length > 0) {
 		const taskResult = await promptTaskUpdates(chunk.tasks);
 		if (taskResult.changed) {
-			// Apply changes to state
 			for (const update of taskResult.updates) {
 				if (update.newStatus === TaskStatus.DONE) {
 					state = SessionStateManager.markTaskDone(state, update.text);
@@ -112,9 +108,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 		}
 	}
 
-	// -----------------------------------------------------------------------
 	// Step 2: Add session notes
-	// -----------------------------------------------------------------------
 	if (!options.yes) {
 		const noteResult = await promptAddNote();
 		if (noteResult !== undefined) {
@@ -123,9 +117,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 		}
 	}
 
-	// -----------------------------------------------------------------------
 	// Step 3: Update "last worked" files (auto-suggest from git status)
-	// -----------------------------------------------------------------------
 	const gitFiles = await getGitModifiedFiles(options.cwd);
 
 	if (gitFiles.length > 0) {
@@ -143,9 +135,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 		}
 	}
 
-	// -----------------------------------------------------------------------
 	// Step 4: Save state
-	// -----------------------------------------------------------------------
 	SessionStateManager.save(sessionDir, state);
 
 	if (options.verbose) {
@@ -154,9 +144,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 		log.info(`Last-worked files updated: ${lastWorkedUpdated ? "yes" : "no"}`);
 	}
 
-	// -----------------------------------------------------------------------
 	// Step 5: Regenerate NEXT_PROMPT.md
-	// -----------------------------------------------------------------------
 	const alwaysInclude = FileIndexManager.alwaysInclude(allEntries);
 	const chunkFiles = FileIndexManager.queryByChunk(allEntries, state.active_chunk);
 	const allChunks = PlanChunkManager.loadAll(sessionDir);
@@ -180,14 +168,12 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 
 	const projectName = detectProjectName(options.cwd);
 
-	// Resolve adapter (flag → detect → fallback)
 	const { adapter, tool: detectedTool, source } = resolveAdapter(options.cwd, options.adapter);
 
 	if (options.verbose) {
 		log.info(`Using ${adapter.config.display_name} adapter (${source}: ${detectedTool})`);
 	}
 
-	// Run transformState hook if the adapter provides one
 	if (adapter.transformState) {
 		const readFile = createAdapterReadFile(options.cwd);
 		state = adapter.transformState(state, {
@@ -210,9 +196,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 
 	const promptContent = NextPromptWriter.generateWithFormatter(adapter.formatter, bootstrapContext);
 
-	// -----------------------------------------------------------------------
 	// Step 6: Secret scan before writing
-	// -----------------------------------------------------------------------
 	let secretWarnings = 0;
 	secretWarnings += scanContent(promptContent, "NEXT_PROMPT.md", options.verbose);
 
@@ -223,9 +207,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 		});
 	}
 
-	// -----------------------------------------------------------------------
 	// Step 7: Write regenerated prompt
-	// -----------------------------------------------------------------------
 	NextPromptWriter.write(sessionDir, promptContent);
 
 	log.info(ContextBudgetCalculator.formatSummary(budget));
@@ -234,9 +216,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 		log.success("Session updated and NEXT_PROMPT.md regenerated.");
 	}
 
-	// -----------------------------------------------------------------------
 	// Step 8: Append context log entry
-	// -----------------------------------------------------------------------
 	const logEntry: ContextLogEntry = {
 		session_id: state.session_id,
 		timestamp: new Date().toISOString(),

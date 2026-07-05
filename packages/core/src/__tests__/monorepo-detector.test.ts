@@ -18,9 +18,7 @@ describe("MonorepoDetector", () => {
 		fs.rmSync(tmpDir, { recursive: true, force: true });
 	});
 
-	// ---------------------------------------------------------------------------
 	// Non-monorepo
-	// ---------------------------------------------------------------------------
 
 	describe("no workspace files", () => {
 		it("returns isMonorepo: false when no workspace config exists", () => {
@@ -35,9 +33,7 @@ describe("MonorepoDetector", () => {
 		});
 	});
 
-	// ---------------------------------------------------------------------------
 	// pnpm-workspace.yaml
-	// ---------------------------------------------------------------------------
 
 	describe("pnpm-workspace.yaml", () => {
 		it("detects pnpm workspace and resolves packages", () => {
@@ -171,9 +167,7 @@ describe("MonorepoDetector", () => {
 		});
 	});
 
-	// ---------------------------------------------------------------------------
 	// nx.json
-	// ---------------------------------------------------------------------------
 
 	describe("nx.json", () => {
 		it("detects nx workspace", () => {
@@ -201,9 +195,7 @@ describe("MonorepoDetector", () => {
 		});
 	});
 
-	// ---------------------------------------------------------------------------
 	// turbo.json
-	// ---------------------------------------------------------------------------
 
 	describe("turbo.json", () => {
 		it("detects turborepo workspace via turbo.json", () => {
@@ -230,9 +222,7 @@ describe("MonorepoDetector", () => {
 		});
 	});
 
-	// ---------------------------------------------------------------------------
 	// npm / yarn workspaces (package.json only)
-	// ---------------------------------------------------------------------------
 
 	describe("package.json workspaces", () => {
 		it("detects npm workspaces (plain array)", () => {
@@ -287,9 +277,7 @@ describe("MonorepoDetector", () => {
 		});
 	});
 
-	// ---------------------------------------------------------------------------
 	// isMonorepoRoot
-	// ---------------------------------------------------------------------------
 
 	describe("isMonorepoRoot", () => {
 		it("returns true when pnpm-workspace.yaml is present", () => {

@@ -41,7 +41,6 @@ export function formatCompletedChunksSummary(state: SessionState): string {
 		return `Chunk ${String(keys[0])} done.`;
 	}
 
-	// Check if consecutive
 	const first = keys[0] as number;
 	const last = keys[keys.length - 1] as number;
 	const isConsecutive = last - first === keys.length - 1;

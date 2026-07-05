@@ -196,7 +196,6 @@ export async function generateIndex(
 
 	// --- Write FILE_INDEX.md ---
 	if (options.dryRun) {
-		// Build a preview string for dry-run logging
 		const preview = `FILE_INDEX.md (${entries.length} entries)`;
 		const fullPath = path.join(sessionDir, "FILE_INDEX.md");
 		dryRunWrite(fullPath, preview, options.cwd);

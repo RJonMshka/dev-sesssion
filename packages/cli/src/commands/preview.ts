@@ -220,14 +220,12 @@ export function renderBreakdownTable(
 export async function runPreview(options: PreviewOptions): Promise<void> {
 	const sessionDir = resolveSessionDir(options.cwd);
 
-	// Load session data
 	const state = SessionStateManager.load(sessionDir);
 	const chunk = PlanChunkManager.loadActive(sessionDir, state);
 	const allEntries = FileIndexManager.load(sessionDir);
 	const alwaysInclude = FileIndexManager.alwaysInclude(allEntries);
 	let chunkFiles = FileIndexManager.queryByChunk(allEntries, state.active_chunk);
 
-	// Apply trim overrides
 	const trimOverrides = TrimOverridesManager.load(sessionDir);
 	const excludedPaths = TrimOverridesManager.getExcludedPaths(trimOverrides);
 	if (excludedPaths.length > 0) {
@@ -236,7 +234,6 @@ export async function runPreview(options: PreviewOptions): Promise<void> {
 		);
 	}
 
-	// Build exclude patterns for the adapter formatter
 	const allChunks = PlanChunkManager.loadAll(sessionDir);
 	const excludePatterns = [
 		"**/__tests__/**",
@@ -338,9 +335,6 @@ export async function runPreview(options: PreviewOptions): Promise<void> {
 
 	const promptText = NextPromptWriter.generateWithFormatter(adapter.formatter, bootstrapContext);
 
-	// ------------------------------------------------------------------
-	// Build breakdown table entries
-	// ------------------------------------------------------------------
 	const breakdown: TokenBreakdownEntry[] = [
 		{
 			label: "SESSION_STATE.md",
@@ -366,9 +360,7 @@ export async function runPreview(options: PreviewOptions): Promise<void> {
 		},
 	];
 
-	// ------------------------------------------------------------------
 	// JSON output
-	// ------------------------------------------------------------------
 	if (options.format === "json") {
 		const output: PreviewJson = {
 			total_tokens: totalTokens,
@@ -393,9 +385,7 @@ export async function runPreview(options: PreviewOptions): Promise<void> {
 		return;
 	}
 
-	// ------------------------------------------------------------------
 	// Text output
-	// ------------------------------------------------------------------
 	if (!accurate) {
 		log.warn("Token counts are approximate (heuristic: 1 token ≈ 4 bytes). No API key used.");
 	}

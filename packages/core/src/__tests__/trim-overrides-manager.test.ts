@@ -28,9 +28,7 @@ describe("TrimOverridesManager", () => {
 		fs.rmSync(tmpDir, { recursive: true, force: true });
 	});
 
-	// -----------------------------------------------------------------------
 	// load
-	// -----------------------------------------------------------------------
 
 	describe("load", () => {
 		it("returns null when no trim-overrides.json exists", () => {
@@ -73,9 +71,7 @@ describe("TrimOverridesManager", () => {
 		});
 	});
 
-	// -----------------------------------------------------------------------
 	// addExclusion / isExcluded
-	// -----------------------------------------------------------------------
 
 	describe("addExclusion", () => {
 		it("creates the file if it does not exist", () => {
@@ -124,9 +120,7 @@ describe("TrimOverridesManager", () => {
 		});
 	});
 
-	// -----------------------------------------------------------------------
 	// removeExclusion
-	// -----------------------------------------------------------------------
 
 	describe("removeExclusion", () => {
 		it("returns null when no overrides file exists", () => {
@@ -144,9 +138,7 @@ describe("TrimOverridesManager", () => {
 		});
 	});
 
-	// -----------------------------------------------------------------------
 	// clear
-	// -----------------------------------------------------------------------
 
 	describe("clear", () => {
 		it("deletes the trim-overrides.json file", () => {
@@ -161,9 +153,7 @@ describe("TrimOverridesManager", () => {
 		});
 	});
 
-	// -----------------------------------------------------------------------
 	// getExcludedPaths
-	// -----------------------------------------------------------------------
 
 	describe("getExcludedPaths", () => {
 		it("returns empty array for null overrides", () => {

@@ -140,7 +140,6 @@ export async function runLintContext(options: LintContextOptions): Promise<void>
 		return;
 	}
 
-	// Read all file contents
 	const fileContents: Record<string, string> = Object.create(null) as Record<string, string>;
 	for (const entry of targetFiles) {
 		const absolutePath = path.join(options.cwd, entry.filepath);
@@ -171,9 +170,7 @@ export async function runLintContext(options: LintContextOptions): Promise<void>
 	const infos = allResults.filter((r) => r.severity === "info").length;
 	const passed = errors === 0;
 
-	// ------------------------------------------------------------------
 	// JSON output
-	// ------------------------------------------------------------------
 	if (options.json) {
 		const output: LintContextJson = {
 			findings: allResults,
@@ -187,9 +184,7 @@ export async function runLintContext(options: LintContextOptions): Promise<void>
 		return;
 	}
 
-	// ------------------------------------------------------------------
 	// Text output
-	// ------------------------------------------------------------------
 	log.info(`Linting ${String(Object.keys(fileContents).length)} context file(s)…`);
 
 	// Filter based on verbosity

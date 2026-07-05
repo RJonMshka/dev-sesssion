@@ -70,9 +70,7 @@ export const AiIndexManager = {
 		});
 	},
 
-	// ---------------------------------------------------------------------------
 	// Query methods
-	// ---------------------------------------------------------------------------
 
 	/**
 	 * Return file entries whose `layer_default` matches the given layer.
@@ -142,9 +140,7 @@ export const AiIndexManager = {
 		return result;
 	},
 
-	// ---------------------------------------------------------------------------
 	// Render methods
-	// ---------------------------------------------------------------------------
 
 	/**
 	 * Render a file entry at Layer 0: module summary + public symbol names only.
@@ -223,9 +219,7 @@ export const AiIndexManager = {
 		}
 	},
 
-	// ---------------------------------------------------------------------------
 	// Stats
-	// ---------------------------------------------------------------------------
 
 	/**
 	 * Count files and public symbols in the index.

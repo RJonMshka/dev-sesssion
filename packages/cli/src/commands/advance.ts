@@ -89,7 +89,6 @@ export interface AdvanceResult {
 export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult> {
 	const sessionDir = resolveSessionDir(options.cwd);
 
-	// Load current state
 	let state = SessionStateManager.load(sessionDir);
 	const currentChunk = PlanChunkManager.loadActive(sessionDir, state);
 	const allChunks = PlanChunkManager.loadAll(sessionDir);
@@ -97,9 +96,7 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 
 	const currentChunkId = state.active_chunk;
 
-	// -----------------------------------------------------------------------
 	// Step 1: Check task completion
-	// -----------------------------------------------------------------------
 	const isComplete = PlanChunkManager.isComplete(currentChunk);
 	let forceAdvanced = false;
 
@@ -129,9 +126,7 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 		}
 	}
 
-	// -----------------------------------------------------------------------
 	// Step 2: Verify next chunk exists
-	// -----------------------------------------------------------------------
 	const nextChunkId = currentChunkId + 1;
 	const nextChunkExists = allChunks.some((c) => c.chunk_id === nextChunkId);
 
@@ -153,33 +148,25 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 		};
 	}
 
-	// -----------------------------------------------------------------------
 	// Step 3: Archive the completed chunk
-	// -----------------------------------------------------------------------
 	PlanChunkManager.archive(sessionDir, currentChunk);
 
 	if (options.verbose) {
 		log.info(`Archived chunk ${String(currentChunkId)} to DONE_LOG.md`);
 	}
 
-	// -----------------------------------------------------------------------
 	// Step 4: Compact session state
-	// -----------------------------------------------------------------------
 	state = SessionStateManager.compact(state);
 
 	if (options.verbose) {
 		log.info("Compacted session state.");
 	}
 
-	// -----------------------------------------------------------------------
 	// Step 5: Advance to next chunk
-	// -----------------------------------------------------------------------
 	state = PlanChunkManager.advance(state);
 	SessionStateManager.save(sessionDir, state);
 
-	// -----------------------------------------------------------------------
 	// Step 6: Load the new chunk and regenerate NEXT_PROMPT.md
-	// -----------------------------------------------------------------------
 	const newChunk = PlanChunkManager.loadActive(sessionDir, state);
 	const alwaysInclude = FileIndexManager.alwaysInclude(allEntries);
 	const chunkFiles = FileIndexManager.queryByChunk(allEntries, state.active_chunk);
@@ -202,14 +189,12 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 	const excludePatterns = buildExcludePatterns(state.active_chunk, allChunks);
 	const projectName = detectProjectName(options.cwd);
 
-	// Resolve adapter (flag → detect → fallback)
 	const { adapter, tool: detectedTool, source } = resolveAdapter(options.cwd, options.adapter);
 
 	if (options.verbose) {
 		log.info(`Using ${adapter.config.display_name} adapter (${source}: ${detectedTool})`);
 	}
 
-	// Run transformState hook if the adapter provides one
 	if (adapter.transformState) {
 		const readFile = createAdapterReadFile(options.cwd);
 		state = adapter.transformState(state, {
@@ -234,18 +219,14 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 
 	NextPromptWriter.write(sessionDir, promptContent);
 
-	// -----------------------------------------------------------------------
 	// Step 7: Clear trim overrides (session-scoped, reset on advance)
-	// -----------------------------------------------------------------------
 	TrimOverridesManager.clear(sessionDir);
 
 	if (options.verbose) {
 		log.info("Cleared trim overrides for new chunk.");
 	}
 
-	// -----------------------------------------------------------------------
 	// Step 7b: Append context log entry for the completed chunk
-	// -----------------------------------------------------------------------
 	const logEntry: ContextLogEntry = {
 		session_id: state.session_id,
 		timestamp: new Date().toISOString(),
@@ -256,9 +237,7 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 	};
 	SessionMemoryManager.append(sessionDir, logEntry);
 
-	// -----------------------------------------------------------------------
 	// Step 8: Display result
-	// -----------------------------------------------------------------------
 	const tasksRemaining = newChunk.tasks.filter((t) => t.status !== TaskStatus.DONE).length;
 
 	log.success(

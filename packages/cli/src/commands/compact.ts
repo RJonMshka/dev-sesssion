@@ -192,7 +192,6 @@ export async function runCompact(
 		});
 	}
 
-	// Read original content
 	let originalContent: string;
 	try {
 		originalContent = fs.readFileSync(absolutePath, "utf-8");
@@ -221,7 +220,6 @@ export async function runCompact(
 		log.info(`Original: ${String(linesBefore)} lines, ~${String(tokensBefore)} tokens`);
 	}
 
-	// Call the API
 	log.info(`Calling ${model} to compact…`);
 	const compactedContent = await callAnthropicCompact(originalContent, model, apiKey);
 
@@ -230,9 +228,7 @@ export async function runCompact(
 	const tokenSavings = tokensBefore - tokensAfter;
 	const savingsPct = tokensBefore > 0 ? Math.round((tokenSavings / tokensBefore) * 100) : 0;
 
-	// ------------------------------------------------------------------
 	// Dry run — print and return
-	// ------------------------------------------------------------------
 	if (options.dryRun) {
 		log.info(
 			`Dry run: ${String(linesBefore)} → ${String(linesAfter)} lines, ` +
@@ -252,9 +248,7 @@ export async function runCompact(
 		};
 	}
 
-	// ------------------------------------------------------------------
 	// Confirm before writing
-	// ------------------------------------------------------------------
 	log.info(
 		`Before: ${String(linesBefore)} lines, ~${String(tokensBefore)} tokens\n` +
 			`After:  ${String(linesAfter)} lines, ~${String(tokensAfter)} tokens (${String(savingsPct)}% savings)`,
@@ -285,7 +279,6 @@ export async function runCompact(
 		log.info(`Backed up original to: ${path.relative(options.cwd, backupPath)}`);
 	}
 
-	// Write compacted content
 	AtomicWriter.writeFile(resolvedPath, compactedContent);
 
 	// Update FileIndexEntry.token_cost

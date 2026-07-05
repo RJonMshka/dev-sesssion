@@ -337,7 +337,6 @@ export function renderProgressBar(percent: number, width: number): string {
 export async function runStatus(options: StatusOptions): Promise<void> {
 	const sessionDir = resolveSessionDir(options.cwd);
 
-	// Load state + chunk + file index
 	const state = SessionStateManager.load(sessionDir);
 	const chunk = PlanChunkManager.loadActive(sessionDir, state);
 	const allEntries = FileIndexManager.load(sessionDir);
@@ -347,7 +346,6 @@ export async function runStatus(options: StatusOptions): Promise<void> {
 	// Compute context budget
 	const budget = ContextBudgetCalculator.estimate(state, chunk, chunkFiles, alwaysInclude);
 
-	// Check NEXT_PROMPT.md health
 	const promptLineCount = readPromptLineCount(sessionDir);
 
 	// Compute warnings
@@ -357,7 +355,6 @@ export async function runStatus(options: StatusOptions): Promise<void> {
 	const memoryEntries = SessionMemoryManager.load(sessionDir);
 	const memoryStats = SessionMemoryManager.summarizeStats(memoryEntries);
 
-	// Build status object
 	const status = buildStatusJson(
 		state,
 		chunk,

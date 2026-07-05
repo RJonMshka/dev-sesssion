@@ -176,7 +176,6 @@ export async function runFinalWrites(
 
 	const excludePatterns = buildExcludePatterns(activeChunk.chunk_id, chunks);
 
-	// Resolve adapter (flag → detect → fallback)
 	const { adapter, tool: detectedTool, source } = resolveAdapter(options.cwd, options.adapter);
 
 	if (options.verbose) {

@@ -322,10 +322,8 @@ export async function runIndexAdd(options: IndexAddOptions): Promise<void> {
 
 	const relativePath = path.relative(options.cwd, absPath);
 
-	// Load current index
 	const entries = FileIndexManager.load(sessionDir);
 
-	// Check for duplicate
 	const existing = entries.find((e) => e.filepath === relativePath);
 	if (existing) {
 		log.warn(`File already in index: ${relativePath}`);
@@ -346,7 +344,6 @@ export async function runIndexAdd(options: IndexAddOptions): Promise<void> {
 		chunkTags = [state.active_chunk];
 		purpose = `Added via dev-sesssion index add`;
 	} else {
-		// Load available chunks for selection
 		const allChunks = PlanChunkManager.loadAll(sessionDir);
 		const state = SessionStateManager.load(sessionDir);
 
@@ -385,7 +382,6 @@ export async function runIndexAdd(options: IndexAddOptions): Promise<void> {
 		purpose = purposeResult as string;
 	}
 
-	// Build entry and add
 	const newEntry: FileIndexEntry = {
 		filepath: relativePath,
 		chunk_tags: chunkTags,

@@ -190,9 +190,7 @@ export async function runTrim(options: TrimOptions): Promise<TrimResult> {
 	let newExclusions: string[] = [];
 	let restored: string[] = [];
 
-	// -----------------------------------------------------------------------
 	// Budget mode (--budget N): auto-suggest exclusions
-	// -----------------------------------------------------------------------
 	if (options.budget !== undefined) {
 		if (currentTotal <= options.budget) {
 			log.success(
@@ -228,15 +226,12 @@ export async function runTrim(options: TrimOptions): Promise<TrimResult> {
 		return { excluded: newExclusions, restored: [], dryRun: options.dryRun };
 	}
 
-	// -----------------------------------------------------------------------
 	// Interactive mode
-	// -----------------------------------------------------------------------
 	if (options.yes) {
 		log.info("Use --budget <N> with --yes to auto-trim. Interactive mode requires a terminal.");
 		return { excluded: [], restored: [], dryRun: options.dryRun };
 	}
 
-	// Build options for multiselect
 	const selectOptions = candidates.map((c) => ({
 		value: c.filepath,
 		label: `${c.filepath} (~${String(c.tokens)} tokens)`,
@@ -283,7 +278,6 @@ export async function runTrim(options: TrimOptions): Promise<TrimResult> {
 		return { excluded: newExclusions, restored, dryRun: true };
 	}
 
-	// Apply changes
 	for (const filepath of newExclusions) {
 		TrimOverridesManager.addExclusion(sessionDir, state.session_id, filepath);
 	}

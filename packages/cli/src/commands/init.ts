@@ -76,9 +76,7 @@ export async function runInit(options: InitOptions): Promise<void> {
 
 	const s = spinner();
 
-	// -----------------------------------------------------------------------
 	// Phase 1: Detection (automatic, no prompts)
-	// -----------------------------------------------------------------------
 	s.start("Detecting project...");
 	const projectInfo = ProjectDetector.detect(options.cwd);
 	s.stop("Project detected.");
@@ -105,9 +103,7 @@ export async function runInit(options: InitOptions): Promise<void> {
 		}
 	}
 
-	// -----------------------------------------------------------------------
 	// Phase 1b: Handle existing .session/ directory
-	// -----------------------------------------------------------------------
 	if (detection.session.exists) {
 		if (options.yes) {
 			log.warn("Existing .session/ found. Reinitializing in --yes mode.");
@@ -124,9 +120,7 @@ export async function runInit(options: InitOptions): Promise<void> {
 		}
 	}
 
-	// -----------------------------------------------------------------------
 	// Phase 1c: Team vs personal mode selection
-	// -----------------------------------------------------------------------
 	const teamMode = await resolveTeamMode(options);
 
 	if (teamMode === undefined) {
@@ -139,14 +133,10 @@ export async function runInit(options: InitOptions): Promise<void> {
 		log.info(`Mode: ${teamMode ? "team" : "personal"}`);
 	}
 
-	// -----------------------------------------------------------------------
 	// Phase 2: Ensure .session/ directory exists
-	// -----------------------------------------------------------------------
 	const sessionDir = ensureSessionDir(options);
 
-	// -----------------------------------------------------------------------
 	// Phase 3: Plan chunks (migration path A or B)
-	// -----------------------------------------------------------------------
 	let chunks: readonly PlanChunk[];
 	let projectName = detection.packageJson.projectName ?? path.basename(options.cwd);
 
@@ -182,9 +172,7 @@ export async function runInit(options: InitOptions): Promise<void> {
 		});
 	}
 
-	// -----------------------------------------------------------------------
 	// Phase 4: FILE_INDEX generation (migration path C)
-	// -----------------------------------------------------------------------
 	const generateOpts: Parameters<typeof generateIndex>[2] = {
 		yes: options.yes,
 		dryRun: options.dryRun,
@@ -194,17 +182,13 @@ export async function runInit(options: InitOptions): Promise<void> {
 	};
 	const indexResult = await generateIndex(sessionDir, chunks, generateOpts);
 
-	// -----------------------------------------------------------------------
 	// Phase 5: Final writes (SESSION_STATE, ROUTINES, NEXT_PROMPT, .gitignore)
-	// -----------------------------------------------------------------------
 	await runFinalWrites(sessionDir, chunks, indexResult.entries, projectName, {
 		...options,
 		teamMode,
 	});
 
-	// -----------------------------------------------------------------------
 	// Summary
-	// -----------------------------------------------------------------------
 	if (options.dryRun) {
 		outro("Dry run complete. No files were written.");
 	} else {
