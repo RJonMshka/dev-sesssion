@@ -1,3 +1,13 @@
+## [2.1.0](https://github.com/RJonMshka/dev-sesssion/compare/v2.0.2...v2.1.0) (2026-07-05)
+
+### Features
+
+* **adapters:** add registerAdapter() for pluggable custom adapters ([6de2f26](https://github.com/RJonMshka/dev-sesssion/commit/6de2f26d68013b6afda3e183e4461d3d85af4ff2))
+
+### Documentation
+
+* fix stale Windsurf gaps, document custom adapter registration ([63a50b9](https://github.com/RJonMshka/dev-sesssion/commit/63a50b9c1957aed6f2087b8217ed79677897aef8))
+
 ## [2.0.2](https://github.com/RJonMshka/dev-sesssion/compare/v2.0.1...v2.0.2) (2026-06-19)
 
 ### Bug Fixes
