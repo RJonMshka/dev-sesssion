@@ -168,5 +168,12 @@ export {
 } from "./schemas/index.js";
 export type { TrimOverrideEntry, TrimOverrides } from "./schemas/trim-overrides.js";
 export { TRIM_OVERRIDES_FILENAME, TrimOverridesSchema } from "./schemas/trim-overrides.js";
+export type {
+	VerifyFinding,
+	VerifyInput,
+	VerifyReport,
+	VerifySeverityValue,
+} from "./verifiers/session-verifier.js";
+export { SessionVerifier, VerifySeverity } from "./verifiers/session-verifier.js";
 // Walkers
 export { GitignoreAwareWalker } from "./walkers/gitignore-aware-walker.js";
