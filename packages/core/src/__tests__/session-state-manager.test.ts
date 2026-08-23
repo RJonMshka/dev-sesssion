@@ -120,6 +120,49 @@ active_chunk: 1
 			expect(content).toContain(`last_updated: "${today}"`);
 		});
 
+		it("omits max_prompt_lines from the file when it is the default", () => {
+			SessionStateManager.save(tmpDir as ValidatedPath, {
+				active_chunk: 1,
+				session_id: "default-cap",
+				last_updated: "2026-03-29",
+				tasks: [],
+				notes: [],
+				last_worked_files: [],
+				completed_chunks: {},
+				max_prompt_lines: 20,
+			});
+			const content = fs.readFileSync(path.join(tmpDir, "SESSION_STATE.md"), "utf-8");
+			expect(content).not.toContain("max_prompt_lines");
+		});
+
+		it("round-trips a non-default max_prompt_lines", () => {
+			SessionStateManager.save(tmpDir as ValidatedPath, {
+				active_chunk: 1,
+				session_id: "custom-cap",
+				last_updated: "2026-03-29",
+				tasks: [],
+				notes: [],
+				last_worked_files: [],
+				completed_chunks: {},
+				max_prompt_lines: 12,
+			});
+			expect(SessionStateManager.load(tmpDir as ValidatedPath).max_prompt_lines).toBe(12);
+		});
+
+		it("defaults max_prompt_lines when the file omits it", () => {
+			SessionStateManager.save(tmpDir as ValidatedPath, {
+				active_chunk: 1,
+				session_id: "no-cap",
+				last_updated: "2026-03-29",
+				tasks: [],
+				notes: [],
+				last_worked_files: [],
+				completed_chunks: {},
+				max_prompt_lines: 20,
+			});
+			expect(SessionStateManager.load(tmpDir as ValidatedPath).max_prompt_lines).toBe(20);
+		});
+
 		it("round-trips: save then load returns equivalent state", () => {
 			const original: SessionState = {
 				active_chunk: 5,

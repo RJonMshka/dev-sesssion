@@ -39,7 +39,13 @@ export type { AuditResult, FileIndexEntry } from "./file-index-entry.js";
 export { FileIndexEntrySchema } from "./file-index-entry.js";
 export type { NextPrompt, ValidationResult } from "./next-prompt.js";
 // Next prompt
-export { MAX_PROMPT_LINES, NextPromptSchema } from "./next-prompt.js";
+export {
+	countPromptLines,
+	MAX_CONFIGURABLE_PROMPT_LINES,
+	MAX_PROMPT_LINES,
+	MIN_CONFIGURABLE_PROMPT_LINES,
+	NextPromptSchema,
+} from "./next-prompt.js";
 export type { PlanChunk } from "./plan-chunk.js";
 // Plan chunk
 export { PlanChunkSchema } from "./plan-chunk.js";

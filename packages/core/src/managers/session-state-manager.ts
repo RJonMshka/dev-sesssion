@@ -14,7 +14,7 @@ import type { ValidatedPath } from "@dev-session/security";
 import { AtomicWriter, FrontmatterParser, ParseError } from "@dev-session/security";
 
 import type { SessionState, Task } from "../schemas/index.js";
-import { SessionStateSchema, TaskStatus } from "../schemas/index.js";
+import { MAX_PROMPT_LINES, SessionStateSchema, TaskStatus } from "../schemas/index.js";
 
 /** The filename of the session state file within the `.session/` directory. */
 const SESSION_STATE_FILENAME = "SESSION_STATE.md";
@@ -291,6 +291,15 @@ function serializeYaml(state: SessionState): string {
 	lines.push(...serializeStringArrayYaml("notes", state.notes));
 	lines.push(...serializeStringArrayYaml("last_worked_files", state.last_worked_files));
 	lines.push(...serializeCompletedChunksYaml(state.completed_chunks));
+
+	// Only persisted when overridden, so existing state files are left untouched
+	// by an ordinary save.
+	// Guarded on the type, not just the value: states built by hand (rather than
+	// parsed through the schema) can omit the field entirely, and serializing
+	// `undefined` would write a literal "undefined" that fails to parse back.
+	if (typeof state.max_prompt_lines === "number" && state.max_prompt_lines !== MAX_PROMPT_LINES) {
+		lines.push(`max_prompt_lines: ${String(state.max_prompt_lines)}`);
+	}
 
 	return `${lines.join("\n")}\n`;
 }
