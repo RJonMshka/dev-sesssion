@@ -45,7 +45,7 @@ Session ending. Execute in order:
 1. Update .session/SESSION_STATE.md — mark completed tasks [x], note stopping point, update last-worked files
 2. Update .session/FILE_INDEX.md — add new files created, update chunk tags if scope changed
 3. Rewrite .session/NEXT_PROMPT.md from scratch — project name, active chunk, files to load,
-   exact resume point, any prerequisite context. Must be <=15 lines, fully self-contained.
+   exact resume point, any prerequisite context. Must be <=20 lines, fully self-contained.
 4. If all tasks in active chunk are done: advance to next chunk in SESSION_STATE.md
 Show me each file's new content before writing. I will confirm.
 \`\`\`
