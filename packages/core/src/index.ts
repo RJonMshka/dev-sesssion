@@ -90,6 +90,9 @@ export {
 } from "./formatters/formatter-utils.js";
 // Bootstrap formatters
 export { PlainTextFormatter } from "./formatters/plain-text-formatter.js";
+// Git-backed verification and replay scoring
+export type { GitCommit } from "./git/git-reader.js";
+export { GitReader } from "./git/git-reader.js";
 export type { LintResult } from "./linters/context-linter.js";
 // Linters
 export { ContextLinter } from "./linters/context-linter.js";
