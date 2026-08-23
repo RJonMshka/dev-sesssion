@@ -82,15 +82,26 @@ Imagine a thick textbook. Without a table of contents, you'd have to flip throug
 **Example entry in `FILE_INDEX.md`:**
 
 ```markdown
-| File | Chunk tags | Purpose |
-|---|---|---|
-| src/auth/jwt.ts | 2 | JWT generation and validation |
-| src/auth/middleware.ts | 2 | Auth middleware for Express routes |
-| src/users/user.model.ts | 1, 2 | User schema — needed for auth too |
-| CLAUDE.md | always | AI session instructions |
+## Always Include
+
+| File | Purpose |
+|---|---|
+| CLAUDE.md | AI session instructions |
+
+## Chunk 2 — User authentication
+
+| File | Purpose |
+|---|---|
+| src/auth/jwt.ts | JWT generation and validation |
+| src/auth/middleware.ts | Auth middleware for Express routes |
+| src/users/user.model.ts | User schema — needed for auth too |
 ```
 
-Files tagged `0` or `always` are loaded in every session regardless of the active chunk. Use this for your `CLAUDE.md`, key config files, or anything the AI should always know about.
+Files are grouped by heading, not by a column: the `## Always Include` group
+(chunk tag `0`) is loaded in every session regardless of the active chunk — use
+it for your `CLAUDE.md`, key config files, or anything the AI should always know
+about. Each `## Chunk N` group is loaded only while chunk N is active. A file
+needed by two chunks is listed under both.
 
 > **Large repos:** If your project has more than 500 indexed files, `dev-sesssion` automatically
 > splits the index into `FILE_INDEX_1.md`, `FILE_INDEX_2.md`, etc. You never need to manage this
@@ -113,7 +124,7 @@ The AI reads this first. It tells the AI "you're on chunk 3, these 2 tasks are d
 
 ### 5. `NEXT_PROMPT.md` — the ignition key
 
-This is a short (≤15 lines), self-contained prompt that you paste at the start of every AI session. It tells the AI:
+This is a short (≤20 lines by default), self-contained prompt that you paste at the start of every AI session. It tells the AI:
 - What project this is
 - Which chunk is active and what the goal is
 - Exactly which files to load
@@ -126,14 +137,21 @@ This is a short (≤15 lines), self-contained prompt that you paste at the start
 ```
 Project: my-saas-app
 Active chunk: 3 — Billing integration
-Load: src/billing/**, src/users/subscription.ts, CLAUDE.md
-Do NOT read: src/auth/** (complete), dist/
-Resume: Stripe webhook handler is done. Next: implement subscription upgrade flow.
-Tasks remaining:
-  - [ ] POST /billing/upgrade endpoint
-  - [ ] Prorate calculation logic
-  - [ ] Tests for upgrade/downgrade
+Budget: ~2180/4000 tokens [OK]
+Load: CLAUDE.md, src/billing/stripe.ts, src/users/subscription.ts
+Do NOT read: src/auth/**, dist/
+Resume: 4/7 tasks done Chunks 1-2 done.
+Last touched: src/billing/webhooks.ts
+Next:
+  [ ] POST /billing/upgrade endpoint
+  [ ] Prorate calculation logic
+  [ ] Tests for upgrade/downgrade
+Note: decided to use Prisma instead of Knex
 ```
+
+(The exact wording of the file-reference lines depends on the adapter — Claude
+Code writes `@`-mentions, Cursor and Windsurf write `Ignore:` instead of
+`Do NOT read:`. See [adapters.md](adapters.md).)
 
 ---
 
@@ -159,7 +177,7 @@ npx dev-sesssion init
 No global install needed. You can also install globally if you prefer:
 
 ```bash
-npm install -g @dev-session/cli
+npm install -g dev-sesssion
 dev-sesssion init
 ```
 
@@ -291,7 +309,7 @@ All commands accept these global flags:
 | `--dry-run` | Show what would change without writing | false |
 | `-v, --verbose` | Show detailed output | false |
 | `--strict` | Block (not just warn) on secret detection | false |
-| `--adapter <name>` | Force a specific adapter (`claude`, `opencode`, `cursor`) | auto-detect |
+| `--adapter <name>` | Force a specific adapter (`claude`, `opencode`, `cursor`, `windsurf`) | auto-detect |
 
 ---
 
@@ -333,15 +351,15 @@ dev-sesssion status --verbose     # show in-progress and todo counts separately
 ● Last updated: 2026-04-07 (today)
 ● Tasks: [==========>         ] 55% (6/11 done)
 ● Files: 8 in context, 2 always-include, 54 indexed
-● Budget: ~18,400 / 80,000 tokens (heuristic)
-⚠ NEXT_PROMPT.md has 18 lines (max 15) — consider regenerating
+● Budget: ~3,840 / 4,000 tokens (heuristic)
+⚠ NEXT_PROMPT.md has 22 lines (max 20) — consider regenerating
 ```
 
 **Warnings to pay attention to:**
 
 | Warning | What it means | What to do |
 |---|---|---|
-| `NEXT_PROMPT.md has N lines (max 15)` | Prompt grew too long | Run `dev-sesssion update` to regenerate |
+| `NEXT_PROMPT.md has N lines (max 20)` | Prompt grew too long (the max shown is your configured `max_prompt_lines`) | Run `dev-sesssion update` to regenerate |
 | `always-include list has N files` | Too many "always load" files | Tighten the list; move some to chunk tags |
 | `Context budget exceeded` | Session will be token-heavy | Remove large files or split the chunk |
 | `All tasks done` | Chunk is complete | Run `dev-sesssion advance` |
@@ -461,12 +479,96 @@ dev-sesssion health --json        # machine-readable output for CI or scripts
 | `ALWAYS_INCLUDE_CREEP` | Warning | More than 4 files in the always-include list |
 | `BUDGET_EXCEEDED` | Warning | Active chunk's files exceed the context token budget |
 | `PROMPT_MISSING` | Warning | `NEXT_PROMPT.md` does not exist |
-| `PROMPT_TOO_LONG` | Warning | `NEXT_PROMPT.md` exceeds the 15-line limit |
+| `PROMPT_TOO_LONG` | Warning | `NEXT_PROMPT.md` exceeds the line cap (`max_prompt_lines`, default 20) |
 | `ALL_TASKS_DONE` | Info | All chunk tasks are done — time to advance |
+| `FILE_INDEX_LARGE` | Info | More than 500 indexed files — consider `--max-files` or splitting chunks |
 | `SESSION_STALE` | Info | Session hasn't been updated in more than 7 days |
 
 **When to use:** Run `dev-sesssion health` any time something feels off, or as part of your CI
 pipeline to validate that the session structure is intact.
+
+---
+
+### `dev-sesssion verify`
+
+`health` asks whether your session files are internally consistent. `verify` asks a harder
+question: **are they true?** It reconciles what `SESSION_STATE.md` claims against what git
+actually recorded. A task marked done with no commit behind it, or a `last_worked_files` entry
+no diff ever touched, is state that has quietly drifted from reality — and every prompt
+generated from it inherits the drift.
+
+```bash
+dev-sesssion verify                     # reconcile against git
+dev-sesssion verify --lookback 40       # widen the window of commits treated as evidence
+dev-sesssion verify --json              # machine-readable output for CI
+```
+
+**What it checks:**
+
+| Code | Severity | What it means |
+|---|---|---|
+| `DONE_WITHOUT_EVIDENCE` | Error | Tasks are marked done, but nothing in the lookback window and nothing in the working tree supports them |
+| `UNBACKED_WORKED_FILE` | Warning | `last_worked_files` names files with no commit or working-tree change behind them |
+| `UNINDEXED_CHANGE` | Warning | You're modifying files that `FILE_INDEX.md` has never heard of |
+| `UNCOMMITTED_SESSION` | Info | `.session/` files have uncommitted changes — a teammate cloning now gets stale state |
+| `NOT_A_REPO` | Info | Not a git repository, so every history-backed check was skipped |
+
+`--lookback <n>` (default 20) sets how many commits count as "this session's" history. The
+command exits non-zero **only** on an error-severity finding, so it is safe to run in CI as a
+drift gate.
+
+Outside a git repository `verify` degrades to a single informational finding rather than
+failing — the tool still works fine without git; it just cannot check your homework.
+
+#### Replay scoring — measuring prompt quality
+
+`verify --replay` goes one step further: instead of checking your session state, it grades your
+**past prompts**.
+
+The idea is simple. Every commit that rewrote `NEXT_PROMPT.md` marks a session boundary. The
+prompt written at that boundary declares which files the next session should load. The commits
+that follow, up to the next boundary, show which files it actually touched. Comparing the two
+turns "was that a good prompt?" into a number.
+
+```bash
+dev-sesssion verify --replay              # summary across the last 10 boundaries
+dev-sesssion verify --replay --limit 25   # score more history
+dev-sesssion verify --replay --verbose    # per-boundary detail: what was missed, what went unused
+```
+
+```
+Replay over 8 session boundaries:
+  Recall     72%  (files the session needed that the prompt named)
+  Precision  55%  (files the prompt named that the session used)
+  Waste      45%  (declared context never touched)
+```
+
+| Metric | Formula | How to read it |
+|---|---|---|
+| **Recall** | hits ÷ files touched | The number that matters most. Every point below 100% is context the agent had to rediscover on its own — the exact failure the tool exists to prevent. Rising recall means your `FILE_INDEX.md` chunk tags are getting sharper. |
+| **Precision** | hits ÷ files declared | How much of what you loaded was actually needed. Low precision is cheap noise, not a correctness problem. |
+| **Waste** | unused ÷ declared, across all boundaries | The token cost of that noise. High waste with high recall means you're over-loading; trim the chunk or use `dev-sesssion trim`. |
+
+**Interpreting the pair.** Low recall is the alarm — fix it by tagging the missed files to the
+chunk. High waste with healthy recall is a tuning problem, not a bug: you're paying tokens for
+context that never gets read. Chasing precision to 100% is counter-productive; a little
+over-inclusion is much cheaper than an agent hunting for a file it was never told about.
+
+`--verbose` lists each boundary with its `missed` and `unused` files by name, which is how you
+find the specific files to add or drop.
+
+Scoring runs **entirely on local git history** — no API key, no model call, nothing sent
+anywhere. Files under `.session/`, `docs/`, and `CHANGELOG.md` are excluded from the maths, since
+bookkeeping churn is not the work being measured.
+
+> **Replay needs `NEXT_PROMPT.md` to be tracked by git.** It reads past prompts out of history,
+> so a gitignored prompt can never be scored. Both the personal and team `.gitignore` patches
+> written by `init` exclude it, so replay is unavailable by default — the command tells you so
+> rather than reporting a silent zero. To turn it on, remove `.session/NEXT_PROMPT.md` from
+> `.gitignore` and commit it; boundaries become scorable from that point forward.
+
+**When to use:** `verify` at the end of a session (or in CI) to catch state that has drifted
+from reality; `--replay` occasionally, to see whether your chunk tagging is actually improving.
 
 ---
 
@@ -510,13 +612,15 @@ rules or Cursor rules. You can also re-run after adding new rules to pick up add
 
 Think of an **adapter** like a power plug adapter when you travel abroad. The electricity (your session data) is the same — only the shape of the connector changes. Each AI tool has its own conventions for how it reads context, and adapters translate dev-sesssion's output into the right format.
 
-`dev-sesssion` includes three adapters, auto-detected from files in your project root:
+`dev-sesssion` includes four adapters, auto-detected from files in your project root. Detection is
+ordered — the first match wins — and falls back to a plain-text formatter when nothing matches:
 
 | Adapter | Detected by | Output file | What it does |
 |---|---|---|---|
 | **Claude Code** | `CLAUDE.md` or `.claude/` | `CLAUDE.md` | Uses `@file` mentions in NEXT_PROMPT; reads `.claude/MEMORY.md`; adds a session section to `CLAUDE.md` |
-| **Cursor** | `.cursorrules` or `.cursor/` | `.cursorrules` | Uses Cursor's `Ignore` directive for excluded files |
-| **opencode** | `AGENTS.md` or `.opencode/` | `AGENTS.md` | Uses opencode's `Exclude` directive; generates AGENTS.md-aware output |
+| **opencode** | `AGENTS.md` or `opencode.json` | `AGENTS.md` | Uses opencode's `Exclude` directive; generates AGENTS.md-aware output |
+| **Cursor** | `.cursor/` or `.cursor/rules` | `.cursorrules` | Uses Cursor's `Ignore` directive for excluded files |
+| **Windsurf** | `.windsurfrules` or `.windsurf/` | `.windsurfrules` | Same shape as Cursor — plain paths plus an `Ignore` directive |
 
 ### Auto-detection
 
@@ -526,7 +630,12 @@ When you run `dev-sesssion update` or `dev-sesssion advance`, the adapter is aut
 dev-sesssion update --adapter claude
 dev-sesssion update --adapter cursor
 dev-sesssion update --adapter opencode
+dev-sesssion update --adapter windsurf
 ```
+
+Programmatic consumers can add their own adapter with `registerAdapter()` from
+`@dev-session/adapters`; `--adapter` accepts its name too. See
+[authoring-adapters.md](authoring-adapters.md).
 
 ### Claude Code adapter deep-dive
 
@@ -588,6 +697,32 @@ dev-sesssion advance --dry-run
 
 Dry-run logs every file that would be written without touching the filesystem.
 
+### Changing the prompt line cap
+
+`NEXT_PROMPT.md` is capped at **20 lines** by default. To change it for a project, add
+`max_prompt_lines` to the `SESSION_STATE.md` frontmatter — any integer from **5 to 50**:
+
+```yaml
+---
+active_chunk: 3
+session_id: "chunk-3-billing"
+last_updated: "2026-04-07"
+max_prompt_lines: 12
+---
+```
+
+The cap is threaded through to the formatter, so the generated prompt is trimmed to fit rather
+than being rejected afterwards. It is written back to `SESSION_STATE.md` only when it differs
+from the default, so state files that never set it stay untouched.
+
+Lower it (10–15) to force yourself to lean harder on `FILE_INDEX.md`; raise it (30–50) for a
+large chunk whose task list genuinely needs the room. Out-of-range values are rejected when the
+state file is parsed.
+
+Every command that touches the prompt reads the same setting: `init`, `update`, and
+`advance` trim and validate against it, and both `dev-sesssion status` and
+`dev-sesssion health` warn against it rather than against the default.
+
 ### Scriptable JSON output
 
 Pipe `dev-sesssion status --json` into `jq` or other tools:
@@ -610,11 +745,16 @@ The full JSON schema:
   "last_updated": "2026-04-07",
   "tasks": { "total": 11, "done": 6, "in_progress": 2, "todo": 3, "percent_complete": 55 },
   "files": { "always_include": 2, "indexed": 54, "context": 8 },
-  "budget": { "total_tokens": 18400, "budget_cap": 80000, "over_budget": false, "accurate": false },
+  "budget": { "total_tokens": 3840, "budget_cap": 4000, "over_budget": false, "accurate": false },
   "warnings": [],
   "days_since_last_session": 0
 }
 ```
+
+`budget_cap` is the *bootstrap* budget (default 4,000 estimated tokens) — the cost of the
+generated context, not of the source files the AI loads afterwards. A `memory` object with
+session-log aggregates is included when `.session/CONTEXT_LOG.md` exists, and
+`days_since_last_session` is `null` if `last_updated` cannot be parsed.
 
 ### CI integration
 
@@ -692,9 +832,21 @@ Yes. The `init` wizard's scaffold path handles this case. It walks you through c
 
 ---
 
-**Q: My `NEXT_PROMPT.md` is longer than 15 lines. Does that break anything?**
+**Q: My `NEXT_PROMPT.md` is longer than 20 lines. Does that break anything?**
 
-Nothing breaks — but `dev-sesssion status` will warn you. The 15-line limit is a discipline enforcer: a prompt that grows beyond 15 lines usually means you're trying to cram too much context into the prompt itself rather than letting `FILE_INDEX.md` do the work. Run `dev-sesssion update` to regenerate a clean, compact prompt.
+It can't get that way from a generated prompt — the formatter trims to the cap and
+spends the last line on a `[N more lines trimmed — see .session/SESSION_STATE.md]`
+marker, and `NextPromptWriter.write()` validates before it persists, so output over
+the cap (or missing a required field) is refused rather than written. A *hand-edited*
+file that exceeds the cap is what gets flagged: both `dev-sesssion health` (`PROMPT_TOO_LONG`) and
+`dev-sesssion status` report it against your configured cap.
+
+Only non-empty lines count, so a trailing newline never pushes a prompt over.
+
+The limit is a discipline enforcer: a prompt that keeps hitting it usually means
+you're cramming context into the prompt itself rather than letting `FILE_INDEX.md`
+do the work. See [Changing the prompt line cap](#changing-the-prompt-line-cap) to
+adjust it.
 
 ---
 

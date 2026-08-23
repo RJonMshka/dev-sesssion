@@ -87,8 +87,97 @@ chunk, chunk + always-include files, the context budget, exclude patterns, and
 when present: emit full-source references for layer-2 files and summary
 references for layers 0–1; fall back to a flat load list when it is absent.
 
-Keep the output **≤ 15 lines and self-contained** — that is a protocol
-requirement (see PROTOCOL.md), not a style preference.
+Keep the output **within `context.maxPromptLines` (default 20) and
+self-contained** — that is a protocol requirement (see PROTOCOL.md), not a style
+preference.
+
+### The write-time contract
+
+`NextPromptWriter.write()` validates content **before** it persists it, so a
+formatter cannot put malformed output on disk. This applies to adapters
+registered through `registerAdapter()` exactly as it does to the built-ins —
+a third-party formatter is not trusted. `write()` throws `CliError` when the
+prompt:
+
+- is empty;
+- exceeds the line cap (non-empty lines only — a trailing newline is not counted); or
+- is missing `Project:`, `Active chunk:`, or a file-load line.
+
+So `generatePrompt` must emit, at minimum:
+
+```
+Project: <name>
+Active chunk: <id> — <title>
+Load: <references>
+```
+
+#### Your file-load line must carry a known prefix
+
+`validate()` recognises a file-load line by its prefix, and the accepted set is a
+single list, `FILE_LOAD_PREFIXES`. **Import the constant — never retype the
+string:**
+
+```typescript
+import { LOAD_PREFIX } from "@dev-session/core";
+
+lines.push(`${LOAD_PREFIX} ${this.formatFilesToLoad(allFiles)}`);
+```
+
+| Constant | Use it for |
+|---|---|
+| `LOAD_PREFIX` | Your flat load line — the right default |
+| `LEGACY_LOAD_PREFIX` | Legacy only; don't emit it in a new formatter |
+| `LOAD_FULL_PREFIX` | Layer-2 (full source) files, when honouring `resolvedLayers` |
+| `SUMMARIES_PREFIX` | Layer 0–1 files, when honouring `resolvedLayers` |
+
+(`FILE_LOAD_PREFIXES` holds all four, and `LAYER_SUFFIX_RE` matches the `·L<n>`
+marker the summary line appends. The literal values are in
+[API.md](API.md#file-load-line-prefixes) if you need to recognise one by eye.)
+
+Why import rather than hardcode: a literal in your formatter is a second source
+of truth for a string the validator also owns. That is not hypothetical — a
+formatter and a validator each carrying their own copy is precisely how this
+project once shipped prompts that its own `write()` refused, and that replay
+scoring could not parse. Import the constant and a future change to the wording
+reaches your adapter for free.
+
+Invent your own wording — `Context:`, `Files:`, `Read these:` — and `write()` will
+reject the prompt as malformed even though it looks fine. If you emit the layered
+section, build both lines with `formatLayeredContextLines`, which derives them
+from these constants and appends the `·L<n>` layer marker (`LAYER_SUFFIX_RE`) that
+`ReplayScorer` knows to strip:
+
+```typescript
+import { formatLayeredContextLines } from "@dev-session/core";
+
+for (const line of formatLayeredContextLines(resolvedLayers, (f) => `@${f}`, MAX_FILES)) {
+  lines.push(line);
+}
+```
+
+Hand-rolling those lines instead is how the emitter and the validator drift apart:
+a formatter that wrote its own `Load full:` line once produced prompts that
+`write()` refused and that replay scoring could not parse.
+
+All six prefix constants, `LAYER_SUFFIX_RE`, and `formatLayeredContextLines` are
+exported from `@dev-session/core`, so an out-of-tree adapter has everything it
+needs without copying a string.
+
+Honour the cap by trimming through the shared helper rather than slicing
+yourself — it is what leaves the truncation marker:
+
+```typescript
+import { DEFAULT_MAX_PROMPT_LINES, trimToMaxLines } from "@dev-session/core";
+
+const trimmed = trimToMaxLines(lines, context.maxPromptLines ?? DEFAULT_MAX_PROMPT_LINES);
+return `${trimmed.join("\n")}\n`;
+```
+
+When lines are dropped, `trimToMaxLines` spends the last slot on
+`[N more lines trimmed — see .session/SESSION_STATE.md]` so the next session is
+told its bootstrap is incomplete instead of reading one that merely looks whole.
+Order your sections so the least critical lines (notes, excludes) come last —
+those are what a trim removes first.
 
 ---
 
@@ -175,6 +264,8 @@ complete example to copy.
 - [ ] `DetectedTool` enum + Zod schema updated
 - [ ] `ProjectDetector` recognizes the markers
 - [ ] `BootstrapFormatter` implemented (honours `resolvedLayers`)
+- [ ] `generatePrompt` emits `Project:`, `Active chunk:`, and a `Load:` line, and trims via `trimToMaxLines(lines, context.maxPromptLines ?? DEFAULT_MAX_PROMPT_LINES)`
+- [ ] Output round-trips through `NextPromptWriter.write()` without throwing
 - [ ] Adapter object with `config` (+ hooks as needed)
 - [ ] Hooks use injected `readFile`/`writeFile` only; idempotent section markers
 - [ ] Registered (built-in: `BUILTIN_ADAPTERS` + export; custom: `registerAdapter()`)
