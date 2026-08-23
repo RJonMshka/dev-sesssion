@@ -85,6 +85,7 @@ export {
 	LEGACY_LOAD_PREFIX,
 	LOAD_FULL_PREFIX,
 	LOAD_PREFIX,
+	mergeContextFiles,
 	SUMMARIES_PREFIX,
 	trimToMaxLines,
 } from "./formatters/formatter-utils.js";

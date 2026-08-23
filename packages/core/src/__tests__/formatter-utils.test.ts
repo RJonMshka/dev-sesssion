@@ -7,6 +7,7 @@ import {
 	formatCompletedChunksSummary,
 	formatLayeredContextLines,
 	getPendingTasks,
+	mergeContextFiles,
 	trimToMaxLines,
 } from "../formatters/formatter-utils.js";
 import type { ContextBudget, ContextBudgetBreakdown } from "../schemas/context-budget.js";
@@ -275,5 +276,43 @@ describe("formatLayeredContextLines", () => {
 	it("falls back to an empty Load line when given no files", () => {
 		const lines = formatLayeredContextLines([], (f) => f, 6);
 		expect(lines).toEqual(["Load: (none)"]);
+	});
+});
+
+describe("mergeContextFiles", () => {
+	const entry = (filepath: string, chunk_tags: number[]) => ({
+		filepath,
+		chunk_tags,
+		purpose: "p",
+		token_cost: 10,
+	});
+
+	it("drops a file tagged both always-include and chunk", () => {
+		const shared = entry("CLAUDE.md", [0, 4]);
+		const merged = mergeContextFiles([shared], [shared, entry("src/a.ts", [4])]);
+		expect(merged.map((e) => e.filepath)).toEqual(["CLAUDE.md", "src/a.ts"]);
+	});
+
+	it("keeps always-include entries first", () => {
+		const merged = mergeContextFiles(
+			[entry("CLAUDE.md", [0])],
+			[entry("src/a.ts", [4]), entry("src/b.ts", [4])],
+		);
+		expect(merged.map((e) => e.filepath)).toEqual(["CLAUDE.md", "src/a.ts", "src/b.ts"]);
+	});
+
+	it("keeps the always-include copy when both lists hold the same path", () => {
+		const always = entry("CLAUDE.md", [0]);
+		const chunk = entry("CLAUDE.md", [4]);
+		expect(mergeContextFiles([always], [chunk])).toEqual([always]);
+	});
+
+	it("dedupes repeats within a single list", () => {
+		const dupe = entry("src/a.ts", [4]);
+		expect(mergeContextFiles([], [dupe, dupe])).toHaveLength(1);
+	});
+
+	it("returns an empty list when both inputs are empty", () => {
+		expect(mergeContextFiles([], [])).toEqual([]);
 	});
 });

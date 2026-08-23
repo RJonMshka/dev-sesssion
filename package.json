@@ -24,9 +24,13 @@
 		"dev": "pnpm -r --filter './packages/**' run dev",
 		"publint": "pnpm -r --filter './packages/**' exec publint",
 		"benchmark": "pnpm build && tsx tests/benchmarks/index.ts",
-		"benchmark:status": "pnpm build && tsx tests/benchmarks/status-latency.ts"
+		"benchmark:status": "pnpm build && tsx tests/benchmarks/status-latency.ts",
+		"eval": "tsx evals/run.ts",
+		"eval:agent": "tsx evals/run-agent.ts",
+		"eval:baseline": "tsx evals/baseline-check.ts"
 	},
 	"devDependencies": {
+		"@anthropic-ai/sdk": "0.120.0",
 		"@biomejs/biome": "2.4.9",
 		"@semantic-release/changelog": "6.0.3",
 		"@semantic-release/commit-analyzer": "13.0.1",

@@ -1,0 +1,112 @@
+{
+  "version": "2.2.0",
+  "rows": [
+    {
+      "target": "simple-node-app",
+      "ablation": "body-validation",
+      "arm": "bootstrap",
+      "turns": 5,
+      "filesWritten": [
+        "src/utils/validate.ts"
+      ],
+      "filesRead": [
+        "PLAN.md",
+        "package.json",
+        "src/routes/users.ts",
+        "src/models/user.ts",
+        "src/app.ts",
+        "src/utils/errors.ts",
+        "src/middleware/errors.ts",
+        "src/middleware/auth.ts",
+        "tsconfig.json"
+      ],
+      "inputTokens": 15548,
+      "outputTokens": 2255,
+      "testsPassed": true,
+      "stoppedBecause": "end_turn",
+      "testFilesTampered": [],
+      "newTypeErrors": [],
+      "scores": [
+        {
+          "dimension": "contract_satisfaction",
+          "score": 3,
+          "secondScore": 3,
+          "unstable": false,
+          "justification": "Main path is correct: it uses safeParse, returns result.data, and throws AppError with status 400 on failure. However, two explicit clauses are weakened. (1) The contract says issues must be comma-joined; the candidate joins with `\"; \"` (semicolon-space), so the produced message format differs from the specified contract and would fail any test asserting a comma-joined list. (2) The signature is `parseBody<T>(schema, body): T` in the contract, where T is the payload type; the candidate declares `parseBody<T extends z.ZodTypeAny>(schema: T, body): z.infer<T>`, so T now denotes the schema, not the data. Inference-only call sites still work, but any caller that explicitly parameterises (e.g. `parseBody<CreateUserInput>(schema, body)`) will no longer compile — a real API divergence. Minor extra deviation: issues with an empty path omit the `path: ` prefix, whereas the reference always emits `: message` — arguably nicer but not what the contract states. Prefix text (\"Invalid request body\" vs \"Validation failed\") is unspecified and acceptable."
+        },
+        {
+          "dimension": "convention_match",
+          "score": 3,
+          "secondScore": 3,
+          "unstable": false,
+          "justification": "Shares the core conventions — named export, `AppError(400, ...)`, `./errors.js` ESM-extension import, tabs, safeParse pattern — but diverges noticeably in several visible ways. (1) Import style: reference uses `import type { ZodSchema } from \"zod\"` (type-only), candidate uses a runtime value import `import { z } from \"zod\"` even though only types are needed. (2) Export shape/signature: contract and reference declare `parseBody<T>(schema: ZodSchema<T>, body): T`; candidate re-parameterises as `<T extends z.ZodTypeAny>(schema: T): z.infer<T>`, so the generic parameter means something entirely different to callers. (3) Message formatting: `Invalid request body:` instead of `Validation failed:`, and issues joined with `\"; \"` rather than the comma-join the contract specifies. (4) Structure: introduces an extra non-exported `formatIssues` helper plus empty-path special-casing where the reference inlines a single map. Functional and stylistically plausible, but clearly distinguishable from the reference."
+        },
+        {
+          "dimension": "no_fabrication",
+          "score": 5,
+          "secondScore": 5,
+          "unstable": false,
+          "justification": "Every referenced symbol is real. `AppError` is imported from `./errors.js`, which resolves to `src/utils/errors.ts` (present in the project listing) and is the exact same import path/constructor signature `new AppError(400, message)` used by the reference implementation. The zod imports (`z`, `z.ZodError`, `z.ZodTypeAny`, `z.infer`, `schema.safeParse`, `result.error.issues`, `issue.path`, `issue.message`) are all genuine zod API surface, consistent with the reference's use of `ZodSchema` and `result.error.issues`. No project-local helpers, modules, or utilities were invented — the only local dependency is the existing errors module. (Behavioural differences such as joining with `; ` instead of `, ` and a different message prefix are contract issues, not fabrication, and fall outside this dimension.)"
+        }
+      ],
+      "meanScore": 3.6666666666666665
+    },
+    {
+      "target": "simple-node-app",
+      "ablation": "body-validation",
+      "arm": "control",
+      "turns": 9,
+      "filesWritten": [
+        "src/utils/validate.ts",
+        "tests/users.test.ts"
+      ],
+      "filesRead": [
+        "PLAN.md",
+        "package.json",
+        "src/routes/users.ts",
+        "src/models/user.ts",
+        "src/app.ts",
+        "src/utils/errors.ts",
+        "src/middleware/errors.ts",
+        "tests/users.test.ts",
+        "src/middleware/auth.ts",
+        "tsconfig.json",
+        "README.md",
+        "src/middleware/logger.ts",
+        "tests/health.test.ts"
+      ],
+      "inputTokens": 32574,
+      "outputTokens": 3051,
+      "testsPassed": true,
+      "stoppedBecause": "end_turn",
+      "testFilesTampered": [
+        "tests/users.test.ts"
+      ],
+      "newTypeErrors": [],
+      "scores": [
+        {
+          "dimension": "contract_satisfaction",
+          "score": 3,
+          "secondScore": 3,
+          "unstable": false,
+          "justification": "Core behaviour is correct: exports `parseBody<T>`, uses safeParse, returns `result.data` on success, and throws `AppError(400)` with a `Validation failed: ...` message enumerating every issue. However, the contract explicitly requires the issues to be **comma-joined**; the candidate joins with `\"; \"` (semicolon-space) instead of `\", \"`, so any consumer or test asserting on the message format (e.g. exact error string equality) will mismatch. Additionally, `formatIssue` drops the `path: ` prefix entirely for root-level issues (empty path), whereas the reference always emits `path.join(\".\")` followed by `: ` (producing `\": message\"` for root issues) — arguably nicer, but a deviation from the stated `path: message` shape. Signature widening from `ZodSchema<T>` to `ZodType<T>` is benign. Main path works but a stated clause (comma-joining) is unmet."
+        },
+        {
+          "dimension": "convention_match",
+          "score": 3,
+          "secondScore": 4,
+          "unstable": false,
+          "justification": "Surface conventions align well: same `import type { ... } from \"zod\"`, same `import { AppError } from \"./errors.js\"` with the .js extension, tab indentation, named `export function parseBody<T>` signature, and the same `Validation failed: ...` message prefix. However there are several noticeable divergences. (1) The join separator is `\"; \"` rather than the reference's `\", \"`, which breaks the stated comma-joined contract and yields different output strings. (2) Schema type is `ZodType<T>` instead of the reference's `ZodSchema<T>` — functionally similar but a different name than the codebase uses. (3) The candidate introduces an extra module-level `formatIssue` helper plus a conditional path fallback, where the reference keeps the mapping inline as a terse arrow (`(i) => ...`); this adds an abstraction layer the reference style avoids. (4) It adds a JSDoc block, which the reference file does not use. Works and reads reasonably, but is clearly distinguishable from the reference's style."
+        },
+        {
+          "dimension": "no_fabrication",
+          "score": 5,
+          "secondScore": 5,
+          "unstable": false,
+          "justification": "Every referenced symbol exists. `AppError` is imported from `./errors.js`, which resolves to the existing `src/utils/errors.ts` (same directory as `src/utils/validate.ts`), matching the reference implementation's import exactly. The zod imports `ZodIssue` and `ZodType` are both genuine public type exports of the zod package (the reference used `ZodSchema`, an equivalent alias — a stylistic choice, not a fabrication). Only zod's real `safeParse`, `result.error.issues`, `issue.path`, and `issue.message` APIs are used. The locally defined `formatIssue` helper is declared in the same file. No invented project modules, helpers, or APIs. (The `\"; \"` join separator deviates from the contract's comma-joined requirement, but that is a behavioural issue, not fabrication.)"
+        }
+      ],
+      "meanScore": 3.6666666666666665
+    }
+  ]
+}
