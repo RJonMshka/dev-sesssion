@@ -17,6 +17,7 @@ import type {
 	SessionState,
 	TransformStateContext,
 } from "@dev-session/core";
+import { DEFAULT_MAX_PROMPT_LINES } from "@dev-session/core";
 import { OpencodeBootstrapFormatter } from "./opencode-bootstrap-formatter.js";
 
 // ---------------------------------------------------------------------------
@@ -62,7 +63,7 @@ function generateSessionSection(_projectName: string, sessionDir: string): strin
 		"",
 		`**Start:** Read \`${sessionDir}/SESSION_STATE.md\` to find the active chunk, then load only the files tagged to that chunk in \`FILE_INDEX.md\`. Confirm before writing code.`,
 		"",
-		`**End:** Update \`SESSION_STATE.md\` (mark tasks done), update \`FILE_INDEX.md\` (add new files), rewrite \`NEXT_PROMPT.md\` (max 15 lines). See \`${sessionDir}/ROUTINES.md\` for the full routine.`,
+		`**End:** Update \`SESSION_STATE.md\` (mark tasks done), update \`FILE_INDEX.md\` (add new files), rewrite \`NEXT_PROMPT.md\` (max ${String(DEFAULT_MAX_PROMPT_LINES)} lines by default). See \`${sessionDir}/ROUTINES.md\` for the full routine.`,
 		"",
 		`Exclude: ${sessionDir}/DONE_LOG.md, ${sessionDir}/PLAN_*.md (except active chunk)`,
 		"",
