@@ -1,13 +1,41 @@
 import { z } from "zod";
 
-/** Maximum number of lines allowed in NEXT_PROMPT.md. */
+/**
+ * Default maximum number of lines allowed in NEXT_PROMPT.md.
+ *
+ * Projects may override this via `max_prompt_lines` in SESSION_STATE.md
+ * frontmatter; this is the value used when none is configured.
+ */
 export const MAX_PROMPT_LINES = 20;
+
+/** Lowest configurable value for `max_prompt_lines`. */
+export const MIN_CONFIGURABLE_PROMPT_LINES = 5;
+
+/** Highest configurable value for `max_prompt_lines`. */
+export const MAX_CONFIGURABLE_PROMPT_LINES = 50;
+
+/**
+ * Counts the lines in a NEXT_PROMPT.md body.
+ *
+ * This is the single definition of "a prompt line" — blank lines are not
+ * counted, so a trailing newline never inflates the total. Every consumer
+ * (validation, health checks, trimming) must use this rather than a raw
+ * `split("\n").length`, which counts the trailing newline as a line and
+ * false-positives on a prompt sitting exactly at the cap.
+ *
+ * @param content - The raw NEXT_PROMPT.md content string.
+ * @returns The number of non-empty lines.
+ */
+export function countPromptLines(content: string): number {
+	return content.split("\n").filter((line) => line.length > 0).length;
+}
 
 /**
  * Zod schema for the content of NEXT_PROMPT.md.
  *
  * The next prompt is a self-contained bootstrap for the next AI session.
- * It must be concise (<=15 lines) and include everything needed to resume.
+ * It must be concise (<= {@link MAX_PROMPT_LINES} lines) and include
+ * everything needed to resume.
  */
 export const NextPromptSchema = z
 	.object({

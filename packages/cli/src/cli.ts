@@ -25,6 +25,7 @@ import { registerPromptCommand } from "./commands/prompt.js";
 import { registerStatusCommand } from "./commands/status.js";
 import { registerTrimCommand } from "./commands/trim.js";
 import { registerUpdateCommand } from "./commands/update.js";
+import { registerVerifyCommand } from "./commands/verify.js";
 import { readVersion } from "./read-version.js";
 import { handleError } from "./utils/error-handler.js";
 import { installSignalHandlers } from "./utils/signal-handler.js";
@@ -64,6 +65,7 @@ export function createProgram(): Command {
 	registerPromptCommand(program);
 	registerIndexCommand(program);
 	registerHealthCommand(program);
+	registerVerifyCommand(program);
 	registerImportCommand(program);
 	registerExportCommand(program);
 	registerPreviewCommand(program);

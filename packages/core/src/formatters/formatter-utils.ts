@@ -93,18 +93,63 @@ export function getPendingTasks(chunk: PlanChunk): readonly Task[] {
 	return chunk.tasks.filter((t) => t.status === "todo" || t.status === "in-progress");
 }
 
+/** Prefix introducing the flat file-load line. */
+export const LOAD_PREFIX = "Load:";
+
+/** Legacy file-load prefix, still accepted when validating older prompts. */
+export const LEGACY_LOAD_PREFIX = "Files to load:";
+
+/** Prefix introducing the layered full-source line. */
+export const LOAD_FULL_PREFIX = "Load full:";
+
+/** Prefix introducing the layered summary-only line. */
+export const SUMMARIES_PREFIX = "Summaries (read_file_layer for detail):";
+
+/**
+ * Every prefix that can introduce file references in a generated prompt.
+ *
+ * Single source of truth, deliberately: the formatter that writes these lines,
+ * the validator that accepts them, and the replay scorer that reads them back
+ * each used to carry a private copy, and a prompt could be emitted in a shape
+ * its own validator rejected. Anything that emits or parses a file-load line
+ * must derive from this list. Ordered most-specific first so a prefix search
+ * cannot match a shorter entry by accident.
+ */
+export const FILE_LOAD_PREFIXES: readonly string[] = [
+	LEGACY_LOAD_PREFIX,
+	LOAD_FULL_PREFIX,
+	SUMMARIES_PREFIX,
+	LOAD_PREFIX,
+];
+
+/**
+ * Suffix the layered summary line appends to each path (e.g. `·L1`).
+ */
+export const LAYER_SUFFIX_RE = /\u00b7L\d+$/;
+
 /**
  * Trims a lines array to the maximum allowed line count.
  *
+ * Truncation is never silent: when lines are dropped, the final slot is spent
+ * on a marker naming the count. The next session is told its bootstrap is
+ * incomplete rather than reading a prompt that merely looks whole.
+ *
  * @param lines - The full set of prompt lines.
  * @param maxLines - Maximum number of lines to keep.
- * @returns Lines trimmed to the specified cap.
+ * @returns Lines trimmed to the specified cap, ending with a truncation marker
+ *   when anything was dropped.
  */
 export function trimToMaxLines(lines: readonly string[], maxLines: number): readonly string[] {
 	if (lines.length <= maxLines) {
 		return lines;
 	}
-	return lines.slice(0, maxLines);
+	if (maxLines <= 0) {
+		return [];
+	}
+
+	const kept = lines.slice(0, maxLines - 1);
+	const dropped = lines.length - kept.length;
+	return [...kept, `[${String(dropped)} more lines trimmed — see .session/SESSION_STATE.md]`];
 }
 
 /**
@@ -128,8 +173,9 @@ function capRefList(refs: readonly string[], maxFiles: number): string {
  * Builds the layered "Load" section lines from resolved per-file layers.
  *
  * Files escalated to layer 2 (full source, referenced by an active task) are
- * listed on a `Load full:` line; the remaining summary-only files (layers 0–1)
- * are listed on a `Summaries:` line annotated with their layer. The `ref`
+ * listed on a {@link LOAD_FULL_PREFIX} line; the remaining summary-only files
+ * (layers 0–1) are listed on a {@link SUMMARIES_PREFIX} line annotated with
+ * their layer. The `ref`
  * callback applies the formatter's native file-reference syntax (e.g. an
  * `@`-mention for Claude Code).
  *
@@ -155,13 +201,13 @@ export function formatLayeredContextLines(
 
 	const lines: string[] = [];
 	if (full.length > 0) {
-		lines.push(`Load full: ${capRefList(full, maxFiles)}`);
+		lines.push(`${LOAD_FULL_PREFIX} ${capRefList(full, maxFiles)}`);
 	}
 	if (summary.length > 0) {
-		lines.push(`Summaries (read_file_layer for detail): ${capRefList(summary, maxFiles)}`);
+		lines.push(`${SUMMARIES_PREFIX} ${capRefList(summary, maxFiles)}`);
 	}
 	if (lines.length === 0) {
-		lines.push("Load: (none)");
+		lines.push(`${LOAD_PREFIX} (none)`);
 	}
 	return lines;
 }

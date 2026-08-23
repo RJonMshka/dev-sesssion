@@ -9,9 +9,14 @@
  *
  * Requires `ANTHROPIC_API_KEY` environment variable.
  *
+ * File content is scanned for secrets before it leaves the machine — this is
+ * the only command in the tool that performs network egress, so the scan
+ * happens here rather than relying on `WriteGuard`, which only covers writes.
+ *
  * Options:
  * - `--dry-run` — print compacted version to stdout without writing
  * - `--model <id>` — override default model (default: claude-haiku-4-5-20251001)
+ * - `--allow-secrets` — send the file even if the secret scan flags it
  *
  * @module
  */
@@ -20,7 +25,13 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { confirm, isCancel, log } from "@clack/prompts";
 import { FileIndexManager, TokenCounter } from "@dev-session/core";
-import { AtomicWriter, CliError, PathValidator, type ValidatedPath } from "@dev-session/security";
+import {
+	AtomicWriter,
+	CliError,
+	PathValidator,
+	SecretScanner,
+	type ValidatedPath,
+} from "@dev-session/security";
 import type { Command } from "commander";
 import { handleError } from "../utils/error-handler.js";
 
@@ -59,6 +70,8 @@ export interface CompactOptions {
 	readonly yes: boolean;
 	/** Show verbose output. */
 	readonly verbose: boolean;
+	/** Send the file to the API even if the pre-flight secret scan flags it. */
+	readonly allowSecrets: boolean;
 }
 
 /** Result of a compact run. */
@@ -104,6 +117,45 @@ function createBackup(sessionDir: ValidatedPath, filepath: string, content: stri
 
 	AtomicWriter.writeFile(backupPath, content);
 	return backupPath;
+}
+
+/**
+ * Scans content for secrets before it is sent to the Anthropic API.
+ *
+ * `WriteGuard` protects content on the way to disk; nothing protected content
+ * on the way out over the network. This closes that gap: a flagged file is
+ * refused rather than uploaded, and the caller must pass `--allow-secrets` to
+ * override. Only redacted matches are ever printed.
+ *
+ * @param content - The file content about to be sent.
+ * @param relativePath - Project-relative path, for the error message.
+ * @param allowSecrets - When `true`, warn instead of refusing.
+ * @throws {CliError} If secrets are detected and `allowSecrets` is `false`.
+ */
+function guardEgress(content: string, relativePath: string, allowSecrets: boolean): void {
+	const findings = SecretScanner.scan(content);
+	if (findings.length === 0) {
+		return;
+	}
+
+	const detail = findings
+		.map((f) => `  line ${String(f.line)}: ${f.pattern} (${f.redacted})`)
+		.join("\n");
+
+	if (allowSecrets) {
+		log.warn(
+			`Sending ${String(findings.length)} possible secret(s) to the API (--allow-secrets):\n${detail}`,
+		);
+		return;
+	}
+
+	throw new CliError({
+		message:
+			`Refusing to send "${relativePath}" to the Anthropic API — ` +
+			`${String(findings.length)} possible secret(s) detected:\n${detail}`,
+		suggestion:
+			"Remove the secrets from the file, or re-run with --allow-secrets if these are false positives.",
+	});
 }
 
 /**
@@ -208,6 +260,8 @@ export async function runCompact(
 			message: "File is empty — nothing to compact",
 		});
 	}
+
+	guardEgress(originalContent, relativePath, options.allowSecrets);
 
 	const counter = TokenCounter.create();
 	const tokensBefore = (await counter.countString(originalContent)).tokens;
@@ -354,7 +408,8 @@ export function registerCompactCommand(program: Command): void {
 		.command("compact <file>")
 		.description("AI-compact a context file to reduce its token count (requires ANTHROPIC_API_KEY)")
 		.option("--model <id>", `Model to use (default: ${DEFAULT_COMPACT_MODEL})`)
-		.action(async (file: string, cmdOptions: { model?: string }) => {
+		.option("--allow-secrets", "Send the file even if the pre-flight secret scan flags it", false)
+		.action(async (file: string, cmdOptions: { model?: string; allowSecrets?: boolean }) => {
 			const opts = program.opts<{
 				cwd: string;
 				yes: boolean;
@@ -367,6 +422,7 @@ export function registerCompactCommand(program: Command): void {
 				dryRun: opts.dryRun,
 				yes: opts.yes,
 				verbose: opts.verbose,
+				allowSecrets: cmdOptions.allowSecrets ?? false,
 				...(cmdOptions.model !== undefined ? { model: cmdOptions.model } : {}),
 			};
 

@@ -191,6 +191,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 		budget,
 		excludePatterns,
 		projectName,
+		maxPromptLines: state.max_prompt_lines,
 		...(aiIndex !== null ? { resolvedLayers } : {}),
 	};
 
@@ -208,7 +209,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 	}
 
 	// Step 7: Write regenerated prompt
-	NextPromptWriter.write(sessionDir, promptContent);
+	NextPromptWriter.write(sessionDir, promptContent, state.max_prompt_lines);
 
 	log.info(ContextBudgetCalculator.formatSummary(budget));
 

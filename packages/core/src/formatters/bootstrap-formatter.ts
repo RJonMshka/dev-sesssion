@@ -45,6 +45,12 @@ export interface BootstrapContext {
 	 * absent, formatters fall back to the flat `Load:` line.
 	 */
 	readonly resolvedLayers?: readonly ResolvedFileLayer[];
+	/**
+	 * Line cap for the generated prompt. Defaults to `DEFAULT_MAX_PROMPT_LINES`
+	 * when absent. Formatters must honor it — a prompt over the cap is refused
+	 * by `NextPromptWriter.write()`.
+	 */
+	readonly maxPromptLines?: number;
 }
 
 /**

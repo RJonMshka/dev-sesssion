@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ResolvedFileLayer } from "../calculators/layer-resolver.js";
 import {
+	FILE_LOAD_PREFIXES,
 	formatBudgetLine,
 	formatChunkProgress,
 	formatCompletedChunksSummary,
@@ -157,15 +158,73 @@ describe("getPendingTasks", () => {
 	});
 });
 
+describe("file-load prefix contract", () => {
+	it("emits only lines the prompt validator accepts", () => {
+		// The invariant that broke: the formatter emitted "Load full:" while the
+		// validator accepted only "Load:", so a prompt could be generated in a
+		// shape its own validator rejected. Every emitted file-load line must
+		// start with a prefix from the shared list.
+		const cases: Array<Array<{ filepath: string; layer: number }>> = [
+			[{ filepath: "src/a.ts", layer: 2 }],
+			[{ filepath: "src/b.ts", layer: 1 }],
+			[
+				{ filepath: "src/a.ts", layer: 2 },
+				{ filepath: "src/b.ts", layer: 0 },
+			],
+			[],
+		];
+
+		for (const resolved of cases) {
+			const lines = formatLayeredContextLines(
+				resolved as Parameters<typeof formatLayeredContextLines>[0],
+				(f) => f,
+				5,
+			);
+			for (const line of lines) {
+				expect(
+					FILE_LOAD_PREFIXES.some((p) => line.startsWith(p)),
+					`emitted line has no known prefix: ${line}`,
+				).toBe(true);
+			}
+		}
+	});
+
+	it("orders prefixes so a longer one is never shadowed by a shorter one", () => {
+		for (let i = 0; i < FILE_LOAD_PREFIXES.length; i++) {
+			for (let j = i + 1; j < FILE_LOAD_PREFIXES.length; j++) {
+				const earlier = FILE_LOAD_PREFIXES[i] ?? "";
+				const later = FILE_LOAD_PREFIXES[j] ?? "";
+				// A later entry must not be a prefix of an earlier one, or a
+				// most-specific-first search would match the wrong entry.
+				expect(earlier.startsWith(later) && earlier !== later).toBe(false);
+			}
+		}
+	});
+});
+
 describe("trimToMaxLines", () => {
 	it("returns all lines when under cap", () => {
 		const lines = ["a", "b", "c"];
 		expect(trimToMaxLines(lines, 5)).toEqual(["a", "b", "c"]);
 	});
 
-	it("trims to max when over cap", () => {
+	it("trims to max when over cap and marks what was dropped", () => {
 		const lines = ["a", "b", "c", "d", "e"];
-		expect(trimToMaxLines(lines, 3)).toEqual(["a", "b", "c"]);
+		const result = trimToMaxLines(lines, 3);
+		expect(result).toHaveLength(3);
+		expect(result.slice(0, 2)).toEqual(["a", "b"]);
+		expect(result[2]).toContain("3 more lines trimmed");
+	});
+
+	it("never exceeds the cap even when the marker is added", () => {
+		for (let cap = 1; cap <= 6; cap++) {
+			const lines = ["a", "b", "c", "d", "e", "f", "g", "h"];
+			expect(trimToMaxLines(lines, cap).length).toBeLessThanOrEqual(cap);
+		}
+	});
+
+	it("returns an empty array for a non-positive cap", () => {
+		expect(trimToMaxLines(["a", "b"], 0)).toEqual([]);
 	});
 
 	it("returns exact cap when equal", () => {

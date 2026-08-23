@@ -18,7 +18,7 @@ import { FILE_INDEX_PAGE_SIZE, FileIndexManager } from "../managers/file-index-m
 import { PlanChunkManager } from "../managers/plan-chunk-manager.js";
 import { SessionStateManager } from "../managers/session-state-manager.js";
 import type { FileIndexEntry, PlanChunk, SessionState } from "../schemas/index.js";
-import { MAX_PROMPT_LINES, TaskStatus } from "../schemas/index.js";
+import { countPromptLines, TaskStatus } from "../schemas/index.js";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -86,7 +86,7 @@ export interface HealthReport {
  * 4. Always-include entry count (≤ 4 recommended)
  * 5. Context budget (within cap)
  * 6. Active chunk task completion status
- * 7. NEXT_PROMPT.md line count (≤ MAX_PROMPT_LINES)
+ * 7. NEXT_PROMPT.md line count (≤ the session's configured cap)
  * 8. Session staleness (last_updated within 7 days)
  */
 export const HealthChecker = {
@@ -130,7 +130,7 @@ export const HealthChecker = {
 
 		// 7. NEXT_PROMPT.md
 		checksRun++;
-		const promptResult = checkPrompt(sessionDir);
+		const promptResult = checkPrompt(sessionDir, state.max_prompt_lines);
 		issues.push(...promptResult.issues);
 		promptLineCount = promptResult.lineCount;
 
@@ -323,9 +323,10 @@ interface PromptCheckResult {
  * Check NEXT_PROMPT.md for existence and line count.
  *
  * @param sessionDir - Path to .session/
+ * @param maxLines - The project's configured prompt line cap
  * @returns Issues and line count
  */
-function checkPrompt(sessionDir: string): PromptCheckResult {
+function checkPrompt(sessionDir: string, maxLines: number): PromptCheckResult {
 	const promptPath = path.join(sessionDir, "NEXT_PROMPT.md");
 	if (!fs.existsSync(promptPath)) {
 		return {
@@ -346,14 +347,14 @@ function checkPrompt(sessionDir: string): PromptCheckResult {
 		return { issues: [], lineCount: undefined };
 	}
 
-	const lineCount = content.split("\n").length;
-	if (lineCount > MAX_PROMPT_LINES) {
+	const lineCount = countPromptLines(content);
+	if (lineCount > maxLines) {
 		return {
 			issues: [
 				makeIssue(
 					HealthSeverity.WARNING,
 					"PROMPT_TOO_LONG",
-					`NEXT_PROMPT.md has ${String(lineCount)} lines (max ${String(MAX_PROMPT_LINES)}) — run \`dev-sesssion update\` to regenerate`,
+					`NEXT_PROMPT.md has ${String(lineCount)} lines (max ${String(maxLines)}) — run \`dev-sesssion update\` to regenerate`,
 					false,
 				),
 			],

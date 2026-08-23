@@ -8,7 +8,7 @@ import { PlainTextFormatter } from "../formatters/plain-text-formatter.js";
 import { NextPromptWriter } from "../managers/next-prompt-writer.js";
 import type { ContextBudget, ContextBudgetBreakdown } from "../schemas/context-budget.js";
 import type { FileIndexEntry, PlanChunk, SessionState } from "../schemas/index.js";
-import { MAX_PROMPT_LINES } from "../schemas/index.js";
+import { countPromptLines, MAX_PROMPT_LINES } from "../schemas/index.js";
 
 function makeTmpDir(): string {
 	return fs.mkdtempSync(path.join(import.meta.dirname ?? __dirname, ".tmp-"));
@@ -100,8 +100,10 @@ describe("NextPromptWriter", () => {
 	});
 
 	describe("write", () => {
+		const VALID_PROMPT = "Project: test\nActive chunk: 1\nLoad: src/index.ts\n";
+
 		it("writes content to NEXT_PROMPT.md", () => {
-			NextPromptWriter.write(tmpDir as ValidatedPath, "Project: test\nActive chunk: 1\n");
+			NextPromptWriter.write(tmpDir as ValidatedPath, VALID_PROMPT);
 			const content = fs.readFileSync(path.join(tmpDir, "NEXT_PROMPT.md"), "utf-8");
 			expect(content).toContain("Project: test");
 		});
@@ -109,6 +111,55 @@ describe("NextPromptWriter", () => {
 		it("throws CliError if content is empty", () => {
 			expect(() => NextPromptWriter.write(tmpDir as ValidatedPath, "")).toThrow(CliError);
 			expect(() => NextPromptWriter.write(tmpDir as ValidatedPath, "   ")).toThrow(CliError);
+		});
+
+		it("refuses to write a prompt missing required fields", () => {
+			expect(() =>
+				NextPromptWriter.write(tmpDir as ValidatedPath, "Project: test\nActive chunk: 1\n"),
+			).toThrow(CliError);
+			expect(fs.existsSync(path.join(tmpDir, "NEXT_PROMPT.md"))).toBe(false);
+		});
+
+		it("refuses to write a prompt over the line cap", () => {
+			const tooLong = `${VALID_PROMPT}${Array.from({ length: MAX_PROMPT_LINES }, (_, i) => `note ${String(i)}`).join("\n")}\n`;
+			expect(() => NextPromptWriter.write(tmpDir as ValidatedPath, tooLong)).toThrow(CliError);
+		});
+
+		it("accepts a prompt sitting exactly at the line cap", () => {
+			const filler = Array.from({ length: MAX_PROMPT_LINES - 3 }, (_, i) => `note ${String(i)}`);
+			const exact = `Project: test\nActive chunk: 1\nLoad: src/index.ts\n${filler.join("\n")}\n`;
+			expect(NextPromptWriter.validate(exact).lineCount).toBe(MAX_PROMPT_LINES);
+			expect(() => NextPromptWriter.write(tmpDir as ValidatedPath, exact)).not.toThrow();
+		});
+	});
+
+	describe("configurable line cap", () => {
+		it("enforces a lowered cap on write", () => {
+			const filler = Array.from({ length: 8 }, (_, i) => `note ${String(i)}`);
+			const prompt = `Project: test\nActive chunk: 1\nLoad: src/index.ts\n${filler.join("\n")}\n`;
+
+			expect(NextPromptWriter.validate(prompt).valid).toBe(true);
+			expect(NextPromptWriter.validate(prompt, 5).valid).toBe(false);
+			expect(() => NextPromptWriter.write(tmpDir as ValidatedPath, prompt, 5)).toThrow(CliError);
+		});
+
+		it("defaults to MAX_PROMPT_LINES when no cap is given", () => {
+			const filler = Array.from({ length: MAX_PROMPT_LINES }, (_, i) => `note ${String(i)}`);
+			const prompt = `Project: t\nActive chunk: 1\nLoad: a.ts\n${filler.join("\n")}\n`;
+			expect(NextPromptWriter.validate(prompt).errors.join(" ")).toContain(
+				String(MAX_PROMPT_LINES),
+			);
+		});
+	});
+
+	describe("countPromptLines", () => {
+		it("does not count a trailing newline as a line", () => {
+			expect(countPromptLines("a\nb\nc\n")).toBe(3);
+			expect(countPromptLines("a\nb\nc")).toBe(3);
+		});
+
+		it("ignores blank lines so validate and health agree", () => {
+			expect(countPromptLines("a\n\n\nb\n")).toBe(2);
 		});
 	});
 
@@ -204,6 +255,24 @@ describe("NextPromptWriter", () => {
 				projectName: "dev-sesssion",
 			};
 		}
+
+		it("writes layered formatter output without rejecting it", () => {
+			// The layered path emits "Load full:" / "Summaries (...):" instead of a
+			// flat "Load:" line. Validation must recognise those as file-load
+			// fields, or every project with an ai-index.yaml fails to write.
+			const ctx: BootstrapContext = {
+				...makeBootstrapContext(),
+				resolvedLayers: [
+					{ filepath: "src/full.ts", layer: 2, escalated: true, tokens: 100, fullTokens: 100 },
+					{ filepath: "src/summary.ts", layer: 1, escalated: false, tokens: 20, fullTokens: 80 },
+				] as BootstrapContext["resolvedLayers"],
+			};
+
+			const content = NextPromptWriter.generateWithFormatter(PlainTextFormatter, ctx);
+			expect(content).toContain("Load full:");
+			expect(NextPromptWriter.validate(content).valid).toBe(true);
+			expect(() => NextPromptWriter.write(tmpDir as ValidatedPath, content)).not.toThrow();
+		});
 
 		it("delegates to the provided formatter", () => {
 			const ctx = makeBootstrapContext();

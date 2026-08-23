@@ -75,15 +75,24 @@ export {
 	DEFAULT_MAX_NEXT_TASKS,
 	DEFAULT_MAX_NOTES,
 	DEFAULT_MAX_PROMPT_LINES,
+	FILE_LOAD_PREFIXES,
 	formatBudgetLine,
 	formatChunkProgress,
 	formatCompletedChunksSummary,
 	formatLayeredContextLines,
 	getPendingTasks,
+	LAYER_SUFFIX_RE,
+	LEGACY_LOAD_PREFIX,
+	LOAD_FULL_PREFIX,
+	LOAD_PREFIX,
+	SUMMARIES_PREFIX,
 	trimToMaxLines,
 } from "./formatters/formatter-utils.js";
 // Bootstrap formatters
 export { PlainTextFormatter } from "./formatters/plain-text-formatter.js";
+// Git-backed verification and replay scoring
+export type { GitCommit } from "./git/git-reader.js";
+export { GitReader } from "./git/git-reader.js";
 export type { LintResult } from "./linters/context-linter.js";
 // Linters
 export { ContextLinter } from "./linters/context-linter.js";
@@ -141,10 +150,13 @@ export {
 	ContextBudgetSummarySchema,
 	ContextLogEntrySchema,
 	ContextLogSchema,
+	countPromptLines,
 	DEFAULT_CONTEXT_BUDGET,
 	DetectedTool,
 	FileIndexEntrySchema,
+	MAX_CONFIGURABLE_PROMPT_LINES,
 	MAX_PROMPT_LINES,
+	MIN_CONFIGURABLE_PROMPT_LINES,
 	NextPromptSchema,
 	PlanChunkSchema,
 	ProjectInfoSchema,
@@ -156,5 +168,17 @@ export {
 } from "./schemas/index.js";
 export type { TrimOverrideEntry, TrimOverrides } from "./schemas/trim-overrides.js";
 export { TRIM_OVERRIDES_FILENAME, TrimOverridesSchema } from "./schemas/trim-overrides.js";
+export type {
+	ReplayReport,
+	ReplayScore,
+} from "./verifiers/replay-scorer.js";
+export { extractDeclaredFiles, ReplayScorer } from "./verifiers/replay-scorer.js";
+export type {
+	VerifyFinding,
+	VerifyInput,
+	VerifyReport,
+	VerifySeverityValue,
+} from "./verifiers/session-verifier.js";
+export { SessionVerifier, VerifySeverity } from "./verifiers/session-verifier.js";
 // Walkers
 export { GitignoreAwareWalker } from "./walkers/gitignore-aware-walker.js";

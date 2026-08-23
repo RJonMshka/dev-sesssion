@@ -1,5 +1,10 @@
 import { z } from "zod";
 
+import {
+	MAX_CONFIGURABLE_PROMPT_LINES,
+	MAX_PROMPT_LINES,
+	MIN_CONFIGURABLE_PROMPT_LINES,
+} from "./next-prompt.js";
 import { TaskSchema } from "./task.js";
 
 /**
@@ -24,6 +29,19 @@ export const SessionStateSchema = z
 		notes: z.array(z.string()).default([]),
 		/** Map of completed chunk IDs to completion dates. */
 		completed_chunks: z.record(z.string(), z.string()).default({}),
+		/**
+		 * Maximum lines allowed in the generated NEXT_PROMPT.md.
+		 *
+		 * Omit to accept the {@link MAX_PROMPT_LINES} default. Lowering it
+		 * tightens the discipline the prompt enforces; the bounds keep a
+		 * bootstrap prompt both usable and genuinely compact.
+		 */
+		max_prompt_lines: z
+			.number()
+			.int()
+			.min(MIN_CONFIGURABLE_PROMPT_LINES)
+			.max(MAX_CONFIGURABLE_PROMPT_LINES)
+			.default(MAX_PROMPT_LINES),
 	})
 	.strict();
 

@@ -42,6 +42,11 @@ Adds personal session files to `.gitignore`:
 
 These files are generated locally on each developer's machine. They are never committed.
 
+This is one entry shorter than the personal-mode patch, which also ignores
+`.session/ai-index.yaml`. In team mode the extracted symbol index is treated as
+shared project structure and committed, so every developer's session starts from
+the same layered context instead of re-extracting it.
+
 ### 2. Patches `.gitattributes`
 
 Adds a merge strategy for the shared file index:
@@ -68,6 +73,7 @@ In team mode, the `.gitignore` patch is applied automatically (no confirmation p
 | `.session/ROUTINES.md` | Yes | Shared session checklist |
 | `.session/SESSION_STATE.md` | No | Per-developer task state |
 | `.session/NEXT_PROMPT.md` | No | Per-developer generated prompt |
+| `.session/ai-index.yaml` | Yes | Shared symbol index (gitignored in personal mode) |
 | `.session/DONE_LOG.md` | No | Per-developer archive |
 
 ---
@@ -104,12 +110,50 @@ In team mode, the `.gitignore` patch is applied automatically (no confirmation p
 
 ---
 
-## Monorepo teams
+## Measuring prompt quality across the team
 
-For monorepos with multiple packages, use `dev-sesssion migrate` to set up team mode in each package:
+`dev-sesssion verify --replay` scores past bootstrap prompts against the commits
+that followed them — recall (files the session needed that the prompt named),
+precision, and waste. It reads those prompts **out of git history**, which means
+it only works where `.session/NEXT_PROMPT.md` is tracked.
+
+Team mode does *not* enable this on its own: the team `.gitignore` patch still
+excludes `NEXT_PROMPT.md`, on the reasoning that the prompt is per-developer
+output. If your team wants replay scoring, make it a deliberate opt-in:
+
+1. Remove `.session/NEXT_PROMPT.md` from `.gitignore`.
+2. Add a merge strategy for it, since every developer rewrites it:
+   ```gitattributes
+   .session/NEXT_PROMPT.md merge=ours
+   ```
+3. Commit the prompt alongside the shared plan whenever a chunk advances.
 
 ```bash
-dev-sesssion migrate --team
+dev-sesssion verify --replay --verbose
 ```
 
-Each package gets its own `.session/` with its own plan and file index. Personal state files are kept out of git per-package.
+From then on, every commit that rewrites the prompt becomes a scorable session
+boundary, and the team gets a trend line on whether its `FILE_INDEX.md` chunk
+tagging is actually improving. Until then the command reports why scoring is
+unavailable rather than showing a misleading zero.
+
+The trade-off is real: a committed `NEXT_PROMPT.md` churns on every session and
+will show up in diffs. Teams that care more about a quiet history than about the
+metric should leave it ignored.
+
+---
+
+## Monorepo teams
+
+For monorepos with multiple packages, use `dev-sesssion migrate` to initialize each package:
+
+```bash
+dev-sesssion migrate
+```
+
+Each package gets its own `.session/` with its own plan and file index.
+
+`migrate` has no `--team` flag — it initializes packages in personal mode. To put
+a monorepo on team mode, run `dev-sesssion init --team` inside each package you
+want shared, or add the `.gitignore` / `.gitattributes` entries above by hand and
+commit them once at the repo root.

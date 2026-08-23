@@ -15,13 +15,18 @@ import * as path from "node:path";
 import type { ValidatedPath } from "@dev-session/security";
 import { AtomicWriter, CliError } from "@dev-session/security";
 import type { BootstrapContext, BootstrapFormatter } from "../formatters/bootstrap-formatter.js";
+import {
+	FILE_LOAD_PREFIXES,
+	LEGACY_LOAD_PREFIX,
+	trimToMaxLines as trimLines,
+} from "../formatters/formatter-utils.js";
 import type {
 	FileIndexEntry,
 	PlanChunk,
 	SessionState,
 	ValidationResult,
 } from "../schemas/index.js";
-import { MAX_PROMPT_LINES } from "../schemas/index.js";
+import { countPromptLines, MAX_PROMPT_LINES } from "../schemas/index.js";
 
 /** Maximum number of file paths to include in the "Files to load" line. */
 const MAX_FILES_TO_SHOW = 5;
@@ -35,12 +40,9 @@ const NEXT_PROMPT_FILENAME = "NEXT_PROMPT.md";
 /**
  * Required field prefixes that must appear in a valid next prompt.
  *
- * Validation accepts both legacy ("Files to load:") and new ("Load:") field names.
+ * File-load lines are validated separately against {@link FILE_LOAD_PREFIXES}.
  */
 const REQUIRED_FIELDS: readonly string[] = ["Project:", "Active chunk:"];
-
-/** Field prefixes for file loading — at least one must be present. */
-const FILE_LOAD_FIELDS: readonly string[] = ["Files to load:", "Load:"];
 
 /**
  * Extracts a project name from the session ID.
@@ -113,14 +115,14 @@ function buildNextLines(chunk: PlanChunk): readonly string[] {
 /**
  * Trims a prompt to the maximum allowed line count.
  *
+ * Delegates to the shared {@link trimLines} so the legacy generator and the
+ * formatter path truncate identically, marker included.
+ *
  * @param lines - The full set of prompt lines.
  * @returns Lines trimmed to {@link MAX_PROMPT_LINES}.
  */
 function trimToMaxLines(lines: readonly string[]): readonly string[] {
-	if (lines.length <= MAX_PROMPT_LINES) {
-		return lines;
-	}
-	return lines.slice(0, MAX_PROMPT_LINES);
+	return trimLines(lines, MAX_PROMPT_LINES);
 }
 
 /**
@@ -154,7 +156,7 @@ export const NextPromptWriter = {
 		const lines: string[] = [
 			`Project: ${projectName}`,
 			`Active chunk: ${chunkLabel}`,
-			`Files to load: ${filePaths}`,
+			`${LEGACY_LOAD_PREFIX} ${filePaths}`,
 			`Resume: ${resumeText}`,
 		];
 
@@ -194,15 +196,30 @@ export const NextPromptWriter = {
 	/**
 	 * Writes the generated prompt content to NEXT_PROMPT.md inside the session directory.
 	 *
+	 * Content is validated before it is persisted, so a malformed prompt can
+	 * never reach disk — including one produced by a third-party formatter
+	 * registered through `registerAdapter()`, which is otherwise untrusted.
+	 *
 	 * @param sessionDir - A validated path to the `.session/` directory.
 	 * @param content - The prompt content string to write.
-	 * @throws {CliError} If the content is empty.
+	 * @param maxLines - Line cap to enforce. Defaults to {@link MAX_PROMPT_LINES}.
+	 * @throws {CliError} If the content is empty or fails {@link validate}.
 	 */
-	write(sessionDir: ValidatedPath, content: string): void {
+	write(sessionDir: ValidatedPath, content: string, maxLines: number = MAX_PROMPT_LINES): void {
 		if (content.trim().length === 0) {
 			throw new CliError({
 				message: "Cannot write empty NEXT_PROMPT.md",
 				suggestion: "Generate content with NextPromptWriter.generate() first",
+			});
+		}
+
+		const validation = this.validate(content, maxLines);
+		if (!validation.valid) {
+			throw new CliError({
+				message: `Refusing to write a malformed NEXT_PROMPT.md: ${validation.errors.join("; ")}`,
+				suggestion:
+					"The bootstrap formatter produced invalid output. If this is a custom adapter, " +
+					"ensure generatePrompt() emits the required fields and stays within the line cap.",
 			});
 		}
 
@@ -214,23 +231,25 @@ export const NextPromptWriter = {
 	 * Validates a NEXT_PROMPT.md content string.
 	 *
 	 * Checks that the content is non-empty, within the line limit, and contains
-	 * all required field prefixes. Supports both legacy ("Files to load:") and
-	 * new ("Load:") field names for file references.
+	 * all required field prefixes. Accepts every prefix in
+	 * {@link FILE_LOAD_PREFIXES}, which covers the legacy field name, the flat
+	 * `Load:` line, and both layered lines.
 	 *
 	 * @param content - The prompt content string to validate.
+	 * @param maxLines - Line cap to enforce. Defaults to {@link MAX_PROMPT_LINES}.
 	 * @returns A {@link ValidationResult} with validity status, line count, and any errors.
 	 */
-	validate(content: string): ValidationResult {
+	validate(content: string, maxLines: number = MAX_PROMPT_LINES): ValidationResult {
 		const errors: string[] = [];
 		const lines = content.split("\n").filter((line) => line.length > 0);
-		const lineCount = lines.length;
+		const lineCount = countPromptLines(content);
 
 		if (content.trim().length === 0) {
 			errors.push("Content is empty");
 		}
 
-		if (lineCount > MAX_PROMPT_LINES) {
-			errors.push(`Line count ${String(lineCount)} exceeds maximum of ${String(MAX_PROMPT_LINES)}`);
+		if (lineCount > maxLines) {
+			errors.push(`Line count ${String(lineCount)} exceeds maximum of ${String(maxLines)}`);
 		}
 
 		for (const field of REQUIRED_FIELDS) {
@@ -242,11 +261,11 @@ export const NextPromptWriter = {
 
 		// Check for at least one file load field (supports both old and new format)
 		const hasFileLoadField = lines.some((line) =>
-			FILE_LOAD_FIELDS.some((field) => line.startsWith(field)),
+			FILE_LOAD_PREFIXES.some((field) => line.startsWith(field)),
 		);
 		if (!hasFileLoadField) {
 			errors.push(
-				`Missing file load field: expected one of ${FILE_LOAD_FIELDS.map((f) => `"${f}"`).join(" or ")}`,
+				`Missing file load field: expected one of ${FILE_LOAD_PREFIXES.map((f) => `"${f}"`).join(" or ")}`,
 			);
 		}
 

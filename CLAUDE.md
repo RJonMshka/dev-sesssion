@@ -1,6 +1,6 @@
 # CLAUDE.md — dev-sesssion
 
-Self-managing context architecture for AI-assisted coding. Installs via `npx dev-sesssion init`. Manages `.session/` to keep AI sessions lean and self-resuming. Stage: pre-open-source (`UNLICENSED` → `MIT`).
+Self-managing context architecture for AI-assisted coding. Installs via `npx dev-sesssion init`. Manages `.session/` to keep AI sessions lean and self-resuming. Licensed MIT; published to npm as `dev-sesssion` (the other three packages are private).
 
 ---
 
@@ -24,7 +24,7 @@ Self-managing context architecture for AI-assisted coding. Installs via `npx dev
 
 **Start:** Read `.session/SESSION_STATE.md` → note active chunk → load only files tagged to that chunk in `FILE_INDEX.md` → confirm before writing code.
 
-**End:** Update `SESSION_STATE.md` (mark tasks done), update `FILE_INDEX.md` (add new files), rewrite `NEXT_PROMPT.md` (≤15 lines, self-contained). See `.session/ROUTINES.md` for the full routine. Do not skip this.
+**End:** Update `SESSION_STATE.md` (mark tasks done), update `FILE_INDEX.md` (add new files), rewrite `NEXT_PROMPT.md` (≤20 lines by default, self-contained). See `.session/ROUTINES.md` for the full routine. Do not skip this.
 
 ---
 
@@ -54,7 +54,7 @@ dev-sesssion/
 ├── packages/
 │   ├── core/       # business logic — no CLI deps, no process.argv
 │   ├── cli/        # parse args → call core → format output → exit
-│   ├── adapters/   # Claude Code, opencode, Cursor; never imports cli
+│   ├── adapters/   # Claude Code, opencode, Cursor, Windsurf; never imports cli
 │   └── security/   # PathValidator, FrontmatterParser, SecretScanner, AtomicWriter
 ├── tests/
 │   ├── fixtures/   # integration + e2e fixture projects
@@ -69,7 +69,7 @@ dev-sesssion/
 | Package | Depends on | Key exports |
 |---|---|---|
 | `security` | nothing internal | `PathValidator`, `FrontmatterParser`, `AtomicWriter`, `WriteGuard`, `CliError`, `ParseError`, `SecurityError` |
-| `core` | security | `SessionManager`, `FileIndexManager`, `PlanChunkManager`, `PlanParser`, `ProjectDetector` |
+| `core` | security | `SessionManager`, `FileIndexManager`, `PlanChunkManager`, `PlanParser`, `ProjectDetector`, `HealthChecker`, `SessionVerifier`, `ReplayScorer`, `GitReader`, `NextPromptWriter` |
 | `cli` | core + security | Commander commands, `@clack/prompts` wizard flows |
 | `adapters` | core only | `Adapter` interface impls; subpath exports |
 
