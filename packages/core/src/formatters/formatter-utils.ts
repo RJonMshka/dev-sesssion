@@ -10,7 +10,7 @@
 
 import type { ResolvedFileLayer } from "../calculators/layer-resolver.js";
 import type { ContextBudget } from "../schemas/context-budget.js";
-import type { PlanChunk, SessionState, Task } from "../schemas/index.js";
+import type { FileIndexEntry, PlanChunk, SessionState, Task } from "../schemas/index.js";
 
 /** Maximum pending tasks to show in the "Next" section by default. */
 export const DEFAULT_MAX_NEXT_TASKS = 4;
@@ -91,6 +91,38 @@ export function formatBudgetLine(budget: ContextBudget): string {
  */
 export function getPendingTasks(chunk: PlanChunk): readonly Task[] {
 	return chunk.tasks.filter((t) => t.status === "todo" || t.status === "in-progress");
+}
+
+/**
+ * Merges always-include and chunk-tagged entries into one ordered load list.
+ *
+ * A file may carry both the always-include tag (`0`) and the active chunk's
+ * tag, so concatenating the two lists emits it twice. Because the rendered list
+ * is capped, a duplicate evicts a real file from the prompt rather than merely
+ * looking untidy. Always-include entries are kept first, so existing ordering
+ * is unchanged.
+ *
+ * Single source of truth, deliberately: this merge previously existed as five
+ * private copies (the core plain-text formatter and each adapter formatter),
+ * which is why the duplicate shipped everywhere at once. Anything building a
+ * load list must call this rather than concatenating.
+ *
+ * @param alwaysIncludeFiles - Entries tagged always-include.
+ * @param chunkFiles - Entries tagged to the active chunk.
+ * @returns The merged list with later duplicates of the same `filepath` dropped.
+ */
+export function mergeContextFiles(
+	alwaysIncludeFiles: readonly FileIndexEntry[],
+	chunkFiles: readonly FileIndexEntry[],
+): FileIndexEntry[] {
+	const seen = new Set<string>();
+	const merged: FileIndexEntry[] = [];
+	for (const entry of [...alwaysIncludeFiles, ...chunkFiles]) {
+		if (seen.has(entry.filepath)) continue;
+		seen.add(entry.filepath);
+		merged.push(entry);
+	}
+	return merged;
 }
 
 /** Prefix introducing the flat file-load line. */

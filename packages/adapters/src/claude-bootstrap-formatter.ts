@@ -28,6 +28,7 @@ import {
 	formatCompletedChunksSummary,
 	formatLayeredContextLines,
 	getPendingTasks,
+	mergeContextFiles,
 	trimToMaxLines,
 } from "@dev-session/core";
 
@@ -104,7 +105,7 @@ export const ClaudeBootstrapFormatter: BootstrapFormatter = {
 				lines.push(line);
 			}
 		} else {
-			const allFiles = [...alwaysIncludeFiles, ...chunkFiles];
+			const allFiles = mergeContextFiles(alwaysIncludeFiles, chunkFiles);
 			lines.push(`Load: ${this.formatFilesToLoad(allFiles)}`);
 		}
 

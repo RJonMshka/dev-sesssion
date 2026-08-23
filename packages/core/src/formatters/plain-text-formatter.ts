@@ -27,6 +27,7 @@ import {
 	formatCompletedChunksSummary,
 	formatLayeredContextLines,
 	getPendingTasks,
+	mergeContextFiles,
 	trimToMaxLines,
 } from "./formatter-utils.js";
 
@@ -96,7 +97,7 @@ export const PlainTextFormatter: BootstrapFormatter = {
 				lines.push(line);
 			}
 		} else {
-			const allFiles = [...alwaysIncludeFiles, ...chunkFiles];
+			const allFiles = mergeContextFiles(alwaysIncludeFiles, chunkFiles);
 			lines.push(`Load: ${this.formatFilesToLoad(allFiles)}`);
 		}
 
