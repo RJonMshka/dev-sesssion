@@ -1,3 +1,9 @@
+## [2.2.1](https://github.com/RJonMshka/dev-sesssion/compare/v2.2.0...v2.2.1) (2026-08-23)
+
+### Bug Fixes
+
+* **formatters:** dedupe always-include and chunk file lists ([82898dd](https://github.com/RJonMshka/dev-sesssion/commit/82898ddea0f7de98a11b9e97af9b3d0b2b069c60))
+
 ## [2.2.0](https://github.com/RJonMshka/dev-sesssion/compare/v2.1.0...v2.2.0) (2026-08-23)
 
 ### Features
