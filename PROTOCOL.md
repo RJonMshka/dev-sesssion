@@ -35,10 +35,11 @@ is specific to it. This document describes version **1.0** of the format.
 ```
 .session/
 ├── SESSION_STATE.md     # REQUIRED — active chunk, tasks, notes (the brain)
-├── NEXT_PROMPT.md       # REQUIRED — ≤15-line self-contained resume prompt
+├── NEXT_PROMPT.md       # REQUIRED — ≤20-line self-contained resume prompt
 ├── FILE_INDEX.md        # REQUIRED — files grouped by chunk, with purposes
 ├── PLAN_<n>.md          # REQUIRED (≥1) — one plan chunk per file
 ├── ROUTINES.md          # OPTIONAL — the start/end session routine
+├── DONE_LOG.md          # OPTIONAL — archive of completed chunks
 ├── CONTEXT_LOG.md       # OPTIONAL — append-only session memory / analytics
 ├── ai-index.yaml        # OPTIONAL — extracted symbol index (layered loading)
 ├── trim-overrides.json  # OPTIONAL — per-file context exclusions
@@ -59,18 +60,19 @@ machine-readable state; the body is human narrative.
 
 ```yaml
 ---
-active_chunk: "16"            # string id of the chunk in progress
+active_chunk: 16              # integer id of the chunk in progress
 session_id: "chunk-16-..."    # opaque id for the current session
 last_updated: "2026-06-17"    # ISO date (YYYY-MM-DD)
 tasks:                        # tasks for the active chunk
   - text: "Implement X"
-    status: done              # one of: todo | in_progress | done
+    status: done              # one of: todo | in-progress | done
 notes:                        # rolling notes, newest-relevant first
   - "Gotcha: CliError renders to stdout via clack, not stderr."
 last_worked_files:            # files touched most recently
   - packages/cli/src/commands/init.ts
 completed_chunks:             # map of chunk id -> completion date
   "1": "2026-01-01"
+max_prompt_lines: 20          # optional; NEXT_PROMPT.md line cap (5-50)
 ---
 
 # Session State
@@ -81,17 +83,18 @@ completed_chunks:             # map of chunk id -> completion date
 
 | Field | Type | Notes |
 |---|---|---|
-| `active_chunk` | string | Matches a `PLAN_<n>.md` chunk id. String to allow ids like `13b`. |
+| `active_chunk` | integer ≥ 1 | Matches a `PLAN_<n>.md` chunk id. |
 | `session_id` | string | Opaque; identifies the working session. |
 | `last_updated` | string | `YYYY-MM-DD`. |
-| `tasks[]` | list | `{ text, status }`; `status ∈ {todo, in_progress, done}`. |
+| `tasks[]` | list | `{ text, status }`; `status ∈ {todo, in-progress, done}`. Optional ISO-8601 `added_at` / `completed_at`. |
 | `notes[]` | list of string | Durable gotchas/decisions. Trim aggressively. |
 | `last_worked_files[]` | list of string | Repo-relative paths. |
 | `completed_chunks` | map | chunk id → ISO date. |
+| `max_prompt_lines` | number | Optional. `NEXT_PROMPT.md` line cap, 5–50. Defaults to 20; omitted from the file when default. |
 
 ### `NEXT_PROMPT.md` (required)
 
-A **≤15-line, self-contained** plain-text prompt that a fresh session can act on
+A **≤20-line, self-contained** plain-text prompt that a fresh session can act on
 immediately. It names the active chunk, what was just done, the next step, the
 key files to load, and any gotchas. It must not assume prior conversation. It is
 regenerated whenever state changes (`update`, `advance`, `init`).
@@ -120,20 +123,27 @@ last_updated: "2026-06-17"
 | packages/cli/src/commands/init.ts | Init orchestrator |
 ```
 
-The "Always Include" group is loaded in every session; chunk groups are loaded
-only when that chunk is active.
+The `## Always Include` group (chunk tag `0`) is loaded in every session; each
+`## Chunk <n>` group is loaded only when that chunk is active. Grouping is by
+heading — rows under any other heading are ignored. A file needed by two chunks
+appears under both.
+
+Indexes larger than 500 entries are paginated into `FILE_INDEX_1.md`,
+`FILE_INDEX_2.md`, … alongside the root file.
 
 ### `PLAN_<n>.md` (required, one or more)
 
-One file per plan chunk. The filename matches `^PLAN_(\d+)\.md$` for the integer
-sequence (decimal/sub-chunk ids such as `13b` are addressed by id in
-frontmatter). YAML frontmatter declares the chunk; the body is the human plan.
+One file per plan chunk. The filename matches `^PLAN_(\d+)\.md$`. YAML
+frontmatter declares the chunk; the body is the human plan. `chunk_id` is a
+number ≥ 1 and may be fractional (e.g. `3.5`), so an interstitial chunk can be
+inserted between two existing ones without renumbering the whole plan.
 
 ```yaml
 ---
 chunk_id: 4
 title: "CLI: init command"
-depends_on: [3]        # chunk ids that must complete first
+depends_on: [3]        # chunk ids that must complete first (optional, default [])
+est_sessions: 2        # optional estimate
 tasks:
   - text: "Parse args and detect project"
     status: done
@@ -163,6 +173,11 @@ for **layered context loading**: Layer 0 = module summaries, Layer 1 = public
 signatures, Layer 2 = full source (loaded on demand). Serialized with sorted
 keys. When present, prompts reference summaries instead of inlining whole files.
 
+### `DONE_LOG.md`
+Append-only archive of chunks that have been completed and advanced past,
+written when a chunk is archived. It exists so `SESSION_STATE.md` can be
+compacted without losing the record.
+
 ### `trim-overrides.json`
 Per-file context exclusions chosen by the user (or auto-selected to fit a
 budget). Cleared on `advance`.
@@ -190,7 +205,10 @@ A tool conforms to Session Protocol v1.0 if it:
 
 1. Reads and writes the four required artifacts in the formats above.
 2. Treats `active_chunk` as authoritative for what to load.
-3. Keeps `NEXT_PROMPT.md` ≤ 15 lines and self-contained.
+3. Keeps `NEXT_PROMPT.md` within the configured line cap and self-contained.
+   The cap defaults to 20 and may be set per project via `max_prompt_lines`
+   in `SESSION_STATE.md` frontmatter (bounds: 5–50). A conforming tool MUST
+   refuse to write a prompt that exceeds it.
 4. Parses frontmatter safely (no code execution) and validates required fields.
 5. Ignores unknown optional fields and files rather than failing.
 
