@@ -395,6 +395,34 @@ last_updated: "2026-06-16"
 
 **Design note:** Windsurf adapter mirrors the Cursor adapter pattern (.cursorrules → .windsurfrules, same comment-style section markers). WindsurfBootstrapFormatter is identical to CursorBootstrapFormatter in behavior (plain paths, Ignore directive) — Windsurf reads .windsurfrules natively. +35 tests; 1102 total.
 
+## Chunk 19 — Prompt-correctness hardening + git-backed verification
+
+| File | Purpose |
+|---|---|
+| packages/core/src/schemas/next-prompt.ts | `countPromptLines()` — single definition of a prompt line; configurable-cap bounds |
+| packages/core/src/schemas/session-state.ts | `max_prompt_lines` frontmatter field (5–50, default 20) |
+| packages/core/src/managers/next-prompt-writer.ts | `write()` now validates before persisting; cap threaded through `validate()` |
+| packages/core/src/formatters/formatter-utils.ts | `trimToMaxLines` emits a truncation marker instead of silently dropping the tail |
+| packages/core/src/managers/session-state-manager.ts | Serializes `max_prompt_lines` only when non-default |
+| packages/core/src/checkers/health-checker.ts | Uses `countPromptLines` + the session's configured cap |
+| packages/core/src/formatters/formatter-utils.ts | Also: FILE_LOAD_PREFIXES + LAYER_SUFFIX_RE — single source of truth for prompt file-load line prefixes |
+| packages/cli/src/commands/advance.ts | Threads max_prompt_lines into BootstrapContext + write() |
+| packages/cli/src/commands/status.ts | Warns against the configured cap, not the hardcoded default |
+| packages/core/src/git/git-reader.ts | Read-only git access (execFile + arg arrays, rev shape-check) |
+| packages/core/src/verifiers/session-verifier.ts | Reconciles session claims against git history |
+| packages/core/src/verifiers/replay-scorer.ts | Scores past prompts on recall/precision/waste from git alone |
+| packages/cli/src/commands/verify.ts | `verify` command (+ `--replay`, `--json`) |
+| packages/cli/src/commands/compact.ts | Pre-flight secret scan before API egress (`--allow-secrets`) |
+| packages/cli/src/__tests__/compact.test.ts | Adversarial tests for the egress guard |
+| packages/core/src/__tests__/replay-scorer.test.ts | Replay math + prompt-parsing tests (fake reader) |
+| packages/core/src/__tests__/session-verifier.test.ts | Verifier finding tests (fake reader) |
+| tests/git-reader.integration.test.ts | GitReader against real repos — porcelain regression, injection rejection |
+| tests/e2e/verify.e2e.test.ts | `verify` through the compiled CLI |
+
+**Design note (prefix drift):** the formatter, the prompt validator, and the replay scorer each used to carry a private copy of the file-load line prefixes, so a prompt could be emitted in a shape its own validator rejected. They now all derive from `FILE_LOAD_PREFIXES` in `formatter-utils.ts`, exported from the core barrel so out-of-tree formatters import rather than hardcode. Any new emitter or parser of a file-load line must derive from that list.
+
+**Design note:** `health` asks whether session files are self-consistent; `verify` asks whether they are *true*. The two must stay separate — one is a local invariant check, the other needs history. Replay scoring only works when `NEXT_PROMPT.md` is tracked by git, so it is unavailable in the default solo setup by design; the command reports that reason rather than a silent zero.
+
 ## Chunk 17 — BACKLOG: Cross-session intelligence (deferred)
 
 See `.session/PLAN_17.md` for rationale and original spec reference. Do not start until 13A–16 complete.
