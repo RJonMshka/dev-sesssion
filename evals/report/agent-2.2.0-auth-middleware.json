@@ -1,0 +1,121 @@
+{
+  "version": "2.2.0",
+  "rows": [
+    {
+      "target": "simple-node-app",
+      "ablation": "auth-middleware",
+      "arm": "bootstrap",
+      "turns": 6,
+      "filesWritten": [
+        "src/middleware/auth.ts",
+        "README.md",
+        "PLAN.md"
+      ],
+      "filesRead": [
+        "PLAN.md",
+        "package.json",
+        "src/app.ts",
+        "src/middleware/errors.ts",
+        "src/middleware/logger.ts",
+        "src/utils/errors.ts",
+        "src/utils/validate.ts",
+        "src/routes/users.ts",
+        "src/models/user.ts",
+        "README.md",
+        "tsconfig.json",
+        "tests/users.test.ts"
+      ],
+      "inputTokens": 35776,
+      "outputTokens": 8577,
+      "testsPassed": true,
+      "stoppedBecause": "end_turn",
+      "testFilesTampered": [],
+      "newTypeErrors": [],
+      "scores": [
+        {
+          "dimension": "contract_satisfaction",
+          "score": 2,
+          "secondScore": 2,
+          "unstable": false,
+          "justification": "Only the header-rejection clause and next() call are honoured. (1) `process.env.API_TOKEN` is never read — the candidate substitutes `AUTH_DEV_TOKEN`/`AUTH_JWT_SECRET`, so a request bearing the configured API_TOKEN is rejected instead of accepted. (2) Invalid tokens do not produce AppError(403): they fall through to `verifyToken`, which throws AppError(401) (\"Malformed token\"/\"Invalid token signature\"), or AppError(500) \"Auth is not configured\" when no AUTH_JWT_SECRET is set — the 403 branch simply does not exist anywhere in the file. (3) Acceptance of the literal `dev-token` is conditional: in production (or when AUTH_DEV_TOKEN is set to something else) it is refused, weakening the unconditional clause. Credit is due for the 401 on missing/non-Bearer headers (plus an extra empty-token guard) and for calling next() on success, but two of the four clauses are contradicted and the error codes are wrong, so the contract is substantially unmet despite a large amount of unrequested JWT machinery."
+        },
+        {
+          "dimension": "convention_match",
+          "score": 2,
+          "secondScore": 2,
+          "unstable": false,
+          "justification": "Superficial style markers do match: `import type { NextFunction, Request, Response } from \"express\"`, the `.js`-suffixed relative import of `AppError` from `../utils/errors.js`, tab indentation, and the identical `requireAuth(req, _res, next): void` signature with throw-based errors. But the conventions diverge noticeably beyond that. (1) Export shape: the reference module exports exactly one symbol; the candidate exports `requireAuth`, `verifyToken`, `signToken`, and the `AuthPayload` type, plus a `declare global { namespace Express }` module augmentation that mutates a shared interface — a much larger and more invasive surface than the codebase's single-purpose middleware convention. (2) Naming/config: the contract and reference read `process.env.API_TOKEN`; the candidate invents `AUTH_DEV_TOKEN` and `AUTH_JWT_SECRET`, so the established env-var name is abandoned. (3) Error conventions: the reference's 403 `\"Invalid token\"` branch is gone entirely — bad tokens become assorted 401s (`\"Malformed token\"`, `\"Invalid token signature\"`, `\"Token expired\"`) and a novel `AppError(500, \"Auth is not configured\")` status that appears nowhere in the reference vocabulary. (4) Structural idiom: a simple `VALID_TOKENS` Set and `authHeader?.startsWith(\"Bearer \")`/`slice(7)` are replaced by a regex prefix, `req.get(\"authorization\")`, HMAC `timingSafeEqual`, a zod schema, and eight helper functions — a different level of abstraction and machinery than the surrounding one-liner middleware style. It would read as written by a different author with different conventions, though not wholly foreign to the project (zod is used in `src/utils/validate.ts`)."
+        },
+        {
+          "dimension": "no_fabrication",
+          "score": 4,
+          "secondScore": 4,
+          "unstable": false,
+          "justification": "All project-level imports resolve: `AppError` from `../utils/errors.js` matches the existing `src/utils/errors.ts`, `express` types and `node:crypto` are standard, and `zod` is consistent with the project's `src/utils/validate.ts` / Zod-based plan item. No non-existent project modules or helpers are referenced, and the exported `verifyToken`/`signToken` helpers are self-contained in this file. The one questionable invention is at the configuration-contract level rather than the module level: the spec names `process.env.API_TOKEN` as the accepted token source, but the candidate fabricates a different, undocumented-in-spec env surface (`AUTH_DEV_TOKEN`, `AUTH_JWT_SECRET`, plus `NODE_ENV` gating) and an entire JWT scheme that no other file in the run establishes. Nothing imported is fabricated, so this stays high, but the invented auth/config API prevents a clean 5."
+        }
+      ],
+      "meanScore": 2.6666666666666665
+    },
+    {
+      "target": "simple-node-app",
+      "ablation": "auth-middleware",
+      "arm": "control",
+      "turns": 11,
+      "filesWritten": [
+        "src/utils/jwt.ts",
+        "src/middleware/auth.ts",
+        "tests/auth.test.ts",
+        "README.md"
+      ],
+      "filesRead": [
+        "PLAN.md",
+        "README.md",
+        "package.json",
+        "src/app.ts",
+        "src/middleware/errors.ts",
+        "src/middleware/logger.ts",
+        "src/utils/errors.ts",
+        "src/routes/users.ts",
+        "src/models/user.ts",
+        "src/utils/validate.ts",
+        "src/routes/health.ts",
+        "tests/users.test.ts",
+        "tests/health.test.ts",
+        "tsconfig.json",
+        "src/server.ts"
+      ],
+      "inputTokens": 72332,
+      "outputTokens": 9873,
+      "testsPassed": true,
+      "stoppedBecause": "end_turn",
+      "testFilesTampered": [
+        "tests/auth.test.ts"
+      ],
+      "newTypeErrors": [],
+      "scores": [
+        {
+          "dimension": "contract_satisfaction",
+          "score": 2,
+          "secondScore": 2,
+          "unstable": false,
+          "justification": "Two of the four substantive clauses are broken. (1) `process.env.API_TOKEN` is never consulted — the candidate substitutes `DEV_AUTH_TOKEN`/`JWT_SECRET`-based JWT verification, so a request bearing the configured API_TOKEN falls through to `verifyJwt` and is rejected. (2) Invalid tokens do not produce AppError(403): every failure path in `verifyJwt` throws AppError(401) (malformed, bad signature, expired), and an unset `JWT_SECRET` yields AppError(500) — the 403 code specified by the contract is never emitted anywhere. (3) The literal `dev-token` is only accepted when `NODE_ENV` is exactly `development` or `test`; with NODE_ENV unset or `production`, the contractually-mandated `dev-token` is rejected (with a 401/500, not even a 403). The only clauses honoured are the missing/non-Bearer header → 401 (and even that is loosened to a case-insensitive, whitespace-tolerant match rather than the literal `Bearer ` prefix) and calling `next()` on success. The candidate also invents an unrequested `req.auth` contract. This is a substantial reinterpretation of the spec rather than an implementation of it.\"}"
+        },
+        {
+          "dimension": "convention_match",
+          "score": 4,
+          "secondScore": 3,
+          "unstable": false,
+          "justification": "Stylistically the candidate is very close to the reference: identical import style (`import type { NextFunction, Request, Response } from \"express\"` plus `AppError` from `../utils/errors.js` with the explicit `.js` extension), tab indentation, the same exported function signature `requireAuth(req: Request, _res: Response, next: NextFunction): void` with the underscore-prefixed unused param, the same `AppError(status, message)` error type, and a SCREAMING_SNAKE module constant (`DEV_ENVIRONMENTS`) mirroring `VALID_TOKENS`. Divergences are noticeable though: the export shape grows beyond the reference's single function (an exported `AuthContext` interface plus a `declare global` Express Request augmentation and a new `src/utils/jwt.ts` module), the token-source convention changes (`DEV_AUTH_TOKEN`/`JWT_SECRET` instead of the contract's `API_TOKEN`), the reference's simple module-level `Set` is replaced by a `devAuthToken()` factory and an `extractBearerToken()` helper, header access switches from `req.headers.authorization` to `req.header(\"authorization\")`, and it introduces a status code the reference never uses (500) while dropping the 403 path entirely. Idiomatically at home in the codebase, but clearly more elaborate and with different naming/config conventions than the reference."
+        },
+        {
+          "dimension": "no_fabrication",
+          "score": 5,
+          "secondScore": 5,
+          "unstable": false,
+          "justification": "Every symbol the candidate references resolves to real code. `AppError` comes from `../utils/errors.js`, which exists in the project listing (src/utils/errors.ts). `verifyJwt` and the `JwtPayload` type come from `../utils/jwt.js`, which the agent authored in this same run and is present in the final file listing (src/utils/jwt.ts); the exported names and signature (`verifyJwt(token, secret): JwtPayload`, `JwtPayload.sub: string`, optional `role?: string`) match exactly how they are used here. The `Express.Request.auth` property is not assumed to pre-exist \thdeclation \\u2014 it is declared in-file via `declare global`. Express types (`Request`, `Response`, `NextFunction`, `req.header`) are genuine framework APIs. The only non-existent things touched are environment variables (`DEV_AUTH_TOKEN`, `JWT_SECRET`, `NODE_ENV`) rather than project modules/helpers, and those are documented in the README the agent wrote; the divergence from the contract's `API_TOKEN` is a behavioural/spec-compliance issue, not an invented project API. No fabricated imports or helpers."
+        }
+      ],
+      "meanScore": 3.6666666666666665
+    }
+  ]
+}
