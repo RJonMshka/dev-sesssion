@@ -1,0 +1,111 @@
+{
+  "version": "2.2.1",
+  "rows": [
+    {
+      "target": "simple-node-app",
+      "ablation": "auth-middleware",
+      "initExitCode": 0,
+      "initStderr": "",
+      "promptDeclared": [
+        "CLAUDE.md",
+        ".gitignore",
+        "package.json",
+        "PLAN.md",
+        "README.md",
+        "src/app.ts"
+      ],
+      "grounding": {
+        "declared": [
+          "CLAUDE.md",
+          ".gitignore",
+          "package.json",
+          "PLAN.md",
+          "README.md",
+          "src/app.ts",
+          "src/middleware/errors.ts",
+          "src/middleware/logger.ts",
+          "src/models/user.ts",
+          "src/routes/health.ts",
+          "src/routes/users.ts",
+          "src/server.ts",
+          "src/utils/errors.ts",
+          "src/utils/validate.ts",
+          "tests/health.test.ts",
+          "tests/users.test.ts",
+          "tsconfig.json"
+        ],
+        "missing": [],
+        "groundedRatio": 1
+      },
+      "metrics": {
+        "verifyOk": true,
+        "findings": [
+          {
+            "code": "UNCOMMITTED_SESSION",
+            "severity": "info"
+          }
+        ],
+        "meanRecall": null,
+        "meanPrecision": null,
+        "wasteRatio": null,
+        "boundariesScored": 0,
+        "unavailableReason": "no scored session boundaries in git history"
+      },
+      "stalePaths": [],
+      "duplicateRefs": []
+    },
+    {
+      "target": "simple-node-app",
+      "ablation": "body-validation",
+      "initExitCode": 0,
+      "initStderr": "",
+      "promptDeclared": [
+        "CLAUDE.md",
+        ".gitignore",
+        "package.json",
+        "PLAN.md",
+        "README.md",
+        "src/app.ts"
+      ],
+      "grounding": {
+        "declared": [
+          "CLAUDE.md",
+          ".gitignore",
+          "package.json",
+          "PLAN.md",
+          "README.md",
+          "src/app.ts",
+          "src/middleware/auth.ts",
+          "src/middleware/errors.ts",
+          "src/middleware/logger.ts",
+          "src/models/user.ts",
+          "src/routes/health.ts",
+          "src/routes/users.ts",
+          "src/server.ts",
+          "src/utils/errors.ts",
+          "tests/health.test.ts",
+          "tests/users.test.ts",
+          "tsconfig.json"
+        ],
+        "missing": [],
+        "groundedRatio": 1
+      },
+      "metrics": {
+        "verifyOk": true,
+        "findings": [
+          {
+            "code": "UNCOMMITTED_SESSION",
+            "severity": "info"
+          }
+        ],
+        "meanRecall": null,
+        "meanPrecision": null,
+        "wasteRatio": null,
+        "boundariesScored": 0,
+        "unavailableReason": "no scored session boundaries in git history"
+      },
+      "stalePaths": [],
+      "duplicateRefs": []
+    }
+  ]
+}
