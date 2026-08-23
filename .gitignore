@@ -35,3 +35,6 @@ Thumbs.db
 .session/SESSION_STATE.md
 .session/NEXT_PROMPT.md
 .session/DONE_LOG.md
+
+# Eval harness dependency cache (installed on demand)
+evals/.cache/
