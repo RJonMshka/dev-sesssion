@@ -32,6 +32,7 @@ function makeState(overrides: Partial<SessionState> = {}): SessionState {
 		last_worked_files: [],
 		notes: [],
 		completed_chunks: {},
+		max_prompt_lines: 20,
 		...overrides,
 	};
 }

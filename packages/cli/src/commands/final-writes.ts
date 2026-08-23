@@ -17,6 +17,7 @@ import {
 	DEFAULT_CONTEXT_BUDGET,
 	FileIndexManager,
 	LayerResolver,
+	MAX_PROMPT_LINES,
 	NextPromptWriter,
 	RoutinesWriter,
 	SessionStateManager,
@@ -215,6 +216,7 @@ export async function runFinalWrites(
 		budget,
 		excludePatterns,
 		projectName,
+		maxPromptLines: sessionState.max_prompt_lines,
 		...(aiIndex !== null ? { resolvedLayers } : {}),
 	};
 
@@ -225,7 +227,7 @@ export async function runFinalWrites(
 	if (options.dryRun) {
 		dryRunWrite(path.join(sessionDir, "NEXT_PROMPT.md"), promptContent, options.cwd);
 	} else {
-		NextPromptWriter.write(sessionDir, promptContent);
+		NextPromptWriter.write(sessionDir, promptContent, sessionState.max_prompt_lines);
 		filesWritten++;
 	}
 
@@ -272,6 +274,7 @@ function buildInitialState(activeChunk: PlanChunk): SessionState {
 			added_at: nowIso,
 		})),
 		last_worked_files: [],
+		max_prompt_lines: MAX_PROMPT_LINES,
 		notes: [`Session initialized on ${nowDate}`],
 		completed_chunks: {},
 	};

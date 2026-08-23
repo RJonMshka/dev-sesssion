@@ -88,7 +88,7 @@ export interface StatusJson {
  * @returns Array of warning strings
  */
 export function computeWarnings(
-	_state: SessionState,
+	state: SessionState,
 	chunk: PlanChunk,
 	alwaysInclude: readonly FileIndexEntry[],
 	promptLineCount: number | undefined,
@@ -96,9 +96,14 @@ export function computeWarnings(
 ): readonly string[] {
 	const warnings: string[] = [];
 
-	if (promptLineCount !== undefined && promptLineCount > MAX_PROMPT_LINES) {
+	// Uses the session's configured cap, matching `health`; the two used to
+	// disagree whenever a project overrode max_prompt_lines. Falls back to the
+	// default because a state object built by hand can omit the field, and a
+	// comparison against undefined would silently disable the warning.
+	const maxPromptLines = state.max_prompt_lines ?? MAX_PROMPT_LINES;
+	if (promptLineCount !== undefined && promptLineCount > maxPromptLines) {
 		warnings.push(
-			`NEXT_PROMPT.md has ${String(promptLineCount)} lines (max ${String(MAX_PROMPT_LINES)}) — consider regenerating`,
+			`NEXT_PROMPT.md has ${String(promptLineCount)} lines (max ${String(maxPromptLines)}) — consider regenerating`,
 		);
 	}
 

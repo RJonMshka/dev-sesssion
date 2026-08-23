@@ -212,12 +212,13 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 		budget,
 		excludePatterns,
 		projectName,
+		maxPromptLines: state.max_prompt_lines,
 		...(aiIndex !== null ? { resolvedLayers } : {}),
 	};
 
 	const promptContent = NextPromptWriter.generateWithFormatter(adapter.formatter, bootstrapContext);
 
-	NextPromptWriter.write(sessionDir, promptContent);
+	NextPromptWriter.write(sessionDir, promptContent, state.max_prompt_lines);
 
 	// Step 7: Clear trim overrides (session-scoped, reset on advance)
 	TrimOverridesManager.clear(sessionDir);
