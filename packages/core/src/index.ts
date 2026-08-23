@@ -169,6 +169,11 @@ export {
 export type { TrimOverrideEntry, TrimOverrides } from "./schemas/trim-overrides.js";
 export { TRIM_OVERRIDES_FILENAME, TrimOverridesSchema } from "./schemas/trim-overrides.js";
 export type {
+	ReplayReport,
+	ReplayScore,
+} from "./verifiers/replay-scorer.js";
+export { extractDeclaredFiles, ReplayScorer } from "./verifiers/replay-scorer.js";
+export type {
 	VerifyFinding,
 	VerifyInput,
 	VerifyReport,
