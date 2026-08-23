@@ -1,3 +1,28 @@
+## [2.2.0](https://github.com/RJonMshka/dev-sesssion/compare/v2.1.0...v2.2.0) (2026-08-23)
+
+### Features
+
+* **cli:** add the verify command ([fee01f9](https://github.com/RJonMshka/dev-sesssion/commit/fee01f9245f86349cfc6261aac4277eb94562580))
+* **cli:** apply the configured prompt cap across commands ([5baf318](https://github.com/RJonMshka/dev-sesssion/commit/5baf318f73cbd51506e433fd8739aeb3835586a8))
+* **cli:** scan for secrets before compact uploads a file ([c644dd8](https://github.com/RJonMshka/dev-sesssion/commit/c644dd850b42017a39cf7a1685653f1549faa368))
+* **core:** add a read-only git access layer ([4aee05f](https://github.com/RJonMshka/dev-sesssion/commit/4aee05ff363c332b269933dbe6989306dab40abd))
+* **core:** honor the configured prompt cap in every formatter ([e462e6f](https://github.com/RJonMshka/dev-sesssion/commit/e462e6f96fb3e1c8a59a6a9b5ec32f7bd7c41805))
+* **core:** make the NEXT_PROMPT.md line cap configurable ([8e00ce3](https://github.com/RJonMshka/dev-sesssion/commit/8e00ce3d206dc4ef4340096e779834d087a42f9d))
+* **core:** reconcile session state against git history ([da9154e](https://github.com/RJonMshka/dev-sesssion/commit/da9154ea5c5e3f49a55e77dfe06f35388220e4e7))
+* **core:** score past prompts against the commits that followed ([7b84ebc](https://github.com/RJonMshka/dev-sesssion/commit/7b84ebc88b374e8be9a2e737d3241bcf13781dce))
+
+### Bug Fixes
+
+* **ci:** give gitleaks the history it needs to scan pushes ([c2f7986](https://github.com/RJonMshka/dev-sesssion/commit/c2f7986561ceca2e034488cd1d3182f98988e9b8))
+* **core:** give file-load line prefixes one source of truth ([c3d7ce2](https://github.com/RJonMshka/dev-sesssion/commit/c3d7ce2ff042e6110b8ebbc7ae38e4cf08887204))
+* **core:** validate NEXT_PROMPT.md before writing it ([296db2e](https://github.com/RJonMshka/dev-sesssion/commit/296db2e6e69ddc0d237cd433f48356bfc4434941))
+
+### Documentation
+
+* align the session routine with the enforced line cap ([b8273b7](https://github.com/RJonMshka/dev-sesssion/commit/b8273b7bf330c72ea7eb4cbde6ad384bdcb97500))
+* correct references that contradict the code ([8a7d604](https://github.com/RJonMshka/dev-sesssion/commit/8a7d604eb222ac574610a06e2384cd0d5cdc1ab4))
+* document verify, replay scoring, and the prompt cap ([8fe35df](https://github.com/RJonMshka/dev-sesssion/commit/8fe35dff6fb9e0d53e5357af9573eb00638166d5))
+
 ## [2.1.0](https://github.com/RJonMshka/dev-sesssion/compare/v2.0.2...v2.1.0) (2026-07-05)
 
 ### Features
