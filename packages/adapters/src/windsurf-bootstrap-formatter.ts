@@ -148,7 +148,7 @@ export const WindsurfBootstrapFormatter: BootstrapFormatter = {
 		}
 
 		// Trim to max lines
-		const trimmed = trimToMaxLines(lines, DEFAULT_MAX_PROMPT_LINES);
+		const trimmed = trimToMaxLines(lines, context.maxPromptLines ?? DEFAULT_MAX_PROMPT_LINES);
 		return `${trimmed.join("\n")}\n`;
 	},
 
