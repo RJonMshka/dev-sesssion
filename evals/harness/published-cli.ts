@@ -70,7 +70,7 @@ export async function installPublishedCli(version: string): Promise<InstalledCli
 				const { stdout, stderr } = await execFileAsync(binPath, [...args], {
 					cwd,
 					maxBuffer: 32 * 1024 * 1024,
-					env: { ...process.env, NO_COLOR: "1", CI: "1" },
+					env: { ...process.env, NO_COLOR: "1", FORCE_COLOR: "0", CI: "1" },
 				});
 				return { stdout, stderr, exitCode: 0 };
 			} catch (err: unknown) {

@@ -8,7 +8,11 @@
  *
  * Requires `ANTHROPIC_API_KEY` (or an `ant auth login` profile).
  *
- * Usage: `pnpm eval:agent [--version 2.2.0] [--only <ablation-id>]`
+ * Usage: `pnpm eval:agent [--version 2.2.0] [--only <ablation-id>] [--tag <label>]`
+ *
+ * `--tag` keeps repeat runs of the same version in separate reports. Repeating
+ * an identical configuration is the only way to estimate run-to-run variance,
+ * without which a version-to-version difference cannot be told from noise.
  *
  * @module
  */
@@ -134,6 +138,8 @@ async function main(): Promise<void> {
 	const version = vIdx !== -1 ? (argv[vIdx + 1] ?? DEFAULT_VERSION) : DEFAULT_VERSION;
 	const onlyIdx = argv.indexOf("--only");
 	const only = onlyIdx !== -1 ? argv[onlyIdx + 1] : undefined;
+	const tagIdx = argv.indexOf("--tag");
+	const tag = tagIdx !== -1 ? argv[tagIdx + 1] : undefined;
 
 	const cli = await installPublishedCli(version);
 	const cacheRoot = path.join(REPO_ROOT, "evals", ".cache", "deps");
@@ -190,7 +196,7 @@ async function main(): Promise<void> {
 	const reportDir = path.join(REPO_ROOT, "evals", "report");
 	await fs.mkdir(reportDir, { recursive: true });
 	// A filtered run must not clobber the full run's report.
-	const suffix = only === undefined ? "" : `-${only}`;
+	const suffix = `${only === undefined ? "" : `-${only}`}${tag === undefined ? "" : `-${tag}`}`;
 	const out = path.join(reportDir, `agent-${version}${suffix}.json`);
 	await fs.writeFile(out, `${JSON.stringify({ version, rows }, null, 2)}\n`, "utf8");
 	process.stdout.write(`Report: ${path.relative(REPO_ROOT, out)}\n`);
