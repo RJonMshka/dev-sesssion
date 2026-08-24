@@ -1,0 +1,274 @@
+{
+  "version": "2.2.1",
+  "rows": [
+    {
+      "target": "simple-node-app",
+      "ablation": "auth-middleware",
+      "arms": [
+        {
+          "arm": "bootstrap",
+          "turns": 9,
+          "filesRead": [
+            "PLAN.md",
+            "package.json",
+            "README.md",
+            "src/app.ts",
+            "src/middleware/errors.ts",
+            "src/middleware/logger.ts",
+            "src/utils/errors.ts",
+            "src/utils/validate.ts",
+            "src/routes/users.ts",
+            "src/models/user.ts",
+            "src/routes/health.ts",
+            "tsconfig.json",
+            "tests/users.test.ts",
+            "src/server.ts"
+          ],
+          "filesWritten": [
+            "src/middleware/auth.ts",
+            "PLAN.md"
+          ],
+          "inputTokens": 53448,
+          "outputTokens": 8595,
+          "testsPassed": true,
+          "newTypeErrors": [],
+          "testFilesTampered": [],
+          "stoppedBecause": "end_turn",
+          "absoluteScores": [
+            {
+              "dimension": "contract_satisfaction",
+              "score": 1,
+              "justification": "The candidate replaces the specified contract with a JWT scheme and breaks nearly every token-related clause. (1) `process.env.API_TOKEN` is never read anywhere — a valid configured API token is rejected, so that acceptance clause is entirely unmet. (2) The 403 sentinel does not exist: every invalid token yields AppError(401) (and an AppError(500) path when NODE_ENV=production without JWT_SECRET), so the 401-vs-403 distinction mandated by the contract is gone. (3) `dev-token` is only accepted when `JWT_SECRET` is unset AND NODE_ENV !== 'production', and it can be overridden by `AUTH_DEV_TOKEN`; if JWT_SECRET is set, the literal `dev-token` fails signature verification with 401. Only two clauses survive: missing header → 401 and next() on success. Even the header check deviates (case-insensitive `bearer`, whitespace-normalised split, so `bearer x` passes where the contract requires the literal `Bearer ` prefix). Additional unsolicited surface (req.auth augmentation, hand-rolled HMAC verification, global declare) further departs from the stated behaviour. This is substantially more than two unmet clauses — the contract is effectively not implemented."
+            },
+            {
+              "dimension": "convention_match",
+              "score": 2,
+              "justification": "Surface-level conventions are honoured — `import type { NextFunction, Request, Response } from \"express\"`, `import { AppError } from \"../utils/errors.js\"` with the `.js` specifier, tab indentation, and the same `export function requireAuth(req, _res, next): void` signature with `throw new AppError(status, message)`. Beyond that, though, there are multiple structural divergences from the reference's conventions: (1) an extra exported symbol (`export interface AuthPayload`) plus a `declare global { namespace Express { ... } }` module augmentation, changing the module's export/ambient shape far beyond the reference's single named export; (2) a new runtime import `node:crypto` and ~90 lines of hand-rolled JWT verification where the reference keeps a single module-level `VALID_TOKENS` Set; (3) different env-var naming — `JWT_SECRET` / `AUTH_DEV_TOKEN` / `NODE_ENV` instead of the codebase's `API_TOKEN`; (4) status-code convention broken — the reference's 403 for an invalid token is replaced everywhere by 401, and a novel 500 `AppError` for misconfiguration is introduced; (5) side-effecting module state (`let warnedAboutDevToken`) and a `console.warn`, which the reference (and presumably a codebase with a dedicated logger middleware) does not use; (6) local naming drift (`header` vs `authHeader`) and a regex-split scheme check instead of `startsWith(\"Bearer \")`. That is well past one cosmetic divergence — several conventional divergences of substance."
+            },
+            {
+              "dimension": "no_fabrication",
+              "score": 5,
+              "justification": "The only project-internal reference is `AppError` imported from `../utils/errors.js`, and `src/utils/errors.ts` exists in the project listing (the reference implementation imports the identical symbol from the identical path, confirming the signature `new AppError(status, message)` is real). Everything else is either a Node builtin (`node:crypto` — `createHmac`, `timingSafeEqual`, `Buffer`), an express type (`Request`, `Response`, `NextFunction`, and an augmentation of the `Express.Request` namespace), or locally defined in the file (`AuthPayload`, `verifyJwt`, `authenticate`, `isRecord`, `decodeSegment`). No imports of non-existent modules such as a jwt library, config module, or logger. The extra env vars (`JWT_SECRET`, `AUTH_DEV_TOKEN`, `NODE_ENV`) are runtime configuration, not project symbols, so they cannot be fabricated references — though they do represent contract drift (the spec's `API_TOKEN` and the 403 path are missing), that is a different dimension. No fabricated symbols."
+            }
+          ]
+        },
+        {
+          "arm": "control",
+          "turns": 10,
+          "filesRead": [
+            "PLAN.md",
+            "README.md",
+            "package.json",
+            "src/app.ts",
+            "src/middleware/errors.ts",
+            "src/middleware/logger.ts",
+            "src/utils/errors.ts",
+            "src/utils/validate.ts",
+            "src/routes/users.ts",
+            "src/routes/health.ts",
+            "src/models/user.ts",
+            "tests/users.test.ts",
+            "tsconfig.json",
+            "tests/health.test.ts",
+            "src/server.ts"
+          ],
+          "filesWritten": [
+            "src/middleware/auth.ts",
+            "tests/auth.test.ts",
+            "package.json",
+            "README.md"
+          ],
+          "inputTokens": 62888,
+          "outputTokens": 9077,
+          "testsPassed": true,
+          "newTypeErrors": [],
+          "testFilesTampered": [
+            "tests/auth.test.ts"
+          ],
+          "stoppedBecause": "end_turn",
+          "absoluteScores": [
+            {
+              "dimension": "contract_satisfaction",
+              "score": 2,
+              "justification": "Multiple contract clauses are unmet. (1) `process.env.API_TOKEN` is never consulted — the candidate substitutes an entirely different scheme (`JWT_SECRET` HS256 verification plus `AUTH_DEV_TOKEN`), so a request bearing the configured API_TOKEN would be rejected rather than accepted. (2) Invalid tokens produce AppError(401) (\"Invalid token\", \"Invalid token signature\", \"Invalid token claims\") instead of the required AppError(403); the only 403 path is the unrelated `requireRole` role check, so the mandated 403 sentinel is unreachable via requireAuth. (3) The `dev-token` literal is conditionally accepted: it is disabled entirely when NODE_ENV === \"production\" and is overridden if `AUTH_DEV_TOKEN` is set, so the literal is not unconditionally accepted as specified. Additionally an undocumented AppError(500) path is introduced when JWT_SECRET is unset, meaning a request with a bad token can yield 500 instead of 403. Clauses satisfied: the export signature, 401 for a missing/malformed header (though the regex is case-insensitive and tolerates multiple spaces, so `bearer x` is accepted where the reference 401s), and next() on success. With two-plus clauses broken and the wrong sentinel status code, this sits at the 2 anchor."
+            },
+            {
+              "dimension": "convention_match",
+              "score": 2,
+              "justification": "Shares the surface-level conventions — `import type { NextFunction, Request, Response } from \"express\"`, `AppError` imported from `\"../utils/errors.js\"` with the `.js` specifier, `throw new AppError(status, msg)` rather than `next(err)`, tab indentation, and the same `(req, _res: Response, next)` signature — but diverges in several substantive ways. Export shape: the reference exports exactly one named function; the candidate exports four things (`requireAuth`, `verifyToken`, `requireRole`, `AuthPayload`) plus a `declare global` augmentation of `Express.Request`, which is a structural convention the reference file (and presumably the rest of this small codebase) does not use. Naming/config conventions differ: the contract's `process.env.API_TOKEN` is replaced by `AUTH_DEV_TOKEN` and `JWT_SECRET`, and a `DEFAULT_DEV_TOKEN` constant plus `devToken()` helper replace the simple `VALID_TOKENS` set. Header access uses `req.get(\"authorization\")` + a regex `BEARER_PATTERN` instead of `req.headers.authorization?.startsWith(\"Bearer \")`. Error usage also drifts: the reference uses 401 for header problems and 403 for a bad token, while the candidate emits 401 for bad tokens, an unprecedented 500 for missing config, and reserves 403 for role checks. It also pulls in `zod` and `node:crypto` and adds JSDoc blocks absent from the reference. Multiple divergences, not one cosmetic one."
+            },
+            {
+              "dimension": "no_fabrication",
+              "score": 5,
+              "justification": "Every project symbol referenced by the candidate resolves. `AppError` is imported from `../utils/errors.js`, and `src/utils/errors.ts` exists in the file listing and is the same module the reference implementation imports (with the same `new AppError(status, message)` constructor shape). `zod` is declared in the `package.json` the candidate wrote this run (and is plausibly already used by `src/utils/validate.ts`), so it is not an invented dependency. `node:crypto` (`createHmac`, `timingSafeEqual`, `Buffer.from(..., 'base64url')`) are Node builtins, and `Request#get`, `NextFunction`, `Response` come from `@types/express`, which is in devDependencies. The `Express.Request` augmentation adding `auth` is self-declared in-file, not a reference to non-existent code. The candidate deviates behaviourally (JWT verification, `AUTH_DEV_TOKEN`/`JWT_SECRET` instead of `API_TOKEN`, 401 instead of 403 for bad tokens, extra `requireRole` export), but those are env-var/contract issues, not fabricated project symbols. No import or identifier points at code that does not exist."
+            }
+          ]
+        }
+      ],
+      "pairwise": [
+        {
+          "dimension": "contract_satisfaction",
+          "winner": null,
+          "orderStable": false,
+          "margin": "none",
+          "justification": "Both candidates abandon the contract's simple two-token model for an HS256 JWT scheme, and neither honours `process.env.API_TOKEN` or the 403 sentinel for a wrong-but-well-formed token — both return 401 instead. The 401 clauses (missing header, non-Bearer scheme) are satisfied by both, and both accept the literal `dev-token` in non-production. The deciding difference is the wrong-token path in the project's actual environment (no `JWT_SECRET` configured, as the original repo has none): FIRST falls back to a static-token comparison and rejects an unknown token with AppError(401) — wrong code, but still a client-error rejection; SECOND, once the token isn't the dev token, throws AppError(500, \"JWT_SECRET is not configured\"), turning every invalid-token request into a server error, which is a much larger deviation from the specified 403 and would break any caller/test expecting a 4xx. SECOND is marginally better on one clause (it accepts `dev-token` even when `JWT_SECRET` is set, whereas FIRST rejects `dev-token` in that configuration), but that configuration doesn't exist in the fixture, while SECOND's 500 path is hit on the default configuration. Net: FIRST violates fewer clauses in practice.",
+          "raw": [
+            "bootstrap",
+            "control"
+          ]
+        },
+        {
+          "dimension": "convention_match",
+          "winner": "bootstrap",
+          "orderStable": true,
+          "margin": "slight",
+          "justification": "Both share the reference's core conventions (type-only express import, `AppError` from \"../utils/errors.js\", thrown not passed to next(), `requireAuth(req, _res, next): void` named function export, tab indentation). First edges ahead on two concrete points: (1) it reads the header exactly as the reference does — `req.headers.authorization` — whereas second switches to `req.get(\"authorization\")` plus a regex `BEARER_PATTERN`, departing from the reference's plain `startsWith(\"Bearer \")` header-access idiom; (2) export shape is closer — first adds only an `AuthPayload` interface alongside `requireAuth`, while second widens the module's public surface with `AuthPayload`, `verifyToken`, and `requireRole`, well beyond the reference's single export. Second's extra zod import is defensible given the project already depends on zod, but the reference module itself has no such dependency. Neither uses the reference's 403-on-bad-token path in `requireAuth` (second only uses 403 in `requireRole`), so that is a wash.",
+          "raw": [
+            "bootstrap",
+            "bootstrap"
+          ]
+        },
+        {
+          "dimension": "no_fabrication",
+          "winner": null,
+          "orderStable": false,
+          "margin": "none",
+          "justification": "Both reference `AppError` from `../utils/errors.js`, which exists in the file listing, and both use only real Node builtins plus express types. The deciding difference is candidate SECOND's `import { z } from \"zod\"`: zod is not in the original project's dependencies, and SECOND had to add it to package.json itself in this run (and `src/utils/validate.ts` existence doesn't establish it was installed). That is a self-declared dependency on an uninstalled package rather than a verified project symbol — a weaker footing than candidate FIRST, which references nothing beyond the confirmed `../utils/errors.js` and node:crypto. Candidate FIRST also references no project symbols it did not verify (its only other written file is PLAN.md, a checklist). Neither invents a project module outright, so the gap is small.",
+          "raw": [
+            "bootstrap",
+            "tie"
+          ]
+        }
+      ]
+    },
+    {
+      "target": "simple-node-app",
+      "ablation": "body-validation",
+      "arms": [
+        {
+          "arm": "bootstrap",
+          "turns": 6,
+          "filesRead": [
+            "PLAN.md",
+            "package.json",
+            "src/app.ts",
+            "src/routes/users.ts",
+            "src/models/user.ts",
+            "src/utils/errors.ts",
+            "src/middleware/errors.ts",
+            "tests/users.test.ts",
+            "src/middleware/auth.ts"
+          ],
+          "filesWritten": [
+            "src/utils/validate.ts"
+          ],
+          "inputTokens": 19177,
+          "outputTokens": 1738,
+          "testsPassed": true,
+          "newTypeErrors": [],
+          "testFilesTampered": [],
+          "stoppedBecause": "end_turn",
+          "absoluteScores": [
+            {
+              "dimension": "contract_satisfaction",
+              "score": 2,
+              "justification": "Two clauses of the contract are violated. (1) The message must list issues comma-joined; the candidate joins with `\"; \"` (semicolon-space), so any caller/test asserting a comma-separated list fails. (2) The exported signature is specified as `parseBody<T>(schema, body): T`, but the candidate re-purposes the type parameter as the schema type (`parseBody<T extends ZodType>(schema: T, body: unknown): z.infer<T>`), so an explicit instantiation such as `parseBody<CreateUserInput>(schema, body)` — legal under the stated contract — no longer compiles. Additionally, the per-issue format `path: message` is altered for root-level issues (path omitted entirely), a further edge-case divergence from the literal spec, though that one is defensible. What is satisfied: `safeParse` usage, returning `result.data`, and throwing `AppError` with status 400 including all issues. The status code and success path are correct, but the message-formatting and signature clauses are unmet."
+            },
+            {
+              "dimension": "convention_match",
+              "score": 2,
+              "justification": "Import style, tab indentation, error class and throw form (`throw new AppError(400, ...)`) all match, but there are several divergences beyond cosmetic. (1) Generic signature is restructured: `parseBody<T extends ZodType>(schema: T, body: unknown): z.infer<T>` instead of the reference's `parseBody<T>(schema: ZodSchema<T>, body: unknown): T`, and it imports `ZodType`/`z`/`ZodError` rather than `ZodSchema`. (2) The message body is joined with `\"; \"` rather than the contract/reference `\", \"`. (3) The prefix differs in wording and punctuation: `Invalid request body \\u2014 ...` (em dash) vs `Validation failed: ...`. (4) An extra non-exported helper `formatIssues` plus conditional empty-path handling is introduced where the reference inlines a single `.map(...)`. Individually minor, collectively these are multiple naming/shape/formatting divergences from the reference's conventions."
+            },
+            {
+              "dimension": "no_fabrication",
+              "score": 5,
+              "justification": "Every referenced symbol resolves. `AppError` is imported from `./errors.js`, the same path the reference uses, corresponding to `src/utils/errors.ts` which exists in the project listing. The remaining imports (`ZodError`, `ZodType`, `z`) are all genuine public exports of the `zod` package (the reference likewise imports from zod), and `safeParse`, `result.error.issues`, `issue.path`, `issue.message`, and `z.infer` are all real zod API members. No project-internal module or symbol is invented. Format/message differences (`; ` separator, different prefix) are behavioural, not fabrication, concerns."
+            }
+          ]
+        },
+        {
+          "arm": "control",
+          "turns": 8,
+          "filesRead": [
+            "PLAN.md",
+            "package.json",
+            "src/routes/users.ts",
+            "src/models/user.ts",
+            "src/app.ts",
+            "src/utils/errors.ts",
+            "src/middleware/errors.ts",
+            "tests/users.test.ts",
+            "src/middleware/auth.ts",
+            "README.md",
+            "tsconfig.json",
+            "src/middleware/logger.ts"
+          ],
+          "filesWritten": [
+            "src/utils/validate.ts",
+            "tests/users.test.ts"
+          ],
+          "inputTokens": 27106,
+          "outputTokens": 3155,
+          "testsPassed": true,
+          "newTypeErrors": [],
+          "testFilesTampered": [
+            "tests/users.test.ts"
+          ],
+          "stoppedBecause": "end_turn",
+          "absoluteScores": [
+            {
+              "dimension": "contract_satisfaction",
+              "score": 2,
+              "justification": "Main path clauses are met: it exports `parseBody`, returns `result.data` on success, and throws `AppError(400)` on failure with each issue rendered as `path: message`. However, the contract's explicit requirement that issues be **comma-joined** is violated \\\" (semicolon-space) instead of \", \". That is a directly stated, testable clause left unmet. Additionally, the exported signature deviates from the specified `parseBody<T>(schema, body): T`: the candidate parameterises on the schema type (`T extends z.ZodTypeAny`) and returns `z.infer<T>`, so any caller that supplies the data type explicitly (e.g. `parseBody<CreateUserInput>(schema, body)`) will fail to compile \the declared shape. A minor further divergence is that issues with an empty path drop the `path: ` prefix entirely rather than emitting the `: message` form implied by the contract (defensible as an improvement, but still off-spec). The 400 status and AppError usage are correct, so the contract is not substantially unmet, but with the join separator wrong and the generic contract changed, two clauses fall short."
+            },
+            {
+              "dimension": "convention_match",
+              "score": 2,
+              "justification": "Matches on the essentials (named export, `import { AppError } from \"./errors.js\"`, `import type` from zod, tab indentation, safeParse + throw new AppError(400, ...)), but diverges on several conventions. (1) Signature shape differs structurally: reference is `parseBody<T>(schema: ZodSchema<T>, body: unknown): T` while the candidate uses `<T extends z.ZodTypeAny>(schema: T): z.infer<T>` with a `z` namespace import instead of the `ZodSchema` named type. (2) The issues are joined with `\"; \"` rather than the comma-join specified by the contract/reference. (3) The message prefix is `\"Invalid request body: \"` instead of `\"Validation failed: \"`. (4) Extra top-level `formatIssues` helper with an added empty-path branch, where the reference keeps a single inline `map` — a shape/naming addition not present in the codebase style. Individually cosmetic, but collectively multiple divergences including one that breaks the specified message format."
+            },
+            {
+              "dimension": "no_fabrication",
+              "score": 5,
+              "justification": "Every referenced symbol resolves. The validation module imports `AppError` from `./errors.js`, which maps to `src/utils/errors.ts` — present in the project listing and the same module the reference implementation imports. `z`/`z.ZodError`/`z.ZodTypeAny`/`z.infer` are genuine exports of the external `zod` package, and `safeParse`/`result.error.issues`/`issue.path`/`issue.message` are real Zod API surface (not invented fields). In the accompanying test file, `createApp` from `../src/app.js`, `users` from `../src/models/user.js`, plus `supertest` and `vitest` all correspond to files/packages that exist. The only mildly unverifiable detail is calling `users.clear()`, which assumes the exported store is a Map-like object, but `users` itself is a real module export and `.clear()` is a method-level assumption rather than a fabricated module or import. No nonexistent project code is depended on."
+            }
+          ]
+        }
+      ],
+      "pairwise": [
+        {
+          "dimension": "contract_satisfaction",
+          "winner": null,
+          "orderStable": false,
+          "margin": "none",
+          "justification": "Both candidates are functionally near-identical and both violate the same clause: the contract requires the issues to be comma-joined (`, `), yet each joins with `; `. Both also add their own prefix instead of `Validation failed: `, and both suppress the `path` segment when the path is empty (reference emits `: message`), so neither reproduces the exact message contract. Status code 400 and AppError type are correct in both, and both return `result.data` on success with equivalent generic inference (`ZodType` vs `ZodTypeAny` — both accept schemas, though both diverge from the contract's `parseBody<T>(schema, body): T` explicit-type-parameter form). The only concrete separating detail is the error prefix: SECOND uses `Invalid request body: ` with an ASCII colon, which matches the contract's `path: message` punctuation style and is safe for exact string comparison, whereas FIRST uses a non-ASCII em dash (`Invalid request body — `), a further gratuitous deviation that is more likely to break any assertion or client parsing keyed on the colon convention. SECOND's extra test file does not cover the 400 validation path, so it adds no contract evidence either way.",
+          "raw": [
+            "control",
+            "tie"
+          ]
+        },
+        {
+          "dimension": "convention_match",
+          "winner": null,
+          "orderStable": false,
+          "margin": "none",
+          "justification": "Both deviate identically from the reference in the ways that matter most (generic `<T extends ZodType/ZodTypeAny>` + `z.infer<T>` instead of `ZodSchema<T>` -> `T`, a helper `formatIssues`, and joining issues with `\"; \"` instead of `\", \"`), and both correctly match the import specifier style (`import type ... from \"zod\"`, `import { AppError } from \"./errors.js\"`), the export shape (named `parseBody`), and the error type/raise (`throw new AppError(400, ...)`). The deciding difference is the message prefix punctuation: the reference builds `` `Validation failed: ${...}` ``, and SECOND mirrors that colon-delimited shape (`\"Invalid request body: ...\"`) while FIRST uses a non-ASCII em dash (`\"Invalid request body — ...\"`), a stylistic import the reference codebase never uses. FIRST's import list also pulls in three specifiers (`ZodError, ZodType, z`) where the reference keeps a single minimal type import; SECOND's single `z` import with namespaced types is a marginally tighter match in spirit. Small edge, hence slight.",
+          "raw": [
+            "control",
+            "bootstrap"
+          ]
+        },
+        {
+          "dimension": "no_fabrication",
+          "winner": "bootstrap",
+          "orderStable": true,
+          "margin": "slight",
+          "justification": "Both files import only real symbols: `AppError` from `./errors.js` resolves to the existing `src/utils/errors.ts`, and each uses genuine zod type exports (`ZodType`/`ZodError` in FIRST, `z.ZodTypeAny`/`z.ZodError` in SECOND) — no invented project modules in either target file. The deciding difference is SECOND's additional `tests/users.test.ts`, which asserts named exports it never authored or verified: `createApp` from `../src/app.js` and a mutable `users` collection with a `.clear()` method from `../src/models/user.js`, plus a hardcoded `Bearer dev-token` credential presumably honoured by `src/middleware/auth.ts`. Those modules exist in the listing, but the specific named exports and the Map-like `clear()` API are guesses about pre-existing code the agent did not write, so SECOND carries real fabrication exposure that FIRST (which wrote nothing beyond the validated helper) does not. Margin is slight because the guessed exports are plausible conventions rather than clearly invented ones.",
+          "raw": [
+            "bootstrap",
+            "bootstrap"
+          ]
+        }
+      ]
+    }
+  ]
+}
