@@ -79,6 +79,39 @@ describe("PlanChunkManager", () => {
 			expect(chunks[0]?.tasks).toHaveLength(2);
 			expect(chunks[0]?.tasks[0]?.text).toBe("Build schemas");
 		});
+
+		// PROTOCOL.md sanctions fractional ids so an interstitial chunk can be
+		// inserted without renumbering, and PlanChunkSchema accepts them — but the
+		// filename pattern was `\d+` only, so PLAN_3.5.md was invisible to loadAll.
+		//
+		// REQ-S0.1.1  The manager shall discover plan files whose id is fractional.
+		// REQ-S0.1.2  The manager shall order fractional chunks numerically, not lexically.
+		it("discovers a fractional chunk file (REQ-S0.1.1)", () => {
+			writeChunk(tmpDir, 3, "Core");
+			writeChunk(tmpDir, 3.5, "Token counting");
+
+			const chunks = PlanChunkManager.loadAll(tmpDir as ValidatedPath);
+
+			expect(chunks.map((c) => c.chunk_id)).toEqual([3, 3.5]);
+		});
+
+		it("orders fractional chunks numerically (REQ-S0.1.2)", () => {
+			writeChunk(tmpDir, 13.2, "Annotations");
+			writeChunk(tmpDir, 2, "Security");
+			writeChunk(tmpDir, 13.1, "Auto-extract");
+
+			const chunks = PlanChunkManager.loadAll(tmpDir as ValidatedPath);
+
+			expect(chunks.map((c) => c.chunk_id)).toEqual([2, 13.1, 13.2]);
+		});
+
+		it("loads a fractional chunk as the active one", () => {
+			writeChunk(tmpDir, 3.5, "Token counting");
+
+			const chunk = PlanChunkManager.loadActive(tmpDir as ValidatedPath, makeState(3.5));
+
+			expect(chunk.title).toBe("Token counting");
+		});
 	});
 
 	describe("loadActive", () => {

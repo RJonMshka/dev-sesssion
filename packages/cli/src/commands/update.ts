@@ -19,6 +19,7 @@ import { cancel, isCancel, log, multiselect, text } from "@clack/prompts";
 import {
 	AiIndexManager,
 	type BootstrapContext,
+	CONTEXT_LOG_FILENAME,
 	ContextBudgetCalculator,
 	type ContextLogEntry,
 	FileIndexManager,
@@ -34,6 +35,7 @@ import {
 import { CliError, PathValidator, SecretScanner, type ValidatedPath } from "@dev-session/security";
 import type { Command } from "commander";
 import { createAdapterReadFile } from "../utils/adapter-io.js";
+import { dryRunSkipWrite, dryRunWrite } from "../utils/dry-run.js";
 import { handleError } from "../utils/error-handler.js";
 import { resolveAdapter } from "../utils/resolve-adapter.js";
 
@@ -53,6 +55,8 @@ export interface UpdateOptions {
 	readonly verbose: boolean;
 	/** Enable strict mode (block on secret detection). */
 	readonly strict: boolean;
+	/** Report what would change without touching the filesystem. */
+	readonly dryRun?: boolean;
 	/** Explicit adapter override (from --adapter flag). */
 	readonly adapter?: string;
 }
@@ -136,7 +140,16 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 	}
 
 	// Step 4: Save state
-	SessionStateManager.save(sessionDir, state);
+	const dryRun = options.dryRun === true;
+	if (dryRun) {
+		dryRunSkipWrite(
+			path.join(sessionDir, "SESSION_STATE.md"),
+			options.cwd,
+			`${String(tasksUpdated)} task(s), ${String(notesAdded)} note(s)`,
+		);
+	} else {
+		SessionStateManager.save(sessionDir, state);
+	}
 
 	if (options.verbose) {
 		log.info(`Tasks updated: ${String(tasksUpdated)}`);
@@ -209,7 +222,11 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 	}
 
 	// Step 7: Write regenerated prompt
-	NextPromptWriter.write(sessionDir, promptContent, state.max_prompt_lines);
+	if (dryRun) {
+		dryRunWrite(path.join(sessionDir, "NEXT_PROMPT.md"), promptContent, options.cwd);
+	} else {
+		NextPromptWriter.write(sessionDir, promptContent, state.max_prompt_lines);
+	}
 
 	log.info(ContextBudgetCalculator.formatSummary(budget));
 
@@ -226,7 +243,11 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 		total_tokens: budget.totalTokens,
 		modifications: [...state.last_worked_files],
 	};
-	SessionMemoryManager.append(sessionDir, logEntry);
+	if (dryRun) {
+		dryRunSkipWrite(path.join(sessionDir, CONTEXT_LOG_FILENAME), options.cwd, "1 log entry");
+	} else {
+		SessionMemoryManager.append(sessionDir, logEntry);
+	}
 
 	return {
 		tasksUpdated,
@@ -499,6 +520,7 @@ export function registerUpdateCommand(program: Command): void {
 				yes: boolean;
 				verbose: boolean;
 				strict: boolean;
+				dryRun: boolean;
 				adapter?: string;
 			}>();
 
@@ -507,6 +529,7 @@ export function registerUpdateCommand(program: Command): void {
 				yes: opts.yes,
 				verbose: opts.verbose,
 				strict: opts.strict,
+				dryRun: opts.dryRun,
 				...(opts.adapter !== undefined ? { adapter: opts.adapter } : {}),
 			};
 

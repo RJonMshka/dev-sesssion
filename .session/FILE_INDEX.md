@@ -299,7 +299,7 @@ last_updated: "2026-06-16"
 | packages/core/src/__tests__/session-memory-manager.test.ts | SessionMemoryManager unit tests (31 tests) |
 | tests/e2e/memory.e2e.test.ts | E2E tests for memory show/stats/stale/prune (12 tests) |
 
-## Chunk 13A — Auto-extract ai-index (zero-config) [COMPLETE 2026-04-14]
+## Chunk 13.1 — Auto-extract ai-index (zero-config) [COMPLETE 2026-04-14]
 
 | File | Purpose |
 |---|---|
@@ -323,7 +323,7 @@ last_updated: "2026-06-16"
 | tests/e2e/ai-index.e2e.test.ts | E2e: dev-sesssion index on fixture, --update, --dry-run, stats, --show — 8 tests |
 | tests/fixtures/ts-project/ | Fixture TypeScript project with existing JSDoc for E2e tests |
 
-## Chunk 13B — @ai-* annotation refinement
+## Chunk 13.2 — @ai-* annotation refinement
 
 | File | Purpose |
 |---|---|

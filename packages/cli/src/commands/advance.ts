@@ -17,8 +17,10 @@ import { cancel, confirm, isCancel, log } from "@clack/prompts";
 import {
 	AiIndexManager,
 	type BootstrapContext,
+	CONTEXT_LOG_FILENAME,
 	ContextBudgetCalculator,
 	type ContextLogEntry,
+	DONE_LOG_FILENAME,
 	FileIndexManager,
 	LayerResolver,
 	NextPromptWriter,
@@ -32,6 +34,7 @@ import {
 import { CliError, PathValidator, type ValidatedPath } from "@dev-session/security";
 import type { Command } from "commander";
 import { createAdapterReadFile } from "../utils/adapter-io.js";
+import { dryRunSkipWrite, dryRunWrite } from "../utils/dry-run.js";
 import { handleError } from "../utils/error-handler.js";
 import { resolveAdapter } from "../utils/resolve-adapter.js";
 
@@ -47,6 +50,8 @@ export interface AdvanceOptions {
 	readonly yes: boolean;
 	/** Show detailed output. */
 	readonly verbose: boolean;
+	/** Report what would change without touching the filesystem. */
+	readonly dryRun?: boolean;
 	/** Explicit adapter override (from --adapter flag). */
 	readonly adapter?: string;
 }
@@ -149,7 +154,16 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 	}
 
 	// Step 3: Archive the completed chunk
-	PlanChunkManager.archive(sessionDir, currentChunk);
+	const dryRun = options.dryRun === true;
+	if (dryRun) {
+		dryRunSkipWrite(
+			path.join(sessionDir, DONE_LOG_FILENAME),
+			options.cwd,
+			`archive chunk ${String(currentChunkId)}`,
+		);
+	} else {
+		PlanChunkManager.archive(sessionDir, currentChunk);
+	}
 
 	if (options.verbose) {
 		log.info(`Archived chunk ${String(currentChunkId)} to DONE_LOG.md`);
@@ -164,7 +178,15 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 
 	// Step 5: Advance to next chunk
 	state = PlanChunkManager.advance(state);
-	SessionStateManager.save(sessionDir, state);
+	if (dryRun) {
+		dryRunSkipWrite(
+			path.join(sessionDir, "SESSION_STATE.md"),
+			options.cwd,
+			`active_chunk -> ${String(state.active_chunk)}`,
+		);
+	} else {
+		SessionStateManager.save(sessionDir, state);
+	}
 
 	// Step 6: Load the new chunk and regenerate NEXT_PROMPT.md
 	const newChunk = PlanChunkManager.loadActive(sessionDir, state);
@@ -218,10 +240,16 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 
 	const promptContent = NextPromptWriter.generateWithFormatter(adapter.formatter, bootstrapContext);
 
-	NextPromptWriter.write(sessionDir, promptContent, state.max_prompt_lines);
+	if (dryRun) {
+		dryRunWrite(path.join(sessionDir, "NEXT_PROMPT.md"), promptContent, options.cwd);
+	} else {
+		NextPromptWriter.write(sessionDir, promptContent, state.max_prompt_lines);
+	}
 
 	// Step 7: Clear trim overrides (session-scoped, reset on advance)
-	TrimOverridesManager.clear(sessionDir);
+	if (!dryRun) {
+		TrimOverridesManager.clear(sessionDir);
+	}
 
 	if (options.verbose) {
 		log.info("Cleared trim overrides for new chunk.");
@@ -236,7 +264,11 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 		total_tokens: budget.totalTokens,
 		modifications: [...state.last_worked_files],
 	};
-	SessionMemoryManager.append(sessionDir, logEntry);
+	if (dryRun) {
+		dryRunSkipWrite(path.join(sessionDir, CONTEXT_LOG_FILENAME), options.cwd, "1 log entry");
+	} else {
+		SessionMemoryManager.append(sessionDir, logEntry);
+	}
 
 	// Step 8: Display result
 	const tasksRemaining = newChunk.tasks.filter((t) => t.status !== TaskStatus.DONE).length;
@@ -342,6 +374,7 @@ export function registerAdvanceCommand(program: Command): void {
 				cwd: string;
 				yes: boolean;
 				verbose: boolean;
+				dryRun: boolean;
 				adapter?: string;
 			}>();
 
@@ -349,6 +382,7 @@ export function registerAdvanceCommand(program: Command): void {
 				cwd: opts.cwd,
 				yes: opts.yes,
 				verbose: opts.verbose,
+				dryRun: opts.dryRun,
 				...(opts.adapter !== undefined ? { adapter: opts.adapter } : {}),
 			};
 

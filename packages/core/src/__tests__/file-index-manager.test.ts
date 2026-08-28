@@ -80,6 +80,89 @@ describe("FileIndexManager", () => {
 		});
 	});
 
+	// A heading the parser cannot map to a chunk tag must END the current section.
+	// Previously `currentChunkTag` was left untouched, so every row under an
+	// unrecognized heading was silently attributed to the PRECEDING chunk —
+	// mis-filing, which is strictly worse than dropping the row, because the load
+	// list is capped and a wrong entry evicts a real file.
+	describe("load — section attribution", () => {
+		it("tags rows under a fractional heading to the fractional chunk, not its floor", () => {
+			writeIndex(
+				tmpDir,
+				`# File Index
+
+## Chunk 3 — Core
+
+| File | Purpose |
+|---|---|
+| core.ts | Core |
+
+## Chunk 3.5 — Token counting
+
+| File | Purpose |
+|---|---|
+| counter.ts | Counter |
+`,
+			);
+
+			const entries = FileIndexManager.load(tmpDir as ValidatedPath);
+			const counter = entries.find((e) => e.filepath === "counter.ts");
+
+			expect(counter?.chunk_tags).toEqual([3.5]);
+			expect(counter?.chunk_tags).not.toContain(3);
+		});
+
+		it("drops rows under a chunk heading whose id cannot be mapped to a tag", () => {
+			writeIndex(
+				tmpDir,
+				`# File Index
+
+## Chunk 12 — Annotation schema
+
+| File | Purpose |
+|---|---|
+| annotate.ts | Annotations |
+
+## Chunk 13A — Auto-extract ai-index
+
+| File | Purpose |
+|---|---|
+| extract.ts | Extractor |
+`,
+			);
+
+			const entries = FileIndexManager.load(tmpDir as ValidatedPath);
+
+			expect(entries.find((e) => e.filepath === "extract.ts")).toBeUndefined();
+			expect(entries.find((e) => e.filepath === "annotate.ts")?.chunk_tags).toEqual([12]);
+		});
+
+		it("drops rows under a non-chunk heading instead of bleeding them into the previous chunk", () => {
+			writeIndex(
+				tmpDir,
+				`# File Index
+
+## Chunk 1 — Foundation
+
+| File | Purpose |
+|---|---|
+| real.ts | Real entry |
+
+## Design notes
+
+| File | Purpose |
+|---|---|
+| stray.ts | Not a chunk file |
+`,
+			);
+
+			const entries = FileIndexManager.load(tmpDir as ValidatedPath);
+
+			expect(entries.find((e) => e.filepath === "stray.ts")).toBeUndefined();
+			expect(entries.find((e) => e.filepath === "real.ts")?.chunk_tags).toEqual([1]);
+		});
+	});
+
 	describe("save", () => {
 		it("writes entries as markdown table format", () => {
 			const entries: FileIndexEntry[] = [
@@ -108,6 +191,193 @@ describe("FileIndexManager", () => {
 
 			expect(loaded).toHaveLength(3);
 			expect(loaded.map((e) => e.filepath).sort()).toEqual(["x.ts", "y.ts", "z.ts"]);
+		});
+	});
+
+	// FILE_INDEX.md is hand-edited in practice — this repo's own index carries
+	// section titles, a deliberate non-numeric section order, and ~35KB of design
+	// prose between tables. `save()` used to emit only `| path | purpose |` rows
+	// in ascending tag order, so a single `dev-sesssion update` destroyed all of it.
+	//
+	// REQ-S0.2.1  Where a FILE_INDEX.md exists, save shall preserve each section's heading text.
+	// REQ-S0.2.2  Where a FILE_INDEX.md exists, save shall preserve the existing section order.
+	// REQ-S0.2.3  Where a FILE_INDEX.md exists, save shall preserve non-table prose.
+	// REQ-S0.2.4  Where a section's chunk id maps to no tag, save shall emit that section verbatim.
+	// REQ-S0.2.5  If an entry carries a tag with no existing section, save shall append a new section.
+	// REQ-S0.2.6  Where no FILE_INDEX.md exists, save shall emit the canonical ascending format.
+	describe("save — layout preservation", () => {
+		const HAND_EDITED = `---
+version: 1
+last_updated: "2026-06-16"
+---
+
+# File Index
+
+## Always Include
+
+| File | Purpose |
+|---|---|
+| CLAUDE.md | AI session instructions |
+
+## Chunk 2 — Security utilities
+
+| File | Purpose |
+|---|---|
+| sec.ts | Security exports |
+
+**Design note:** the prefixes have ONE source of truth in formatter-utils.ts.
+
+## Chunk 1 — Foundation
+
+| File | Purpose |
+|---|---|
+| package.json | Root config |
+
+## Chunk 13A — Auto-extract ai-index [COMPLETE]
+
+| File | Purpose |
+|---|---|
+| extract.ts | Extractor |
+`;
+
+		function saveOver(entries: FileIndexEntry[]): string {
+			writeIndex(tmpDir, HAND_EDITED);
+			FileIndexManager.save(tmpDir as ValidatedPath, entries);
+			return fs.readFileSync(path.join(tmpDir, "FILE_INDEX.md"), "utf-8");
+		}
+
+		const EXISTING: FileIndexEntry[] = [
+			{ filepath: "CLAUDE.md", chunk_tags: [0], purpose: "AI session instructions" },
+			{ filepath: "sec.ts", chunk_tags: [2], purpose: "Security exports" },
+			{ filepath: "package.json", chunk_tags: [1], purpose: "Root config" },
+		];
+
+		it("preserves section heading titles (REQ-S0.2.1)", () => {
+			const content = saveOver(EXISTING);
+
+			expect(content).toContain("## Chunk 2 — Security utilities");
+			expect(content).toContain("## Chunk 1 — Foundation");
+		});
+
+		it("preserves the existing section order (REQ-S0.2.2)", () => {
+			const content = saveOver(EXISTING);
+
+			expect(content.indexOf("## Chunk 2")).toBeLessThan(content.indexOf("## Chunk 1"));
+		});
+
+		it("preserves prose between tables (REQ-S0.2.3)", () => {
+			const content = saveOver(EXISTING);
+
+			expect(content).toContain(
+				"**Design note:** the prefixes have ONE source of truth in formatter-utils.ts.",
+			);
+		});
+
+		it("preserves a section whose chunk id maps to no tag (REQ-S0.2.4)", () => {
+			const content = saveOver(EXISTING);
+
+			expect(content).toContain("## Chunk 13A — Auto-extract ai-index [COMPLETE]");
+			expect(content).toContain("| extract.ts | Extractor |");
+		});
+
+		it("appends a section for a tag the existing layout does not have (REQ-S0.2.5)", () => {
+			const content = saveOver([
+				...EXISTING,
+				{ filepath: "new.ts", chunk_tags: [7], purpose: "Brand new" },
+			]);
+
+			expect(content).toContain("## Chunk 7");
+			expect(content).toContain("| new.ts | Brand new |");
+		});
+
+		it("drops an entry that is no longer present from its section", () => {
+			const content = saveOver([
+				{ filepath: "CLAUDE.md", chunk_tags: [0], purpose: "AI session instructions" },
+				{ filepath: "package.json", chunk_tags: [1], purpose: "Root config" },
+			]);
+
+			expect(content).not.toContain("| sec.ts |");
+			// The section heading and its prose survive even when emptied.
+			expect(content).toContain("## Chunk 2 — Security utilities");
+		});
+
+		it("emits the canonical ascending format when no index exists (REQ-S0.2.6)", () => {
+			FileIndexManager.save(tmpDir as ValidatedPath, [
+				{ filepath: "b.ts", chunk_tags: [2], purpose: "Two" },
+				{ filepath: "a.ts", chunk_tags: [1], purpose: "One" },
+			]);
+			const content = fs.readFileSync(path.join(tmpDir, "FILE_INDEX.md"), "utf-8");
+
+			expect(content.indexOf("## Chunk 1")).toBeLessThan(content.indexOf("## Chunk 2"));
+		});
+
+		// A file may appear in several sections with a DIFFERENT purpose in each
+		// ("CLI build config" in chunk 1, "Updated: noExternal bundles …" in chunk 9).
+		// FileIndexEntry.purpose is a single string, so load() collapses them to the
+		// first-seen value. Writing that value back into every section destroyed the
+		// others — 64 rows of hand-written history in this repo's own index.
+		//
+		// REQ-S0.2.7  Where an entry's purpose is unchanged, save shall keep each section's own purpose.
+		// REQ-S0.2.8  If a caller changes an entry's purpose, save shall write the new purpose.
+		const MULTI_SECTION = `---
+version: 1
+last_updated: "2026-06-16"
+---
+
+# File Index
+
+## Chunk 1 — Foundation
+
+| File | Purpose |
+|---|---|
+| tsup.config.ts | Build config |
+
+## Chunk 9 — Polish
+
+| File | Purpose |
+|---|---|
+| tsup.config.ts | Updated: noExternal bundles workspace deps |
+`;
+
+		it("keeps each section's own purpose when the caller changed nothing (REQ-S0.2.7)", () => {
+			writeIndex(tmpDir, MULTI_SECTION);
+			const loaded = FileIndexManager.load(tmpDir as ValidatedPath);
+			FileIndexManager.save(tmpDir as ValidatedPath, loaded);
+			const after = fs.readFileSync(path.join(tmpDir, "FILE_INDEX.md"), "utf-8");
+
+			expect(after).toContain("| tsup.config.ts | Build config |");
+			expect(after).toContain("| tsup.config.ts | Updated: noExternal bundles workspace deps |");
+		});
+
+		it("writes the new purpose into every section when the caller changed it (REQ-S0.2.8)", () => {
+			writeIndex(tmpDir, MULTI_SECTION);
+			const loaded = FileIndexManager.load(tmpDir as ValidatedPath);
+			const edited = loaded.map((e) =>
+				e.filepath === "tsup.config.ts" ? { ...e, purpose: "Bundler config" } : e,
+			);
+			FileIndexManager.save(tmpDir as ValidatedPath, edited);
+			const after = fs.readFileSync(path.join(tmpDir, "FILE_INDEX.md"), "utf-8");
+
+			expect(after.match(/\| tsup\.config\.ts \| Bundler config \|/g)).toHaveLength(2);
+			expect(after).not.toContain("Updated: noExternal");
+		});
+
+		it("round-trips the full hand-edited document without losing content", () => {
+			writeIndex(tmpDir, HAND_EDITED);
+			const loaded = FileIndexManager.load(tmpDir as ValidatedPath);
+			FileIndexManager.save(tmpDir as ValidatedPath, loaded);
+			const after = fs.readFileSync(path.join(tmpDir, "FILE_INDEX.md"), "utf-8");
+
+			for (const fragment of [
+				"## Chunk 2 — Security utilities",
+				"## Chunk 1 — Foundation",
+				"## Chunk 13A — Auto-extract ai-index [COMPLETE]",
+				"**Design note:**",
+				"| sec.ts | Security exports |",
+				"| extract.ts | Extractor |",
+			]) {
+				expect(after).toContain(fragment);
+			}
 		});
 	});
 

@@ -1,7 +1,7 @@
 ---
 chunk_id: 15
 title: "Layered context loading"
-depends_on: ["13a", 14]
+depends_on: [13.1, 14]
 tasks:
   - text: "`SessionYaml` type + `SessionYamlSchema` (Zod `.strict()`) — `context_budget`, `active_adapter`, `files: Record<string, { layer: 0 | 1 | 2 }>`, `excludes: string[]` (absorbs trim-overrides.json — one session file not two)"
     status: todo

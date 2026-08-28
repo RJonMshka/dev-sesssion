@@ -11,6 +11,9 @@
 import path from "node:path";
 import { log } from "@clack/prompts";
 
+/** Prefix every dry-run line shares, so the output is greppable and uniform. */
+const DRY_RUN_PREFIX = "[dry-run] Would write:";
+
 /**
  * Log what a file write would produce without actually writing.
  *
@@ -23,7 +26,22 @@ export function dryRunWrite(filePath: string, content: string, cwd: string): voi
 	const lines = content.split("\n").length;
 	const bytes = Buffer.byteLength(content, "utf-8");
 
-	log.info(`[dry-run] Would write: ${relative} (${lines} lines, ${bytes} bytes)`);
+	log.info(`${DRY_RUN_PREFIX} ${relative} (${lines} lines, ${bytes} bytes)`);
+}
+
+/**
+ * Log a write that will be skipped, for callers that never materialize the
+ * content — a manager that serializes internally, or an append-only log.
+ *
+ * @param filePath - The target file path
+ * @param cwd - The working directory (for relative path display)
+ * @param detail - Optional parenthetical describing the change
+ */
+export function dryRunSkipWrite(filePath: string, cwd: string, detail?: string): void {
+	const relative = path.relative(cwd, filePath);
+	const suffix = detail === undefined ? "" : ` (${detail})`;
+
+	log.info(`${DRY_RUN_PREFIX} ${relative}${suffix}`);
 }
 
 /**

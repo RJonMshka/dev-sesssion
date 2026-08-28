@@ -1,5 +1,5 @@
 ---
-chunk_id: "13a"
+chunk_id: 13.1
 title: "Auto-extract ai-index (zero-config)"
 depends_on: [3, 5]
 tasks:

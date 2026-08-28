@@ -1,7 +1,7 @@
 ---
 chunk_id: 14
 title: "MCP server (basic, v1-compatible)"
-depends_on: [6, "13a"]
+depends_on: [6, 13.1]
 tasks:
   - text: "`packages/mcp/` package scaffold — `package.json`, `tsconfig.json`, `tsup.config.ts`; imports from `packages/core` only (no direct CLI imports)"
     status: todo

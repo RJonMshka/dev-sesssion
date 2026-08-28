@@ -1,7 +1,7 @@
 ---
-chunk_id: "13b"
+chunk_id: 13.2
 title: "@ai-* annotation refinement layer"
-depends_on: ["13a"]
+depends_on: [13.1]
 tasks:
   - text: "`AnnotationParser` class in `packages/core/annotation/` — `parseFile(path): Promise<FileAnnotations>` extracts `@ai-*` tags from JSDoc/TSDoc blocks via AST (same `@typescript-eslint/typescript-estree` instance, no double-parse)"
     status: todo

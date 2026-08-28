@@ -99,7 +99,7 @@ export type { LintResult } from "./linters/context-linter.js";
 export { ContextLinter } from "./linters/context-linter.js";
 export { FILE_INDEX_PAGE_SIZE, FileIndexManager } from "./managers/file-index-manager.js";
 export { NextPromptWriter } from "./managers/next-prompt-writer.js";
-export { PlanChunkManager } from "./managers/plan-chunk-manager.js";
+export { DONE_LOG_FILENAME, PlanChunkManager } from "./managers/plan-chunk-manager.js";
 export { RoutinesWriter } from "./managers/routines-writer.js";
 export type {
 	ActiveChunkInfo,
