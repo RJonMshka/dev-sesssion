@@ -84,9 +84,9 @@ describe("PlanChunkManager", () => {
 		// inserted without renumbering, and PlanChunkSchema accepts them — but the
 		// filename pattern was `\d+` only, so PLAN_3.5.md was invisible to loadAll.
 		//
-		// REQ-S0.1.1  The manager shall discover plan files whose id is fractional.
-		// REQ-S0.1.2  The manager shall order fractional chunks numerically, not lexically.
-		it("discovers a fractional chunk file (REQ-S0.1.1)", () => {
+		// REQ-CHK-1  The manager shall discover plan files whose id is fractional.
+		// REQ-CHK-2  The manager shall order fractional chunks numerically, not lexically.
+		it("discovers a fractional chunk file (REQ-CHK-1)", () => {
 			writeChunk(tmpDir, 3, "Core");
 			writeChunk(tmpDir, 3.5, "Token counting");
 
@@ -95,7 +95,7 @@ describe("PlanChunkManager", () => {
 			expect(chunks.map((c) => c.chunk_id)).toEqual([3, 3.5]);
 		});
 
-		it("orders fractional chunks numerically (REQ-S0.1.2)", () => {
+		it("orders fractional chunks numerically (REQ-CHK-2)", () => {
 			writeChunk(tmpDir, 13.2, "Annotations");
 			writeChunk(tmpDir, 2, "Security");
 			writeChunk(tmpDir, 13.1, "Auto-extract");

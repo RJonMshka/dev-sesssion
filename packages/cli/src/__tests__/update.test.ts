@@ -263,9 +263,9 @@ describe("runUpdate --yes mode", () => {
 	// went through. Running it against this repo's own session overwrote a
 	// hand-written NEXT_PROMPT.md that was gitignored, and so unrecoverable.
 	//
-	// REQ-S0.4.1  Where dry-run is set, update shall not modify SESSION_STATE.md.
-	// REQ-S0.4.2  Where dry-run is set, update shall not modify NEXT_PROMPT.md.
-	// REQ-S0.4.3  Where dry-run is set, update shall not append to CONTEXT_LOG.md.
+	// REQ-DRY-1  Where dry-run is set, update shall not modify SESSION_STATE.md.
+	// REQ-DRY-2  Where dry-run is set, update shall not modify NEXT_PROMPT.md.
+	// REQ-DRY-3  Where dry-run is set, update shall not append to CONTEXT_LOG.md.
 	describe("dry-run", () => {
 		const DRY = { yes: true, verbose: false, strict: false, dryRun: true } as const;
 
@@ -273,7 +273,7 @@ describe("runUpdate --yes mode", () => {
 			return fs.readFileSync(path.join(tmpDir, ".session", name), "utf-8");
 		}
 
-		it("leaves SESSION_STATE.md untouched (REQ-S0.4.1)", async () => {
+		it("leaves SESSION_STATE.md untouched (REQ-DRY-1)", async () => {
 			setupSession();
 			const before = read("SESSION_STATE.md");
 
@@ -282,7 +282,7 @@ describe("runUpdate --yes mode", () => {
 			expect(read("SESSION_STATE.md")).toBe(before);
 		});
 
-		it("leaves NEXT_PROMPT.md untouched (REQ-S0.4.2)", async () => {
+		it("leaves NEXT_PROMPT.md untouched (REQ-DRY-2)", async () => {
 			setupSession();
 			const before = read("NEXT_PROMPT.md");
 
@@ -291,7 +291,7 @@ describe("runUpdate --yes mode", () => {
 			expect(read("NEXT_PROMPT.md")).toBe(before);
 		});
 
-		it("does not append a context log entry (REQ-S0.4.3)", async () => {
+		it("does not append a context log entry (REQ-DRY-3)", async () => {
 			setupSession();
 			const sessionDir = path.join(tmpDir, ".session") as ValidatedPath;
 

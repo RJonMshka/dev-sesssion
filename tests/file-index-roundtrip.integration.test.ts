@@ -1,15 +1,15 @@
 /**
- * Round-trip guard for FILE_INDEX.md against this repository's own index.
+ * Round-trip guard for FILE_INDEX.md against a real, messy index.
  *
- * The synthetic fixtures in the unit suite are small and tidy. The real
- * `.session/FILE_INDEX.md` is not: 21 sections in deliberately non-numeric
- * order, headings carrying titles and `[COMPLETE <date>]` markers, `###`
- * sub-sections splitting a chunk across several tables, ~10 lines of design
- * prose between tables, and 64 rows where one file carries a different purpose
- * in each section it appears in.
+ * The synthetic fixtures in the unit suite are small and tidy. This one is a
+ * verbatim capture of an index maintained by hand over eighteen chunks of work:
+ * 21 sections in deliberately non-numeric order, headings carrying titles and
+ * `[COMPLETE <date>]` markers, `###` sub-sections splitting a chunk across
+ * several tables, ~10 lines of design prose between tables, and 64 rows where
+ * one file carries a different purpose in each section it appears in.
  *
  * Every one of those was destroyed by `save()` before the layout-preserving
- * rewrite. Asserting against the real document is the point — a hand-written
+ * rewrite. Asserting against a real document is the point — a hand-written
  * fixture cannot capture a shape nobody thought to write down.
  */
 
@@ -21,15 +21,15 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { FileIndexManager } from "../packages/core/src/managers/file-index-manager.js";
 import type { ValidatedPath } from "../packages/security/src/validators/path-validator.js";
 
-const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const REAL_INDEX = path.join(REPO_ROOT, ".session", "FILE_INDEX.md");
+const TESTS_ROOT = path.dirname(fileURLToPath(import.meta.url));
+const REAL_INDEX = path.join(TESTS_ROOT, "fixtures", "messy-file-index", "FILE_INDEX.md");
 
 /** Strips the one line `save()` is expected to change. */
 function withoutDate(content: string): string {
 	return content.replace(/^last_updated:.*$/m, "last_updated: <date>");
 }
 
-describe("FILE_INDEX.md round-trip against the real session index", () => {
+describe("FILE_INDEX.md round-trip against a real hand-maintained index", () => {
 	let tmp: DirectoryResult;
 
 	beforeEach(async () => {

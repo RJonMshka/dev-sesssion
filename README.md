@@ -207,6 +207,8 @@ Detects pnpm, npm, Yarn, Nx, and Turborepo workspaces.
 | [API reference](https://github.com/RJonMshka/dev-sesssion/blob/main/docs/API.md) | `@dev-session/core` exports for programmatic use |
 | [PROTOCOL.md](https://github.com/RJonMshka/dev-sesssion/blob/main/PROTOCOL.md) | The Session Protocol v1.0 spec (the `.session/` format) |
 | [SECURITY.md](https://github.com/RJonMshka/dev-sesssion/blob/main/SECURITY.md) | Threat model and vulnerability disclosure |
+| [METHOD.md](https://github.com/RJonMshka/dev-sesssion/blob/main/docs/METHOD.md) | How this repo is developed — HLD/LLD/EARS and TDD (contributors, not users) |
+| [docs/plan/](https://github.com/RJonMshka/dev-sesssion/tree/main/docs/plan) | Design docs for in-flight work: one HLD, one LLD per feature |
 
 ---
 

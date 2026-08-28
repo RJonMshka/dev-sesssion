@@ -85,8 +85,15 @@ describe("FileIndexManager", () => {
 	// unrecognized heading was silently attributed to the PRECEDING chunk —
 	// mis-filing, which is strictly worse than dropping the row, because the load
 	// list is capped and a wrong entry evicts a real file.
+	//
+	// REQ-IDX-1  When a section heading names no chunk the index can represent,
+	//            the parser shall end the current section.
+	// REQ-IDX-2  The parser shall tag rows under a fractional heading to that
+	//            fractional chunk.
+	// REQ-IDX-3  If a row falls under no mappable section, then the parser shall
+	//            drop it rather than attribute it to the preceding chunk.
 	describe("load — section attribution", () => {
-		it("tags rows under a fractional heading to the fractional chunk, not its floor", () => {
+		it("tags rows under a fractional heading to the fractional chunk, not its floor (REQ-IDX-2)", () => {
 			writeIndex(
 				tmpDir,
 				`# File Index
@@ -112,7 +119,7 @@ describe("FileIndexManager", () => {
 			expect(counter?.chunk_tags).not.toContain(3);
 		});
 
-		it("drops rows under a chunk heading whose id cannot be mapped to a tag", () => {
+		it("drops rows under a chunk heading whose id cannot be mapped to a tag (REQ-IDX-1)", () => {
 			writeIndex(
 				tmpDir,
 				`# File Index
@@ -137,7 +144,7 @@ describe("FileIndexManager", () => {
 			expect(entries.find((e) => e.filepath === "annotate.ts")?.chunk_tags).toEqual([12]);
 		});
 
-		it("drops rows under a non-chunk heading instead of bleeding them into the previous chunk", () => {
+		it("drops rows under a non-chunk heading instead of bleeding them into the previous chunk (REQ-IDX-3)", () => {
 			writeIndex(
 				tmpDir,
 				`# File Index
@@ -199,12 +206,12 @@ describe("FileIndexManager", () => {
 	// prose between tables. `save()` used to emit only `| path | purpose |` rows
 	// in ascending tag order, so a single `dev-sesssion update` destroyed all of it.
 	//
-	// REQ-S0.2.1  Where a FILE_INDEX.md exists, save shall preserve each section's heading text.
-	// REQ-S0.2.2  Where a FILE_INDEX.md exists, save shall preserve the existing section order.
-	// REQ-S0.2.3  Where a FILE_INDEX.md exists, save shall preserve non-table prose.
-	// REQ-S0.2.4  Where a section's chunk id maps to no tag, save shall emit that section verbatim.
-	// REQ-S0.2.5  If an entry carries a tag with no existing section, save shall append a new section.
-	// REQ-S0.2.6  Where no FILE_INDEX.md exists, save shall emit the canonical ascending format.
+	// REQ-IDX-4  Where a FILE_INDEX.md exists, save shall preserve each section's heading text.
+	// REQ-IDX-5  Where a FILE_INDEX.md exists, save shall preserve the existing section order.
+	// REQ-IDX-6  Where a FILE_INDEX.md exists, save shall preserve non-table prose.
+	// REQ-IDX-7  Where a section's chunk id maps to no tag, save shall emit that section verbatim.
+	// REQ-IDX-8  If an entry carries a tag with no existing section, save shall append a new section.
+	// REQ-IDX-9  Where no FILE_INDEX.md exists, save shall emit the canonical ascending format.
 	describe("save — layout preservation", () => {
 		const HAND_EDITED = `---
 version: 1
@@ -252,20 +259,20 @@ last_updated: "2026-06-16"
 			{ filepath: "package.json", chunk_tags: [1], purpose: "Root config" },
 		];
 
-		it("preserves section heading titles (REQ-S0.2.1)", () => {
+		it("preserves section heading titles (REQ-IDX-4)", () => {
 			const content = saveOver(EXISTING);
 
 			expect(content).toContain("## Chunk 2 — Security utilities");
 			expect(content).toContain("## Chunk 1 — Foundation");
 		});
 
-		it("preserves the existing section order (REQ-S0.2.2)", () => {
+		it("preserves the existing section order (REQ-IDX-5)", () => {
 			const content = saveOver(EXISTING);
 
 			expect(content.indexOf("## Chunk 2")).toBeLessThan(content.indexOf("## Chunk 1"));
 		});
 
-		it("preserves prose between tables (REQ-S0.2.3)", () => {
+		it("preserves prose between tables (REQ-IDX-6)", () => {
 			const content = saveOver(EXISTING);
 
 			expect(content).toContain(
@@ -273,14 +280,14 @@ last_updated: "2026-06-16"
 			);
 		});
 
-		it("preserves a section whose chunk id maps to no tag (REQ-S0.2.4)", () => {
+		it("preserves a section whose chunk id maps to no tag (REQ-IDX-7)", () => {
 			const content = saveOver(EXISTING);
 
 			expect(content).toContain("## Chunk 13A — Auto-extract ai-index [COMPLETE]");
 			expect(content).toContain("| extract.ts | Extractor |");
 		});
 
-		it("appends a section for a tag the existing layout does not have (REQ-S0.2.5)", () => {
+		it("appends a section for a tag the existing layout does not have (REQ-IDX-8)", () => {
 			const content = saveOver([
 				...EXISTING,
 				{ filepath: "new.ts", chunk_tags: [7], purpose: "Brand new" },
@@ -301,7 +308,7 @@ last_updated: "2026-06-16"
 			expect(content).toContain("## Chunk 2 — Security utilities");
 		});
 
-		it("emits the canonical ascending format when no index exists (REQ-S0.2.6)", () => {
+		it("emits the canonical ascending format when no index exists (REQ-IDX-9)", () => {
 			FileIndexManager.save(tmpDir as ValidatedPath, [
 				{ filepath: "b.ts", chunk_tags: [2], purpose: "Two" },
 				{ filepath: "a.ts", chunk_tags: [1], purpose: "One" },
@@ -317,8 +324,8 @@ last_updated: "2026-06-16"
 		// first-seen value. Writing that value back into every section destroyed the
 		// others — 64 rows of hand-written history in this repo's own index.
 		//
-		// REQ-S0.2.7  Where an entry's purpose is unchanged, save shall keep each section's own purpose.
-		// REQ-S0.2.8  If a caller changes an entry's purpose, save shall write the new purpose.
+		// REQ-IDX-10  Where an entry's purpose is unchanged, save shall keep each section's own purpose.
+		// REQ-IDX-11  If a caller changes an entry's purpose, save shall write the new purpose.
 		const MULTI_SECTION = `---
 version: 1
 last_updated: "2026-06-16"
@@ -339,7 +346,7 @@ last_updated: "2026-06-16"
 | tsup.config.ts | Updated: noExternal bundles workspace deps |
 `;
 
-		it("keeps each section's own purpose when the caller changed nothing (REQ-S0.2.7)", () => {
+		it("keeps each section's own purpose when the caller changed nothing (REQ-IDX-10)", () => {
 			writeIndex(tmpDir, MULTI_SECTION);
 			const loaded = FileIndexManager.load(tmpDir as ValidatedPath);
 			FileIndexManager.save(tmpDir as ValidatedPath, loaded);
@@ -349,7 +356,7 @@ last_updated: "2026-06-16"
 			expect(after).toContain("| tsup.config.ts | Updated: noExternal bundles workspace deps |");
 		});
 
-		it("writes the new purpose into every section when the caller changed it (REQ-S0.2.8)", () => {
+		it("writes the new purpose into every section when the caller changed it (REQ-IDX-11)", () => {
 			writeIndex(tmpDir, MULTI_SECTION);
 			const loaded = FileIndexManager.load(tmpDir as ValidatedPath);
 			const edited = loaded.map((e) =>

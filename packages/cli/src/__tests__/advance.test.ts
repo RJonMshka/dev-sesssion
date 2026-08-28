@@ -251,9 +251,9 @@ describe("runAdvance", () => {
 	// destructive of the two: it archives the chunk to DONE_LOG.md and moves
 	// active_chunk forward, neither of which the tool can undo.
 	//
-	// REQ-S0.4.4  Where dry-run is set, advance shall not modify SESSION_STATE.md.
-	// REQ-S0.4.5  Where dry-run is set, advance shall not append to DONE_LOG.md.
-	// REQ-S0.4.6  Where dry-run is set, advance shall not modify NEXT_PROMPT.md.
+	// REQ-DRY-4  Where dry-run is set, advance shall not modify SESSION_STATE.md.
+	// REQ-DRY-5  Where dry-run is set, advance shall not append to DONE_LOG.md.
+	// REQ-DRY-6  Where dry-run is set, advance shall not modify NEXT_PROMPT.md.
 	describe("dry-run", () => {
 		const DRY = { yes: true, verbose: false, dryRun: true } as const;
 
@@ -261,7 +261,7 @@ describe("runAdvance", () => {
 			return fs.readFileSync(path.join(tmpDir, ".session", name), "utf-8");
 		}
 
-		it("leaves SESSION_STATE.md untouched (REQ-S0.4.4)", async () => {
+		it("leaves SESSION_STATE.md untouched (REQ-DRY-4)", async () => {
 			setupSession();
 			const before = read("SESSION_STATE.md");
 
@@ -270,7 +270,7 @@ describe("runAdvance", () => {
 			expect(read("SESSION_STATE.md")).toBe(before);
 		});
 
-		it("does not archive to DONE_LOG.md (REQ-S0.4.5)", async () => {
+		it("does not archive to DONE_LOG.md (REQ-DRY-5)", async () => {
 			setupSession();
 
 			await runAdvance({ cwd: tmpDir, ...DRY });
@@ -278,7 +278,7 @@ describe("runAdvance", () => {
 			expect(fs.existsSync(path.join(tmpDir, ".session", "DONE_LOG.md"))).toBe(false);
 		});
 
-		it("does not write NEXT_PROMPT.md (REQ-S0.4.6)", async () => {
+		it("does not write NEXT_PROMPT.md (REQ-DRY-6)", async () => {
 			setupSession();
 
 			await runAdvance({ cwd: tmpDir, ...DRY });
