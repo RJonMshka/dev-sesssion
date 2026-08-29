@@ -1,5 +1,18 @@
 # dev-sesssion: the complete guide
 
+This guide explains the **ideas** — what the pieces are, why they exist, and how
+a session actually runs day to day. It deliberately does not restate reference
+material that lives elsewhere:
+
+| For | Read |
+|---|---|
+| Installing and your first session | [getting-started.md](getting-started.md) |
+| Every command, flag and exit code | [commands.md](commands.md) |
+| Per-tool detection and output formats | [adapters.md](adapters.md) |
+| Shared repos: what is committed | [team-mode.md](team-mode.md) |
+
+---
+
 ## What problem does this solve?
 
 AI coding assistants like Claude, Cursor, and opencode are powerful — but they suffer from a fundamental limitation: **they forget everything when the conversation ends**. Start a new session tomorrow, and the AI has no idea what you built yesterday, which files matter, what decisions you made, or where you left off. You spend the first 10 minutes of every session just re-explaining your project.
@@ -167,70 +180,16 @@ Every AI session has a **token budget** — like a word count limit on an essay.
 
 ## Getting started
 
-### Installation
-
 ```bash
-# In any project directory:
 npx dev-sesssion init
 ```
 
-No global install needed. You can also install globally if you prefer:
+The wizard detects your plan and AI tool, asks whether this is a personal or a
+team repo, splits an existing `PLAN.md` into chunks (or scaffolds one with you),
+walks the codebase to build `FILE_INDEX.md`, and writes the session files.
 
-```bash
-npm install -g dev-sesssion
-dev-sesssion init
-```
-
-### The init wizard
-
-When you run `dev-sesssion init`, a wizard walks you through setup in five phases:
-
-**Phase 1 — Detection** (automatic)
-
-`dev-sesssion` scans your project and detects:
-- Whether you have an existing `PLAN.md` file
-- Which AI tool you're using (Claude Code, Cursor, opencode)
-- Your project name from `package.json`
-- Whether a `.session/` directory already exists
-
-**Phase 2 — Team or personal mode**
-
-```
-? How is this session being used?
-  ❯ Personal  (session files are local only)
-    Team      (auto-adds .gitignore + .gitattributes for shared repos)
-```
-
-Choose **Personal** if you're the only developer. Choose **Team** if multiple developers will work with AI on this project — it patches `.gitignore` to keep session files local by default and adds a `.gitattributes` rule so `FILE_INDEX.md` doesn't create merge conflicts.
-
-**Phase 3 — Plan setup (three paths)**
-
-The wizard takes one of three paths depending on what it found:
-
-| Situation | What happens |
-|---|---|
-| You have a `PLAN.md` | It splits your plan into chunks automatically |
-| You have no plan | It runs an interactive scaffolding wizard |
-| You abort the split | It falls back to the scaffolding wizard |
-
-The **split path** reads your `PLAN.md` and detects natural chunk boundaries (headers, sections). It shows you a preview and asks for confirmation.
-
-The **scaffold path** asks you a few questions:
-- Project name
-- What are you building?
-- Break it into phases (each phase becomes a chunk)
-
-**Phase 4 — FILE_INDEX generation** (automatic)
-
-`dev-sesssion` walks your codebase (respecting `.gitignore`), estimates which files belong to which chunks based on directory structure, and builds a starter `FILE_INDEX.md`. You'll refine this over time.
-
-**Phase 5 — Final writes**
-
-It writes `SESSION_STATE.md`, `NEXT_PROMPT.md`, `ROUTINES.md`, and patches `.gitignore` if needed.
-
-```
-✔ Init complete. 4 chunks, 47 indexed files. Paste NEXT_PROMPT.md to start your first session.
-```
+The five phases, the flags, and the non-interactive path are covered in
+[getting-started.md](getting-started.md).
 
 ---
 
@@ -300,387 +259,55 @@ Think of it like tearing off the completed leg of your road trip map and unfoldi
 
 ## Command reference
 
-All commands accept these global flags:
-
-| Flag | Description | Default |
-|---|---|---|
-| `--cwd <path>` | Run as if in a different directory | current dir |
-| `-y, --yes` | Skip prompts, use defaults | false |
-| `--dry-run` | Show what would change without writing | false |
-| `-v, --verbose` | Show detailed output | false |
-| `--strict` | Block (not just warn) on secret detection | false |
-| `--adapter <name>` | Force a specific adapter (`claude`, `opencode`, `cursor`, `windsurf`) | auto-detect |
-
----
-
-### `dev-sesssion init`
-
-Initializes `dev-sesssion` in the current project. Runs the full wizard.
-
-```bash
-dev-sesssion init
-dev-sesssion init --team          # skip team/personal prompt, go straight to team mode
-dev-sesssion init --yes           # no prompts, use all defaults (personal mode)
-dev-sesssion init --dry-run       # preview what would be written
-dev-sesssion init --max-files 200 # cap the FILE_INDEX at 200 files (useful for large repos)
-```
-
-**When to use:** Once, when setting up a new project. Re-running it on an existing session will ask if you want to reinitialize.
-
-> **Large repo tip:** On a monorepo or a project with many generated files, the codebase walk can
-> pick up hundreds of files you don't need the AI to know about. Pass `--max-files <n>` to cap the
-> index. Files are indexed in walk order (alphabetical, `.gitignore`-aware), so the most important
-> source files — which tend to appear first — are prioritized.
-
----
-
-### `dev-sesssion status`
-
-Shows the current health of your session at a glance.
-
-```bash
-dev-sesssion status
-dev-sesssion status --json        # machine-readable output (for scripts/CI)
-dev-sesssion status --verbose     # show in-progress and todo counts separately
-```
-
-**Example output:**
-```
-● Active chunk: 3 — Billing integration
-● Session: chunk-3-billing
-● Last updated: 2026-04-07 (today)
-● Tasks: [==========>         ] 55% (6/11 done)
-● Files: 8 in context, 2 always-include, 54 indexed
-● Budget: ~3,840 / 4,000 tokens (heuristic)
-⚠ NEXT_PROMPT.md has 22 lines (max 20) — consider regenerating
-```
-
-**Warnings to pay attention to:**
-
-| Warning | What it means | What to do |
-|---|---|---|
-| `NEXT_PROMPT.md has N lines (max 20)` | Prompt grew too long (the max shown is your configured `max_prompt_lines`) | Run `dev-sesssion update` to regenerate |
-| `always-include list has N files` | Too many "always load" files | Tighten the list; move some to chunk tags |
-| `Context budget exceeded` | Session will be token-heavy | Remove large files or split the chunk |
-| `All tasks done` | Chunk is complete | Run `dev-sesssion advance` |
-
----
-
-### `dev-sesssion update`
-
-Interactively marks tasks done, adds notes, and regenerates `NEXT_PROMPT.md`.
-
-```bash
-dev-sesssion update
-dev-sesssion update --yes         # auto-update from git status only, no prompts
-dev-sesssion update --strict      # fail if secrets are detected in the prompt
-```
-
-**When to use:** At the end of every coding session, before closing your AI tool.
-
----
-
-### `dev-sesssion advance`
-
-Archives the current chunk and moves to the next one.
-
-```bash
-dev-sesssion advance
-dev-sesssion advance --yes        # force-advance even if tasks are incomplete
-```
-
-> **Good to know:** `advance` warns you if tasks are still pending. It won't advance without your confirmation — unless you pass `--yes`.
-
-**When to use:** When all tasks in the active chunk are done and you're ready to start the next leg.
-
----
-
-### `dev-sesssion prompt`
-
-Prints `NEXT_PROMPT.md` to stdout for piping or copying.
-
-```bash
-dev-sesssion prompt               # print to terminal
-dev-sesssion prompt --copy        # copy to clipboard (uses pbcopy/xclip/clip.exe)
-```
-
-**When to use:** At the start of every AI session. Pipe it, copy it, or display it — then paste it into your AI tool.
-
----
-
-### `dev-sesssion index add <filepath>`
-
-Adds a file to `FILE_INDEX.md`.
-
-```bash
-dev-sesssion index add src/payments/stripe.ts
-dev-sesssion index add src/payments/stripe.ts --yes   # auto-tag to active chunk
-```
-
-The interactive version asks:
-- Which chunk(s) should this file belong to?
-- What's the purpose of this file? (one line description)
-
-**When to use:** Whenever you create a new file that the AI should know about. You can also do this at the end of a session during `update` — but `index add` is more precise.
-
----
-
-### `dev-sesssion index audit`
-
-Scans `FILE_INDEX.md` for stale entries (files that no longer exist).
-
-```bash
-dev-sesssion index audit          # report stale entries
-dev-sesssion index audit --fix    # interactively remove stale entries
-dev-sesssion index audit --fix --yes   # auto-remove without prompting
-```
-
-**When to use:** Periodically, or after a big refactor where files were renamed or deleted.
-
----
-
-### `dev-sesssion migrate`
-
-Initializes `dev-sesssion` in every package of a monorepo workspace.
-
-```bash
-dev-sesssion migrate              # detect workspace, pick packages interactively
-dev-sesssion migrate --yes        # init all uninitialzed packages automatically
-```
-
-`migrate` detects pnpm workspaces, Nx, Turborepo, and npm/yarn workspaces. For each package that doesn't already have a `.session/` directory, it runs the full `init` wizard.
-
-**When to use:** When adding `dev-sesssion` to a monorepo that has multiple packages.
-
----
-
-### `dev-sesssion health`
-
-Audits your `.session/` directory and reports anything that looks wrong — missing plan files,
-stale index entries, an overgrown always-include list, an expired session, and more. Think of it
-as a linter for your session state.
-
-```bash
-dev-sesssion health               # print a report of all issues
-dev-sesssion health --fix         # auto-fix issues that can be fixed (stale entries)
-dev-sesssion health --fix --yes   # fix without prompting for confirmation
-dev-sesssion health --json        # machine-readable output for CI or scripts
-```
-
-**What it checks:**
-
-| Check | Severity | What it means |
-|---|---|---|
-| `SESSION_STATE_INVALID` | Error | `SESSION_STATE.md` is missing or unparseable |
-| `PLAN_MISSING` | Error | The active chunk's `PLAN_N.md` does not exist |
-| `FILE_INDEX_INVALID` | Error | `FILE_INDEX.md` is missing or malformed |
-| `STALE_INDEX_ENTRIES` | Warning | FILE_INDEX points to files that no longer exist on disk |
-| `MISSING_CHUNK_FILES` | Warning | FILE_INDEX references chunk IDs with no matching plan file |
-| `ALWAYS_INCLUDE_CREEP` | Warning | More than 4 files in the always-include list |
-| `BUDGET_EXCEEDED` | Warning | Active chunk's files exceed the context token budget |
-| `PROMPT_MISSING` | Warning | `NEXT_PROMPT.md` does not exist |
-| `PROMPT_TOO_LONG` | Warning | `NEXT_PROMPT.md` exceeds the line cap (`max_prompt_lines`, default 20) |
-| `ALL_TASKS_DONE` | Info | All chunk tasks are done — time to advance |
-| `FILE_INDEX_LARGE` | Info | More than 500 indexed files — consider `--max-files` or splitting chunks |
-| `SESSION_STALE` | Info | Session hasn't been updated in more than 7 days |
-
-**When to use:** Run `dev-sesssion health` any time something feels off, or as part of your CI
-pipeline to validate that the session structure is intact.
-
----
-
-### `dev-sesssion verify`
-
-`health` asks whether your session files are internally consistent. `verify` asks a harder
-question: **are they true?** It reconciles what `SESSION_STATE.md` claims against what git
-actually recorded. A task marked done with no commit behind it, or a `last_worked_files` entry
-no diff ever touched, is state that has quietly drifted from reality — and every prompt
-generated from it inherits the drift.
-
-```bash
-dev-sesssion verify                     # reconcile against git
-dev-sesssion verify --lookback 40       # widen the window of commits treated as evidence
-dev-sesssion verify --json              # machine-readable output for CI
-```
-
-**What it checks:**
-
-| Code | Severity | What it means |
-|---|---|---|
-| `DONE_WITHOUT_EVIDENCE` | Error | Tasks are marked done, but nothing in the lookback window and nothing in the working tree supports them |
-| `UNBACKED_WORKED_FILE` | Warning | `last_worked_files` names files with no commit or working-tree change behind them |
-| `UNINDEXED_CHANGE` | Warning | You're modifying files that `FILE_INDEX.md` has never heard of |
-| `UNCOMMITTED_SESSION` | Info | `.session/` files have uncommitted changes — a teammate cloning now gets stale state |
-| `NOT_A_REPO` | Info | Not a git repository, so every history-backed check was skipped |
-
-`--lookback <n>` (default 20) sets how many commits count as "this session's" history. The
-command exits non-zero **only** on an error-severity finding, so it is safe to run in CI as a
-drift gate.
-
-Outside a git repository `verify` degrades to a single informational finding rather than
-failing — the tool still works fine without git; it just cannot check your homework.
-
-#### Replay scoring — measuring prompt quality
-
-`verify --replay` goes one step further: instead of checking your session state, it grades your
-**past prompts**.
-
-The idea is simple. Every commit that rewrote `NEXT_PROMPT.md` marks a session boundary. The
-prompt written at that boundary declares which files the next session should load. The commits
-that follow, up to the next boundary, show which files it actually touched. Comparing the two
-turns "was that a good prompt?" into a number.
-
-```bash
-dev-sesssion verify --replay              # summary across the last 10 boundaries
-dev-sesssion verify --replay --limit 25   # score more history
-dev-sesssion verify --replay --verbose    # per-boundary detail: what was missed, what went unused
-```
-
-```
-Replay over 8 session boundaries:
-  Recall     72%  (files the session needed that the prompt named)
-  Precision  55%  (files the prompt named that the session used)
-  Waste      45%  (declared context never touched)
-```
-
-| Metric | Formula | How to read it |
-|---|---|---|
-| **Recall** | hits ÷ files touched | The number that matters most. Every point below 100% is context the agent had to rediscover on its own — the exact failure the tool exists to prevent. Rising recall means your `FILE_INDEX.md` chunk tags are getting sharper. |
-| **Precision** | hits ÷ files declared | How much of what you loaded was actually needed. Low precision is cheap noise, not a correctness problem. |
-| **Waste** | unused ÷ declared, across all boundaries | The token cost of that noise. High waste with high recall means you're over-loading; trim the chunk or use `dev-sesssion trim`. |
-
-**Interpreting the pair.** Low recall is the alarm — fix it by tagging the missed files to the
-chunk. High waste with healthy recall is a tuning problem, not a bug: you're paying tokens for
-context that never gets read. Chasing precision to 100% is counter-productive; a little
-over-inclusion is much cheaper than an agent hunting for a file it was never told about.
-
-`--verbose` lists each boundary with its `missed` and `unused` files by name, which is how you
-find the specific files to add or drop.
-
-Scoring runs **entirely on local git history** — no API key, no model call, nothing sent
-anywhere. Files under `.session/`, `docs/`, and `CHANGELOG.md` are excluded from the maths, since
-bookkeeping churn is not the work being measured.
-
-> **Replay needs `NEXT_PROMPT.md` to be tracked by git.** It reads past prompts out of history,
-> so a gitignored prompt can never be scored. Both the personal and team `.gitignore` patches
-> written by `init` exclude it, so replay is unavailable by default — the command tells you so
-> rather than reporting a silent zero. To turn it on, remove `.session/NEXT_PROMPT.md` from
-> `.gitignore` and commit it; boundaries become scorable from that point forward.
-
-**When to use:** `verify` at the end of a session (or in CI) to catch state that has drifted
-from reality; `--replay` occasionally, to see whether your chunk tagging is actually improving.
-
----
-
-### `dev-sesssion import`
-
-Pulls context from your existing AI tool configuration files into `dev-sesssion` so you don't have
-to re-enter information you've already written elsewhere.
-
-**Import from `CLAUDE.md`:**
-
-```bash
-dev-sesssion import --from claude
-```
-
-Reads every `##` section heading in `CLAUDE.md` and adds a corresponding note to
-`SESSION_STATE.md`. If you already have rules like "## HARD RULES" or "## Session workflow" in
-your `CLAUDE.md`, they become session notes the AI can reference without loading the full file.
-Duplicate notes are automatically deduplicated — safe to run multiple times.
-
-**Import from Cursor rules:**
-
-```bash
-dev-sesssion import --from cursor
-```
-
-Reads every `.mdc` file in `.cursor/rules/`, extracts the `globs:` patterns from the frontmatter,
-and adds any matching project files to `FILE_INDEX.md` tagged to the active chunk. This lets you
-bootstrap your file index from rules you've already written for Cursor — no double-entry.
-
-```bash
-dev-sesssion import --from claude --dry-run    # preview without writing
-dev-sesssion import --from cursor --verbose    # show each file being added
-```
-
-**When to use:** Once after init, if you're migrating from a project that already has `CLAUDE.md`
-rules or Cursor rules. You can also re-run after adding new rules to pick up additions.
+Every command, flag, exit code and JSON shape is in
+[commands.md](commands.md). The ones that make up the daily loop are `prompt`,
+`update`, `advance` and `status`; the rest you reach for occasionally:
+
+| Command | Reach for it when |
+|---|---|
+| `init` / `migrate` | Setting up a project, or every package of a monorepo |
+| `prompt` | Starting a session — print or `--copy` the handoff |
+| `update` | Ending a session — mark tasks done, regenerate the prompt |
+| `advance` | The active chunk is finished |
+| `status` | You want to know where you are and whether you're over budget |
+| `index add` / `index audit` | A new file should be known, or old entries went stale |
+| `health` | Something feels off — a linter for the session files |
+| `verify` | You want to know whether the session state is *true*, per git |
+| `preview` / `trim` / `lint-context` / `compact` | Tuning what the context actually costs |
+| `import` / `export` | Reusing rules you already wrote for another tool |
+| `memory` | Reviewing how past sessions actually used their context |
+| `mcp` | Serving session state to a tool over MCP instead of pasting |
 
 ---
 
 ## Adapters — fitting different AI tools
 
-Think of an **adapter** like a power plug adapter when you travel abroad. The electricity (your session data) is the same — only the shape of the connector changes. Each AI tool has its own conventions for how it reads context, and adapters translate dev-sesssion's output into the right format.
+Think of an **adapter** like a power plug adapter when you travel abroad. The
+electricity — your session data — is the same; only the shape of the connector
+changes. Each AI tool has its own conventions for how it reads context, and the
+adapter translates dev-sesssion's output into that shape.
 
-`dev-sesssion` includes four adapters, auto-detected from files in your project root. Detection is
-ordered — the first match wins — and falls back to a plain-text formatter when nothing matches:
+Four are built in — Claude Code, opencode, Cursor and Windsurf — auto-detected
+from files in your project root, with a plain-text fallback when nothing
+matches. Override with `--adapter <name>`, or register your own with
+`registerAdapter()`.
 
-| Adapter | Detected by | Output file | What it does |
-|---|---|---|---|
-| **Claude Code** | `CLAUDE.md` or `.claude/` | `CLAUDE.md` | Uses `@file` mentions in NEXT_PROMPT; reads `.claude/MEMORY.md`; adds a session section to `CLAUDE.md` |
-| **opencode** | `AGENTS.md` or `opencode.json` | `AGENTS.md` | Uses opencode's `Exclude` directive; generates AGENTS.md-aware output |
-| **Cursor** | `.cursor/` or `.cursor/rules` | `.cursorrules` | Uses Cursor's `Ignore` directive for excluded files |
-| **Windsurf** | `.windsurfrules` or `.windsurf/` | `.windsurfrules` | Same shape as Cursor — plain paths plus an `Ignore` directive |
-
-### Auto-detection
-
-When you run `dev-sesssion update` or `dev-sesssion advance`, the adapter is auto-detected from your project root. You can override it:
-
-```bash
-dev-sesssion update --adapter claude
-dev-sesssion update --adapter cursor
-dev-sesssion update --adapter opencode
-dev-sesssion update --adapter windsurf
-```
-
-Programmatic consumers can add their own adapter with `registerAdapter()` from
-`@dev-session/adapters`; `--adapter` accepts its name too. See
+Detection order, the exact output each one writes, and how to switch: see
+[adapters.md](adapters.md). To write a new one, see
 [authoring-adapters.md](authoring-adapters.md).
-
-### Claude Code adapter deep-dive
-
-The Claude Code adapter does three extra things beyond generating `NEXT_PROMPT.md`:
-
-1. **Writes a session section into `CLAUDE.md`** during init — wrapped in `<!-- dev-sesssion:start -->` / `<!-- dev-sesssion:end -->` markers so it can be updated without clobbering your existing content.
-
-2. **Reads `.claude/MEMORY.md`** and injects your memory summaries as session notes. This means Claude's long-term memory automatically surfaces in each session's context.
-
-3. **Updates `CLAUDE.md` on session end** — keeps the session workflow section current as your project evolves.
 
 ---
 
 ## Team mode
 
-When multiple developers use AI assistants on the same codebase, `dev-sesssion` can cause merge conflicts — each developer has their own `.session/` state.
+When several developers use AI assistants on the same codebase, each has their
+own session state — and without help, that means merge conflicts. Team mode
+splits the difference: the **shared project structure** (`FILE_INDEX.md`,
+`PLAN_N.md`, `ROUTINES.md`) is committed, while **per-developer state**
+(`SESSION_STATE.md`, `NEXT_PROMPT.md`, `DONE_LOG.md`) stays local. `init --team`
+writes both the `.gitignore` and the `.gitattributes` rules that make this work.
 
-Team mode solves this with two changes:
-
-**1. `.gitignore` patch**
-
-```gitignore
-# dev-sesssion: personal session files
-.session/SESSION_STATE.md
-.session/NEXT_PROMPT.md
-.session/DONE_LOG.md
-```
-
-These files are personal to each developer and shouldn't be committed. `FILE_INDEX.md` and `PLAN_N.md` *are* committed — they're the shared project structure.
-
-**2. `.gitattributes` patch**
-
-```gitattributes
-.session/FILE_INDEX.md merge=ours
-```
-
-This tells git: when there's a conflict on `FILE_INDEX.md`, keep your version. It prevents needless merge conflicts when developers add different files to the index.
-
-Enable team mode during init with:
-
-```bash
-dev-sesssion init --team
-```
-
-Or choose "Team" in the init wizard's mode prompt. Both patches are applied automatically — no manual editing required.
+The full file-by-file breakdown is in [team-mode.md](team-mode.md).
 
 ---
 
@@ -735,26 +362,8 @@ dev-sesssion status --json | jq '.budget.over_budget'
 dev-sesssion status --json | jq '.tasks.percent_complete'
 ```
 
-The full JSON schema:
-
-```json
-{
-  "active_chunk": 3,
-  "chunk_title": "Billing integration",
-  "session_id": "chunk-3-billing",
-  "last_updated": "2026-04-07",
-  "tasks": { "total": 11, "done": 6, "in_progress": 2, "todo": 3, "percent_complete": 55 },
-  "files": { "always_include": 2, "indexed": 54, "context": 8 },
-  "budget": { "total_tokens": 3840, "budget_cap": 4000, "over_budget": false, "accurate": false },
-  "warnings": [],
-  "days_since_last_session": 0
-}
-```
-
-`budget_cap` is the *bootstrap* budget (default 4,000 estimated tokens) — the cost of the
-generated context, not of the source files the AI loads afterwards. A `memory` object with
-session-log aggregates is included when `.session/CONTEXT_LOG.md` exists, and
-`days_since_last_session` is `null` if `last_updated` cannot be parsed.
+`status`, `health`, `preview`, `lint-context` and `memory` all take `--json`.
+The full shape of each is in [commands.md](commands.md).
 
 ### CI integration
 
@@ -766,15 +375,8 @@ Use `--yes` and `--dry-run` in CI pipelines to validate that `dev-sesssion` is c
   run: dev-sesssion status --json
 ```
 
-### Forcing an adapter
-
-If auto-detection picks the wrong tool, override it globally via the `--adapter` flag:
-
-```bash
-dev-sesssion update --adapter claude
-```
-
-Or set it per-project in a wrapper script.
+`dev-sesssion verify` is the stronger gate — it exits non-zero when the session
+state claims work that git has no record of.
 
 ---
 
@@ -899,6 +501,5 @@ to `.gitignore` first, then re-run init.
 
 ---
 
-*This guide covers dev-sesssion as of chunk 8 (import, health, pagination, team mode & enterprise
-features). For the latest changes, see `CONTRIBUTING.md` and the session state in
-`.session/SESSION_STATE.md`.*
+*Released changes are listed in [CHANGELOG.md](../CHANGELOG.md). Contributing:
+[CONTRIBUTING.md](../CONTRIBUTING.md).*

@@ -53,7 +53,36 @@ Output includes:
   `NEXT_PROMPT.md` measured against the session's `max_prompt_lines`, and a
   reminder to `advance` when every task is done)
 
-Use `--json` for machine-readable output.
+**Warnings and what to do about them:**
+
+| Warning | What it means | What to do |
+|---|---|---|
+| `NEXT_PROMPT.md has N lines (max 20)` | The prompt grew past the cap — the max shown is your configured `max_prompt_lines` | Run `dev-sesssion update` to regenerate |
+| `always-include list has N files` | Too many "always load" files | Tighten the list; move some to chunk tags |
+| `Context budget exceeded` | The session will be token-heavy | Remove large files or split the chunk |
+| `All tasks done` | The chunk is complete | Run `dev-sesssion advance` |
+
+**`--json` output:**
+
+```json
+{
+  "active_chunk": 3,
+  "chunk_title": "Billing integration",
+  "session_id": "chunk-3-billing",
+  "last_updated": "2026-04-07",
+  "tasks": { "total": 11, "done": 6, "in_progress": 2, "todo": 3, "percent_complete": 55 },
+  "files": { "always_include": 2, "indexed": 54, "context": 8 },
+  "budget": { "total_tokens": 3840, "budget_cap": 4000, "over_budget": false, "accurate": false },
+  "warnings": [],
+  "days_since_last_session": 0
+}
+```
+
+`budget_cap` is the *bootstrap* budget (default 4,000 estimated tokens) — the
+cost of the generated context, not of the source files the AI loads afterwards.
+A `memory` object with session-log aggregates is included when
+`.session/CONTEXT_LOG.md` exists, and `days_since_last_session` is `null` when
+`last_updated` cannot be parsed.
 
 ---
 
@@ -218,7 +247,14 @@ dev-sesssion verify --replay --verbose
 | **Waste** | Share of declared context never touched — tokens loaded for nothing. |
 
 Recall is the number to watch: a missed file is context the agent had to find on
-its own. Scoring runs entirely on local git history — no API key, no model call.
+its own. Fix it by tagging the missed files to the chunk — `--verbose` lists them
+by name. High waste alongside healthy recall is a tuning problem rather than a
+bug: you are paying tokens for context nothing reads, so trim the chunk or run
+`dev-sesssion trim`. Chasing precision to 100% is counter-productive — a little
+over-inclusion is far cheaper than an agent hunting for a file it was never told
+about.
+
+Scoring runs entirely on local git history — no API key, no model call.
 
 Replay requires `.session/NEXT_PROMPT.md` to be **tracked by git**. Both the
 personal and team `.gitignore` patches written by `init` exclude it, so replay
