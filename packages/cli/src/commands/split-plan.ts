@@ -1,9 +1,10 @@
 /**
  * Migration path A: Split an existing PLAN.md into `.session/PLAN_N.md` chunks.
  *
- * Detects boundaries via {@link PlanParser.detectBoundaries}, displays them
- * for confirmation, then writes individual chunk files. All business logic
- * delegates to `@dev-session/core`; this module handles prompts and reporting.
+ * Ingests the plan through the plan source registry, reports anything the
+ * chosen source skipped, confirms, then writes individual chunk files. All
+ * business logic delegates to `@dev-session/core`; this module handles prompts
+ * and reporting.
  *
  * @module
  */
@@ -11,10 +12,10 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { confirm, log, spinner } from "@clack/prompts";
-import type { BoundaryResult, PlanChunk } from "@dev-session/core";
-import { PlanParser } from "@dev-session/core";
+import type { BoundaryResult, PlanChunk, PlanIngestResult } from "@dev-session/core";
+import { formatCandidates, PlanParser, parsePlan } from "@dev-session/core";
 import type { ValidatedPath } from "@dev-session/security";
-import { AtomicWriter, CliError, PathValidator } from "@dev-session/security";
+import { AtomicWriter, CliError, isParseError, PathValidator } from "@dev-session/security";
 import { dryRunWrite } from "../utils/dry-run.js";
 
 // ---------------------------------------------------------------------------
@@ -68,24 +69,58 @@ export async function splitPlan(
 		});
 	}
 
-	// --- Detect boundaries ---
+	// --- Pick a plan source and parse ---
 	s.start("Analyzing plan structure...");
-	const boundaries = PlanParser.detectBoundaries(content);
-	const highConfidence = boundaries.filter((b) => b.confidence >= 1.0);
-	s.stop(`Found ${highConfidence.length} chunk boundaries.`);
 
-	if (options.verbose) {
-		logBoundaries(boundaries);
+	let ingest: PlanIngestResult;
+	try {
+		ingest = parsePlan(content);
+	} catch (error) {
+		s.stop("Could not recognize the plan format.");
+		if (isParseError(error)) {
+			// REQ-PS-3 — report the candidates and their scores rather than
+			// picking one, so the user can see what was considered.
+			throw new CliError({
+				message: error.message,
+				suggestion:
+					"Use headings for each unit of work, or register a custom plan source for this format.",
+			});
+		}
+		throw error;
 	}
 
-	// --- Parse into chunks ---
-	const chunks = PlanParser.fromMarkdown(content);
+	const { source, result, candidates } = ingest;
+	const chunks = result.chunks;
+	s.stop(`Read as ${source.displayName}.`);
+
+	if (options.verbose) {
+		logBoundaries(PlanParser.detectBoundaries(content));
+	}
 
 	if (chunks.length === 0) {
+		// REQ-PS-15 — name every source tried and its score, rather than
+		// telling the user to rewrite their plan into one dialect.
 		throw new CliError({
-			message: "No chunks found in PLAN.md. The file must contain ## headings.",
-			suggestion: "Add `## Chunk 1 -- ...` headings to your PLAN.md.",
+			message: `No chunks found in the plan. Tried: ${formatCandidates(candidates)}`,
+			suggestion: "Give each unit of work its own heading, with a task list beneath it.",
 		});
+	}
+
+	// REQ-PS-11 — a skipped section carrying tasks is work the user would
+	// otherwise lose without any diagnostic.
+	for (const excluded of result.excluded) {
+		if (excluded.taskCount > 0) {
+			log.warn(
+				`Skipped "${excluded.heading}" (line ${excluded.line}) and its ${excluded.taskCount} task${
+					excluded.taskCount === 1 ? "" : "s"
+				} — the heading declares no chunk number.`,
+			);
+		}
+	}
+
+	// REQ-PS-13 — dependencies on chunks this plan does not define.
+	for (const warning of result.warnings) {
+		log.warn(warning);
 	}
 
 	log.info(`Detected ${chunks.length} chunk${chunks.length === 1 ? "" : "s"}:`);
