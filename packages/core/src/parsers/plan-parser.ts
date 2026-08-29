@@ -1,9 +1,9 @@
 /**
  * Manual markdown parser for PLAN.md files.
  *
- * Splits a monolithic plan on `## ` headings into {@link PlanChunk} objects,
- * detects chunk boundaries with confidence scores, and serializes chunks
- * back to markdown.
+ * Chunk extraction lives in `plan-sources/` behind a registry; this module
+ * keeps the stable `PlanParser` facade over it, plus boundary detection and
+ * chunk serialization.
  *
  * No external markdown AST library is used — parsing is done line-by-line.
  *
@@ -13,6 +13,7 @@
 import { ParseError } from "@dev-session/security";
 import type { BoundaryResult, PlanChunk, Task } from "../schemas/index.js";
 import { TaskStatus } from "../schemas/index.js";
+import { detectPlanSource, PLAN_SOURCE_MIN_CONFIDENCE } from "./plan-sources/index.js";
 
 // ---------------------------------------------------------------------------
 // Regex patterns
@@ -30,129 +31,9 @@ const H3_PLUS_RE = /^###+ \s*(.+)$/;
 /** Matches a horizontal rule (`---`, `***`, `___`) on its own line. */
 const HR_RE = /^(?:---+|\*\*\*+|___+)\s*$/;
 
-/** Matches `- [ ] text` (todo task). */
-const TASK_TODO_RE = /^[-*]\s+\[ \]\s+(.+)$/;
-
-/** Matches `- [x] text` (done task, case-insensitive x). */
-const TASK_DONE_RE = /^[-*]\s+\[[xX]\]\s+(.+)$/;
-
-/** Matches `- [-] text` (in-progress task). */
-const TASK_IN_PROGRESS_RE = /^[-*]\s+\[-\]\s+(.+)$/;
-
-/** Matches "Chunk N" (or "Chunk N.M") in a heading and captures the number. */
-const CHUNK_ID_RE = /\bChunk\s+(\d+(?:\.\d+)?)/i;
-
-/** Matches dependency declarations like "Depends on: Chunk 1" or "Chunks 1, 2, 3.5". */
-const DEPENDS_RE = /depends\s+on:\s*chunks?\s+([\d.,\s]+)/i;
-
-/** Matches estimated sessions like "Est. sessions: 2-3" or "Est. sessions: 4". */
-const EST_SESSIONS_RE = /est\.?\s*sessions?:\s*(\d+)/i;
-
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
-
-/**
- * Extract a chunk_id from heading text if it contains "Chunk N".
- *
- * @param heading - The heading text to inspect.
- * @returns The parsed chunk ID, or `undefined` if the pattern is not found.
- */
-function extractChunkIdFromHeading(heading: string): number | undefined {
-	const match = CHUNK_ID_RE.exec(heading);
-	if (match?.[1] === undefined) {
-		return undefined;
-	}
-	const id = Number.parseFloat(match[1]);
-	return Number.isFinite(id) && id >= 1 ? id : undefined;
-}
-
-/**
- * Determine whether any `## ` heading in the document uses the `Chunk N`
- * naming convention. Used to choose between explicit and sequential parsing.
- *
- * @param lines - All lines of the document.
- * @returns `true` if at least one h2 heading names a chunk.
- */
-function hasExplicitChunkHeading(lines: readonly string[]): boolean {
-	for (const line of lines) {
-		const match = H2_RE.exec(line.trim());
-		if (match?.[1] !== undefined && extractChunkIdFromHeading(match[1]) !== undefined) {
-			return true;
-		}
-	}
-	return false;
-}
-
-/**
- * Extract the display title from a heading, stripping "Chunk N — " prefix if present.
- *
- * @param heading - The raw heading text.
- * @returns The cleaned title string.
- */
-function extractTitle(heading: string): string {
-	// Strip patterns like "Chunk 2 — Security utilities" → "Security utilities"
-	// Also handles "Chunk 2 - Security utilities" (plain dash) and "Chunk 3.5 — …"
-	const stripped = heading.replace(/^Chunk\s+\d+(?:\.\d+)?\s*[—–\-:]\s*/i, "");
-	return stripped.trim() || heading.trim();
-}
-
-/**
- * Parse a single line for dependency information.
- *
- * @param line - The trimmed line to inspect.
- * @returns Array of dependency chunk IDs, or empty array if none found.
- */
-function parseDependencies(line: string): readonly number[] {
-	const match = DEPENDS_RE.exec(line);
-	if (match?.[1] === undefined) {
-		return [];
-	}
-	return match[1]
-		.split(",")
-		.map((s) => Number.parseFloat(s.trim()))
-		.filter((n) => Number.isFinite(n) && n >= 1);
-}
-
-/**
- * Parse a single line for estimated sessions.
- *
- * @param line - The trimmed line to inspect.
- * @returns The first number found, or `undefined` if the pattern is not matched.
- */
-function parseEstSessions(line: string): number | undefined {
-	const match = EST_SESSIONS_RE.exec(line);
-	if (match?.[1] === undefined) {
-		return undefined;
-	}
-	const n = Number.parseInt(match[1], 10);
-	return Number.isFinite(n) && n >= 1 ? n : undefined;
-}
-
-/**
- * Try to parse a line as a task checkbox.
- *
- * @param line - The trimmed line content.
- * @returns A {@link Task} if the line is a checkbox, or `undefined` otherwise.
- */
-function parseTaskLine(line: string): Task | undefined {
-	const doneMatch = TASK_DONE_RE.exec(line);
-	if (doneMatch?.[1] !== undefined) {
-		return { text: doneMatch[1].trim(), status: TaskStatus.DONE };
-	}
-
-	const inProgressMatch = TASK_IN_PROGRESS_RE.exec(line);
-	if (inProgressMatch?.[1] !== undefined) {
-		return { text: inProgressMatch[1].trim(), status: TaskStatus.IN_PROGRESS };
-	}
-
-	const todoMatch = TASK_TODO_RE.exec(line);
-	if (todoMatch?.[1] !== undefined) {
-		return { text: todoMatch[1].trim(), status: TaskStatus.TODO };
-	}
-
-	return undefined;
-}
 
 /**
  * Determine whether a line is inside a YAML frontmatter block.
@@ -189,39 +70,6 @@ function findFrontmatterEnd(lines: readonly string[]): number {
 }
 
 // ---------------------------------------------------------------------------
-// Accumulator for building chunks from sequential line scanning
-// ---------------------------------------------------------------------------
-
-interface ChunkAccumulator {
-	heading: string;
-	tasks: Task[];
-	dependsOn: number[];
-	estSessions: number | undefined;
-}
-
-/**
- * Finalize a {@link ChunkAccumulator} into a {@link PlanChunk}.
- *
- * @param acc - The accumulated chunk data.
- * @param chunkId - The chunk_id to assign.
- * @returns A fully formed {@link PlanChunk}.
- */
-function finalizeChunk(acc: ChunkAccumulator, chunkId: number): PlanChunk {
-	const base: PlanChunk = {
-		chunk_id: chunkId,
-		title: extractTitle(acc.heading),
-		depends_on: [...acc.dependsOn],
-		tasks: [...acc.tasks],
-	};
-
-	if (acc.estSessions !== undefined) {
-		return { ...base, est_sessions: acc.estSessions };
-	}
-
-	return base;
-}
-
-// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
@@ -231,24 +79,20 @@ function finalizeChunk(acc: ChunkAccumulator, chunkId: number): PlanChunk {
  */
 export const PlanParser = {
 	/**
-	 * Parse a monolithic PLAN.md into an array of {@link PlanChunk} objects.
+	 * Parse a plan document into an array of {@link PlanChunk} objects.
 	 *
-	 * Splits on `## ` (h2) headings. The behaviour depends on whether the
-	 * document uses the `Chunk N` naming convention:
+	 * Delegates to the plan source registry: every registered source scores the
+	 * document and the highest scorer parses it. The built-in sources handle
+	 * heading-structured plans at any depth — `Chunk N`, `Phase N`, `Step N`, or
+	 * plain prose headings — and heading-free task lists.
 	 *
-	 * - **Explicit mode** (at least one h2 reads `## Chunk N …`): only those
-	 *   `Chunk N` headings start a chunk. Other h2 sections — prose like
-	 *   "Architecture overview" or "Risks and open questions" — are treated as
-	 *   non-chunk content and skipped. This prevents document scaffolding from
-	 *   being mis-parsed as chunks and from colliding on sequential IDs.
-	 *   Fractional IDs (`Chunk 3.5`) are preserved as-is.
-	 * - **Sequential mode** (no h2 names a chunk): every h2 section becomes a
-	 *   chunk with a sequential ID (1, 2, 3, …).
+	 * Returns only the chunks. Callers that need to know which sections were
+	 * excluded, or which declared dependencies were dropped, should use
+	 * `parsePlan` instead; this entry point deliberately keeps its original
+	 * signature.
 	 *
-	 * Content before the first parsed chunk is ignored (typically the title).
-	 *
-	 * @param content - The raw markdown content of PLAN.md.
-	 * @returns An array of parsed plan chunks.
+	 * @param content - The raw markdown content of the plan.
+	 * @returns An array of parsed plan chunks, empty if no source recognized it.
 	 * @throws {ParseError} If the content is empty.
 	 */
 	fromMarkdown(content: string): PlanChunk[] {
@@ -259,55 +103,17 @@ export const PlanParser = {
 			});
 		}
 
-		const lines = content.split("\n");
-		const explicitMode = hasExplicitChunkHeading(lines);
-		const chunks: PlanChunk[] = [];
-		let current: ChunkAccumulator | undefined;
-		let sequentialId = 0;
+		const candidates = detectPlanSource(content);
+		const best = candidates[0];
 
-		const flush = (): void => {
-			if (current !== undefined) {
-				const id = extractChunkIdFromHeading(current.heading) ?? sequentialId;
-				chunks.push(finalizeChunk(current, id));
-				current = undefined;
-			}
-		};
-
-		for (const line of lines) {
-			const trimmed = line.trim();
-			const h2Match = H2_RE.exec(trimmed);
-
-			if (h2Match?.[1] !== undefined) {
-				const heading = h2Match[1];
-
-				// In explicit mode, a non-`Chunk N` heading is scaffolding: end the
-				// current chunk's accumulation and do not open a new one.
-				if (explicitMode && extractChunkIdFromHeading(heading) === undefined) {
-					flush();
-					continue;
-				}
-
-				flush();
-				sequentialId++;
-				current = {
-					heading,
-					tasks: [],
-					dependsOn: [],
-					estSessions: undefined,
-				};
-				continue;
-			}
-
-			// Only process lines if we're inside a chunk
-			if (current === undefined) {
-				continue;
-			}
-
-			processChunkLine(trimmed, current);
+		// Unlike `parsePlan`, this entry point returns an empty array rather than
+		// throwing when nothing recognizes the document — that is its long-
+		// standing contract and callers depend on it.
+		if (best === undefined || best.detection.confidence < PLAN_SOURCE_MIN_CONFIDENCE) {
+			return [];
 		}
 
-		flush();
-		return chunks;
+		return [...best.source.parse(content).chunks];
 	},
 
 	/**
@@ -427,34 +233,6 @@ export const PlanParser = {
 // ---------------------------------------------------------------------------
 // Private helpers used by the public API
 // ---------------------------------------------------------------------------
-
-/**
- * Process a single non-heading line within the current chunk accumulator.
- *
- * Looks for tasks, dependencies, and session estimates.
- *
- * @param trimmed - The trimmed line content.
- * @param acc - The current chunk accumulator to mutate.
- */
-function processChunkLine(trimmed: string, acc: ChunkAccumulator): void {
-	const task = parseTaskLine(trimmed);
-	if (task !== undefined) {
-		acc.tasks.push(task);
-		return;
-	}
-
-	// Only look for metadata if we haven't found it yet
-	if (acc.dependsOn.length === 0) {
-		const deps = parseDependencies(trimmed);
-		if (deps.length > 0) {
-			acc.dependsOn = [...deps];
-		}
-	}
-
-	if (acc.estSessions === undefined) {
-		acc.estSessions = parseEstSessions(trimmed);
-	}
-}
 
 /**
  * Classify a line as a potential chunk boundary.
