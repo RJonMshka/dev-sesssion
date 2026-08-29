@@ -196,10 +196,12 @@ Detects pnpm, npm, Yarn, Nx, and Turborepo workspaces.
 
 ## Documentation
 
+Full index: [docs/](https://github.com/RJonMshka/dev-sesssion/blob/main/docs/README.md).
+
 | Doc | What's in it |
 |---|---|
 | [Getting started](https://github.com/RJonMshka/dev-sesssion/blob/main/docs/getting-started.md) | Installation, `.session/` structure, first-session walkthrough |
-| [Complete guide](https://github.com/RJonMshka/dev-sesssion/blob/main/docs/GUIDE.md) | Concepts, daily workflow, command walkthroughs, FAQ |
+| [Complete guide](https://github.com/RJonMshka/dev-sesssion/blob/main/docs/GUIDE.md) | Concepts, daily workflow, FAQ |
 | [Command reference](https://github.com/RJonMshka/dev-sesssion/blob/main/docs/commands.md) | Every command, flag, and exit code |
 | [Adapters](https://github.com/RJonMshka/dev-sesssion/blob/main/docs/adapters.md) | Detection, per-tool prompt formats, switching adapters |
 | [Authoring adapters](https://github.com/RJonMshka/dev-sesssion/blob/main/docs/authoring-adapters.md) | How to write a new adapter |
@@ -209,6 +211,7 @@ Detects pnpm, npm, Yarn, Nx, and Turborepo workspaces.
 | [SECURITY.md](https://github.com/RJonMshka/dev-sesssion/blob/main/SECURITY.md) | Threat model and vulnerability disclosure |
 | [METHOD.md](https://github.com/RJonMshka/dev-sesssion/blob/main/docs/METHOD.md) | How this repo is developed — HLD/LLD/EARS and TDD (contributors, not users) |
 | [docs/plan/](https://github.com/RJonMshka/dev-sesssion/tree/main/docs/plan) | Design docs for in-flight work: one HLD, one LLD per feature |
+| [Releasing](https://github.com/RJonMshka/dev-sesssion/blob/main/docs/releasing.md) | semantic-release pipeline, pre-merge checks, post-publish smoke test |
 
 ---
 
