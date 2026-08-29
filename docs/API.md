@@ -367,6 +367,59 @@ characters outside `[A-Za-z0-9._/^~@{}-]`.
 
 ---
 
+## Plan sources
+
+A plan source turns a plan document into `PlanChunk[]`. Sources are held in a
+registry, each scores a document, and the highest scorer parses it — so the tool
+is not limited to one markdown dialect.
+
+Two ship built in: `headings` (any heading depth; sections titled `Chunk N`,
+`Phase N`, `Step N`, `1.`, or nothing at all) and `task-list` (a checklist with
+no headings, which becomes a single chunk).
+
+```ts
+import { parsePlan } from "@dev-session/core";
+
+const { source, result, candidates } = parsePlan(planMarkdown);
+
+result.chunks;    // PlanChunk[] — the seam; unchanged by which source parsed
+result.excluded;  // sections recognized but not emitted, with line + task count
+result.warnings;  // e.g. dependencies on chunk ids this document does not define
+```
+
+`parsePlan` throws `ParseError` if the document is empty, or if no source reaches
+`PLAN_SOURCE_MIN_CONFIDENCE` — the message names every candidate and its score
+rather than silently picking one. `PlanParser.fromMarkdown` remains available and
+returns just the chunks.
+
+Inspect `result.excluded` before treating a parse as complete: a section is
+skipped when it declares no chunk number, which is right for prose scaffolding
+and worth surfacing when the section contains tasks.
+
+### Registering your own
+
+```ts
+import { registerPlanSource, type PlanSource } from "@dev-session/core";
+
+const linearSource: PlanSource = {
+  name: "linear",                       // lowercase kebab-case, must be unique
+  displayName: "Linear export",
+  detect: (content) => ({
+    confidence: content.startsWith("{") ? 0.9 : 0,
+    reason: "JSON payload",
+  }),
+  parse: (content) => ({ chunks: toChunks(content), excluded: [], warnings: [] }),
+};
+
+registerPlanSource(linearSource);
+```
+
+Registration is in-process only and throws `CliError` on a duplicate or
+malformed name. `detectPlanSource`, `getRegisteredPlanSources`, and
+`unregisterPlanSource` round out the surface.
+
+---
+
 ## Error types
 
 All errors thrown by `@dev-session/core` are typed. Import them from the same package:
