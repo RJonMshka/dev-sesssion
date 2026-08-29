@@ -17,10 +17,11 @@ versions or publishes by hand — merging Conventional Commits to `main` drives
 everything.
 
 1. Push or merge to `main`.
-2. `.github/workflows/ci.yml` runs: typecheck → lint → `npm audit` → gitleaks →
+2. `.github/workflows/ci.yml` runs: typecheck → lint → audit → gitleaks →
    build → `pnpm test:coverage` → publint.
-3. On CI success, `.github/workflows/release.yml` runs `npx semantic-release`,
-   which:
+3. On CI success, `.github/workflows/release.yml` builds, copies the root
+   `README.md` into `packages/cli/` (this is why the package has no committed
+   README of its own), and runs `npx semantic-release`, which:
    - analyzes commits since the last tag (`feat` → minor, `fix` / `perf` →
      patch, `BREAKING CHANGE` → major),
    - updates `CHANGELOG.md` and `packages/cli/package.json`,
@@ -62,9 +63,20 @@ pnpm typecheck
 pnpm lint
 pnpm test:coverage          # full suite + coverage gate (80% stmts / 75% br)
 pnpm publint
-npm audit --omit=dev
-cd packages/cli && npm pack --dry-run   # name "dev-sesssion", files = [dist]
+pnpm audit --prod
+cd packages/cli && npm pack --dry-run   # name "dev-sesssion", bin → dist/index.cjs
 ```
+
+**Audit the prod deps by hand — CI does not.** The CI step runs
+`npm audit --omit=dev`, which cannot work here: this is a pnpm workspace with no
+`package-lock.json`, so npm exits `ENOLOCK` before auditing anything. The step
+is also marked `continue-on-error: true`. It has therefore never gated a
+release. Use `pnpm audit --prod` locally until that step is fixed.
+
+Everything the CLI depends on transitively is either installed alongside it or
+inlined into the bundle, so a transitive advisory does reach users. Most are
+cleared by refreshing the lockfile — the patched versions usually sit inside the
+ranges already declared.
 
 e2e tests can flake under heavy parallel load — those are timeouts, not logic
 failures. Re-run `pnpm test:e2e` in isolation to confirm green before blaming a
