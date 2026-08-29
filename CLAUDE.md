@@ -17,7 +17,7 @@ Self-managing context architecture for AI-assisted coding. Installs via `npx dev
 - NEVER add dependencies to `packages/security` or `packages/core` without explicit approval
 - NEVER put business logic in `packages/cli` — if it's logic, it belongs in `packages/core`
 - NEVER start a feature without an LLD — see `docs/METHOD.md`
-- NEVER write to `.session/` — it is a frozen archive; do not run `update`, `advance`, or `index` against this repo
+- NEVER run `dev-sesssion` against this repo — `init`, `update`, `advance` and `index` would recreate `.session/`, which was deliberately removed
 
 ---
 
@@ -38,9 +38,10 @@ shipped two bugs that every test missed for exactly that reason.
 
 The method is advisory. Nothing in CI enforces it.
 
-> `.session/` is how this project was planned through chunk 19 and is kept as an
-> archive. It is no longer used for planning, and the tool is no longer run
-> against this repository. See "Why not .session/" in `docs/METHOD.md`.
+> This project planned itself in `.session/` through chunk 19, then stopped —
+> chunks schedule sessions, LLDs record design, and forcing one into the other
+> produced neither. The directory is gone; what was worth keeping is in
+> `docs/archive/`. See "Why not .session/" in `docs/METHOD.md`.
 
 ---
 
@@ -72,11 +73,16 @@ dev-sesssion/
 │   ├── cli/        # parse args → call core → format output → exit
 │   ├── adapters/   # Claude Code, opencode, Cursor, Windsurf; never imports cli
 │   └── security/   # PathValidator, FrontmatterParser, SecretScanner, AtomicWriter
-├── tests/
-│   ├── fixtures/   # integration + e2e fixture projects
-│   └── helpers/    # shared test utilities
-└── .session/       # live session brain (dogfoods the system)
+├── docs/
+│   ├── plan/       # HLD + one LLD per feature — current planning
+│   └── archive/    # superseded plans; also live parser fixtures
+├── evals/          # eval harness — the coverage that dogfooding used to give
+└── tests/
+    ├── fixtures/   # integration + e2e fixture projects
+    └── helpers/    # shared test utilities
 ```
+
+`docs/README.md` indexes the rest.
 
 ---
 
@@ -108,6 +114,7 @@ dev-sesssion/
 - CLI tests: subprocess via `execa` only — never import CLI internals
 - Unit tests: real temp dirs via `fs.mkdtempSync`; integration tests: `tmp-promise` with `unsafeCleanup`; clean up in `afterEach`
 - Assert against real generator output, never hand-written fixture lines — see `docs/METHOD.md`
+- `docs/archive/PLAN.md`, `docs/archive/PLANv2.md` and `tests/fixtures/messy-file-index/` are **live fixtures** — real, messy, hand-maintained documents that caught bugs no synthetic fixture did. Do not tidy or reformat them
 - Name tests for the requirement they cover: `it("… (REQ-IDX-1)")`
 - Strip ANSI before assertions (`strip-ansi`) — never snapshot colored output
 - No `process.exit()` in tests — use Commander's `.exitOverride()`

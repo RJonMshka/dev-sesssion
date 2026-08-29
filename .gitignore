@@ -31,10 +31,9 @@ Thumbs.db
 # Package output
 *.tgz
 
-# dev-sesssion — personal session files (never committed)
-.session/SESSION_STATE.md
-.session/NEXT_PROMPT.md
-.session/DONE_LOG.md
+# dev-sesssion is not run against its own repository — see docs/METHOD.md.
+# Ignoring the whole directory keeps an accidental `init` out of the tree.
+/.session/
 
 # Eval harness dependency cache (installed on demand)
 evals/.cache/

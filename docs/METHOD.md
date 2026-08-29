@@ -23,9 +23,9 @@ One HLD. One LLD per feature. An LLD is written when that feature is about to be
 built, not months ahead — a design written against a codebase you have not read
 recently is fiction.
 
-`.session/` is **not** used for planning this repo. It is an archive of how the
-project was planned through chunk 19, kept for its history. See
-[Why not .session/](#why-not-session) below.
+`.session/` is **not** used for planning this repo, and no longer exists in it.
+The project was planned that way through chunk 19; what survives of that is in
+[archive/](archive/README.md). See [Why not .session/](#why-not-session) below.
 
 ---
 
@@ -198,7 +198,7 @@ edited — `git diff` already shows what was edited.
 ## Why not .session/
 
 `.session/` is the format this tool manages for its users, and this repo used it
-to plan itself through chunk 19. It is now an archive.
+to plan itself through chunk 19. It is gone now.
 
 The reason is that chunks and designs answer different questions. A chunk is a
 unit of *session scheduling* — what to load, what is active, what is next. An
@@ -213,7 +213,12 @@ Two consequences to be aware of:
    mis-attribution, the lossy round-trip, and the ignored `--dry-run` flag —
    three data-loss bugs, none of which any test caught. That coverage now has to
    come from the eval harness (`evals/`) and from fixtures captured out of real
-   projects instead.
-2. **`.session/` is read-only from here.** Do not run `dev-sesssion update`,
-   `advance`, or `index` against this repository. The archive is the record of
-   how the first nineteen chunks were built.
+   projects instead — `tests/fixtures/messy-file-index/` is that repo's own
+   index, kept verbatim for exactly this reason.
+2. **Do not run `dev-sesssion` against this repository.** `init`, `update`,
+   `advance` and `index` would recreate `.session/` and reintroduce the split
+   the removal was meant to end. `/.session/` is gitignored so an accidental run
+   stays out of the tree.
+
+What the directory held, and where the parts of it that were worth keeping went,
+is documented in [archive/README.md](archive/README.md).
