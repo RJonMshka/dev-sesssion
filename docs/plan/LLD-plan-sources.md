@@ -246,14 +246,14 @@ position. Then:
 
 The census drives the rule, and the census was wrong twice before it was right.
 "Shallowest depth occurring more than once" as the primary rule selects **h1**
-for `docs/PLANv2.md`, whose first two lines are both h1 — it would parse this
+for `docs/archive/PLANv2.md`, whose first two lines are both h1 — it would parse this
 repo's own plan into two chunks instead of six. Measured over the four real plan
 documents in the repo:
 
 | Document | h1 | h2 (declaring) | h3 (declaring) | Split |
 |---|---|---|---|---|
-| `docs/PLANv2.md` | 2 | 12 (6) | 53 (5) | h2 |
-| `docs/PLAN.md` | 1 | 23 (17) | 51 (0) | h2 |
+| `docs/archive/PLANv2.md` | 2 | 12 (6) | 53 (5) | h2 |
+| `docs/archive/PLAN.md` | 1 | 23 (17) | 51 (0) | h2 |
 | `tests/fixtures/medium-ts-monorepo/PLAN.md` | 0 | 3 (3) | 3 (0) | h2 |
 | `tests/fixtures/simple-node-app/PLAN.md` | 0 | 1 (1) | 1 (0) | h2 |
 
@@ -262,7 +262,7 @@ what keeps the existing suite green. Note also why the rule is not "most frequen
 depth": `### Tasks` repeated under every chunk outnumbers the chunk headings in
 three of the four.
 
-REQ-PS-18 is load-bearing rather than cosmetic. `docs/PLANv2.md` contains fenced
+REQ-PS-18 is load-bearing rather than cosmetic. `docs/archive/PLANv2.md` contains fenced
 YAML whose comment lines (`# .session/ai-index.yaml`) match `HEADING_RE` exactly;
 without fence-skipping the h1 census is inflated by code-block content and the
 depth choice becomes a function of how many YAML examples a document happens to
@@ -370,10 +370,10 @@ API in `docs/API.md` — and becomes a thin delegate to `parsePlan(content).resu
 The integration test is the one that matters, on the same reasoning as
 `file-index-roundtrip`: it runs the four dialects that yield zero chunks today
 (h3-only, h1-only, flat task list, `Phase N`) plus this repo's own
-`docs/PLANv2.md` — a real 1063-line document with mixed `## Chunk N` and prose
+`docs/archive/PLANv2.md` — a real 1063-line document with mixed `## Chunk N` and prose
 scaffolding — and asserts against parser output, never hand-written expectations.
 
-`docs/PLANv2.md` is the regression anchor: it must keep parsing to exactly the
+`docs/archive/PLANv2.md` is the regression anchor: it must keep parsing to exactly the
 chunk ids it produces today.
 
 ---

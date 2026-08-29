@@ -5,8 +5,8 @@
 
 > **Superseded — historical record.** This is how the project was planned
 > through chunk 19, when planning used `.session/` chunks. Current work is
-> planned as HLD/LLD/EARS documents in [`docs/plan/`](./plan/HLD.md); see
-> [METHOD.md](./METHOD.md). Kept because it records why things are the way
+> planned as HLD/LLD/EARS documents in [`docs/plan/`](../plan/HLD.md); see
+> [METHOD.md](../METHOD.md). Kept because it records why things are the way
 > they are.
 
 ---

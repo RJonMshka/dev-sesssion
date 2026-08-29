@@ -96,8 +96,8 @@ describe("this repository's own plan documents", () => {
 	// Captured from the shipped parser at fc38979, before the registry existed.
 	// These are the ids that must not move.
 	const BASELINE: ReadonlyArray<readonly [string, readonly number[]]> = [
-		["docs/PLAN.md", [1, 2, 3, 4, 5, 6, 7, 8, 9, 3.5, 10, 11, 12, 13, 14, 15, 16]],
-		["docs/PLANv2.md", [12, 13, 14, 15, 16, 17]],
+		["docs/archive/PLAN.md", [1, 2, 3, 4, 5, 6, 7, 8, 9, 3.5, 10, 11, 12, 13, 14, 15, 16]],
+		["docs/archive/PLANv2.md", [12, 13, 14, 15, 16, 17]],
 	];
 
 	for (const [relative, expectedIds] of BASELINE) {
@@ -119,14 +119,14 @@ describe("this repository's own plan documents", () => {
 		// PLANv2.md opens with two consecutive h1 lines and contains fenced YAML
 		// whose comments (`# .session/ai-index.yaml`) match the heading pattern.
 		// Both would misdirect a depth rule that did not skip fences.
-		const { result } = parsePlan(readRepoPlan("docs/PLANv2.md"));
+		const { result } = parsePlan(readRepoPlan("docs/archive/PLANv2.md"));
 
 		expect(result.chunks).toHaveLength(6);
 		expect(result.chunks.every((c) => c.chunk_id >= 12)).toBe(true);
 	});
 
 	it("reports the tasks PLANv2.md has been losing silently (REQ-PS-10)", () => {
-		const { result } = parsePlan(readRepoPlan("docs/PLANv2.md"));
+		const { result } = parsePlan(readRepoPlan("docs/archive/PLANv2.md"));
 
 		const withWork = result.excluded.filter((e) => e.taskCount > 0);
 
