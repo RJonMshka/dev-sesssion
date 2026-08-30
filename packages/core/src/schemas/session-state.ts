@@ -15,8 +15,12 @@ import { TaskSchema } from "./task.js";
  */
 export const SessionStateSchema = z
 	.object({
-		/** The numeric ID of the currently active chunk (e.g., 1, 2, 3). */
-		active_chunk: z.number().int().min(1),
+		/**
+		 * The numeric ID of the currently active chunk (e.g., 1, 2, 3).
+		 * Fractional ids (`3.5`) are permitted, matching `PlanChunkSchema.chunk_id`,
+		 * so an interstitial chunk can be made active without renumbering the plan.
+		 */
+		active_chunk: z.number().min(1),
 		/** A unique identifier for this session (typically UUID v4). */
 		session_id: z.string().min(1),
 		/** ISO 8601 date string of the last update to this state file. */

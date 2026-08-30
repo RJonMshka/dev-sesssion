@@ -16,15 +16,32 @@ Self-managing context architecture for AI-assisted coding. Installs via `npx dev
 - NEVER use `any` — use `unknown` and narrow explicitly
 - NEVER add dependencies to `packages/security` or `packages/core` without explicit approval
 - NEVER put business logic in `packages/cli` — if it's logic, it belongs in `packages/core`
-- NEVER start coding without reading `SESSION_STATE.md` first
+- NEVER start a feature without an LLD — see `docs/METHOD.md`
+- NEVER run `dev-sesssion` against this repo — `init`, `update`, `advance` and `index` would recreate `.session/`, which was deliberately removed
 
 ---
 
-## Session workflow
+## How we work
 
-**Start:** Read `.session/SESSION_STATE.md` → note active chunk → load only files tagged to that chunk in `FILE_INDEX.md` → confirm before writing code.
+Plans live in `docs/plan/` as **HLD → LLD → tests → code**. One `HLD.md` for
+architecture across features; one `LLD-<feature>.md` per feature carrying its
+**EARS** requirements (`REQ-<AREA>-<n>`). Read **[docs/METHOD.md](docs/METHOD.md)** first — it defines the EARS
+patterns, the id scheme, and the definition of done.
 
-**End:** Update `SESSION_STATE.md` (mark tasks done), update `FILE_INDEX.md` (add new files), rewrite `NEXT_PROMPT.md` (≤20 lines by default, self-contained). See `.session/ROUTINES.md` for the full routine. Do not skip this.
+**Before coding:** find or write the LLD for what you're changing. Requirements
+before design, design before tests, tests before code.
+
+**Writing tests:** name each test for the requirement it covers
+(`it("… (REQ-IDX-1)")`), and **watch it fail before you make it pass**. Assert
+against real generator output, never hand-written fixture lines — this repo has
+shipped two bugs that every test missed for exactly that reason.
+
+The method is advisory. Nothing in CI enforces it.
+
+> This project planned itself in `.session/` through chunk 19, then stopped —
+> chunks schedule sessions, LLDs record design, and forcing one into the other
+> produced neither. The directory is gone; what was worth keeping is in
+> `docs/archive/`. See "Why not .session/" in `docs/METHOD.md`.
 
 ---
 
@@ -56,11 +73,16 @@ dev-sesssion/
 │   ├── cli/        # parse args → call core → format output → exit
 │   ├── adapters/   # Claude Code, opencode, Cursor, Windsurf; never imports cli
 │   └── security/   # PathValidator, FrontmatterParser, SecretScanner, AtomicWriter
-├── tests/
-│   ├── fixtures/   # integration + e2e fixture projects
-│   └── helpers/    # shared test utilities
-└── .session/       # live session brain (dogfoods the system)
+├── docs/
+│   ├── plan/       # HLD + one LLD per feature — current planning
+│   └── archive/    # superseded plans; also live parser fixtures
+├── evals/          # eval harness — the coverage that dogfooding used to give
+└── tests/
+    ├── fixtures/   # integration + e2e fixture projects
+    └── helpers/    # shared test utilities
 ```
+
+`docs/README.md` indexes the rest.
 
 ---
 
@@ -90,6 +112,9 @@ dev-sesssion/
 
 - Security functions: adversarial tests required (path traversal, null bytes, JS frontmatter, prototype pollution, secret patterns) in `packages/security/src/__tests__/`
 - CLI tests: subprocess via `execa` only — never import CLI internals
-- Unit tests: `memfs`; integration tests: real temp dirs via `tmp-promise`; clean up in `afterEach`
+- Unit tests: real temp dirs via `fs.mkdtempSync`; integration tests: `tmp-promise` with `unsafeCleanup`; clean up in `afterEach`
+- Assert against real generator output, never hand-written fixture lines — see `docs/METHOD.md`
+- `docs/archive/PLAN.md`, `docs/archive/PLANv2.md` and `tests/fixtures/messy-file-index/` are **live fixtures** — real, messy, hand-maintained documents that caught bugs no synthetic fixture did. Do not tidy or reformat them
+- Name tests for the requirement they cover: `it("… (REQ-IDX-1)")`
 - Strip ANSI before assertions (`strip-ansi`) — never snapshot colored output
 - No `process.exit()` in tests — use Commander's `.exitOverride()`

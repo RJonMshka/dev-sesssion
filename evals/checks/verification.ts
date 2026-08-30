@@ -78,7 +78,7 @@ async function runGate(cmd: string, args: readonly string[], cwd: string): Promi
 		const { stdout, stderr } = await execFileAsync(cmd, [...args], {
 			cwd,
 			maxBuffer: 32 * 1024 * 1024,
-			env: { ...process.env, NO_COLOR: "1", CI: "1" },
+			env: { ...process.env, NO_COLOR: "1", FORCE_COLOR: "0", CI: "1" },
 		});
 		return { passed: true, exitCode: 0, output: `${stdout}${stderr}`.trim().slice(-8000) };
 	} catch (err: unknown) {

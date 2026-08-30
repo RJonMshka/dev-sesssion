@@ -1,0 +1,222 @@
+{
+  "version": "2.2.1",
+  "rows": [
+    {
+      "target": "simple-node-app",
+      "ablation": "auth-middleware",
+      "arm": "bootstrap",
+      "turns": 8,
+      "filesWritten": [
+        "src/utils/jwt.ts",
+        "src/middleware/auth.ts",
+        "PLAN.md"
+      ],
+      "filesRead": [
+        "PLAN.md",
+        "package.json",
+        "src/app.ts",
+        "src/middleware/errors.ts",
+        "src/utils/errors.ts",
+        "src/middleware/logger.ts",
+        "src/routes/users.ts",
+        "src/utils/validate.ts",
+        "src/models/user.ts",
+        "tests/users.test.ts",
+        "tsconfig.json"
+      ],
+      "inputTokens": 36880,
+      "outputTokens": 4643,
+      "testsPassed": true,
+      "stoppedBecause": "end_turn",
+      "testFilesTampered": [],
+      "newTypeErrors": [],
+      "scores": [
+        {
+          "dimension": "contract_satisfaction",
+          "score": 2,
+          "secondScore": 2,
+          "unstable": false,
+          "justification": "Only the header-rejection clause is met; the token-validation clauses are substantially rewritten. (1) `process.env.API_TOKEN` is never consulted \\u2014 a valid API_TOKEN request is rejected. (2) AppError(403) is never thrown anywhere; invalid tokens yield AppError(401, \"Invalid token\"), so the specified error code for the wrong-token case is wrong. (3) The middleware introduces an entirely different auth scheme (JWT via `verifyJwt`/`JWT_SECRET`) so that whenever `JWT_SECRET` is set, even `dev-token` is rejected \\u2014 the contract's unconditional acceptance of `dev-token` is broken. (4) A new, uncontracted AppError(500) path is added when NODE_ENV=production and JWT_SECRET is unset. Positives: it exports `requireAuth(req,res,next)`, throws AppError(401) for a missing or non-Bearer header (albeit with case-insensitive scheme matching and an extra empty-token check, minor harmless deviations), and calls next() on success. The happy path works only in the narrow non-production/no-JWT_SECRET configuration, so the contract is largely unmet."
+        },
+        {
+          "dimension": "convention_match",
+          "score": 4,
+          "secondScore": 4,
+          "unstable": false,
+          "justification": "Stylistically the candidate is very close to the reference: identical import style (`import type { NextFunction, Request, Response } from \"express\"` plus `AppError` from `../utils/errors.js` with the ESM `.js` extension), the same named export shape `export function requireAuth(req: Request, _res: Response, next: NextFunction): void` including the underscore-prefixed unused param, tab indentation, double quotes, and the same throw-based error convention using `AppError(status, message)` rather than `next(err)`. Naming (`requireAuth`, `DEV_TOKEN`) is idiomatic for the file. Divergences are real but mostly structural/behavioural rather than stylistic: it adds a `declare global { namespace Express { ... } }` augmentation inline in the middleware (a pattern absent from the reference and arguably belonging in a types file), extracts an `extractBearerToken` helper where the reference inlines a two-line check, and pulls in a whole new `../utils/jwt.js` module. It also drops the `VALID_TOKENS` set / `API_TOKEN` convention in favour of `JWT_SECRET`/`NODE_ENV` branching, and uses `AppError(401, \"Invalid token\")` where the reference convention is 403 for a wrong-but-well-formed token — an error-code convention mismatch. Close enough to pass as same-codebase code, but noticeably more elaborate than the reference's minimal style.\"}"
+        },
+        {
+          "dimension": "no_fabrication",
+          "score": 4,
+          "secondScore": 5,
+          "unstable": false,
+          "justification": "All imported symbols resolve: `AppError` comes from `src/utils/errors.ts` (pre-existing) and `verifyJwt`/`JwtPayload` come from `src/utils/jwt.ts`, which the agent authored in this same run and which genuinely exports both — so no module or helper is invented. Express types are legitimate. The only questionable invention is a configuration contract rather than a code symbol: the middleware keys off `process.env.JWT_SECRET` and an implied HS256 JWT scheme, while the stated contract specifies `process.env.API_TOKEN` as the second accepted token; `API_TOKEN` is never referenced at all. That is a fabricated environment/config dependency (plus a self-invented `req.auth` global augmentation) not established anywhere in the project spec, which docks it one point from a clean 5, though no non-existent project code is imported."
+        }
+      ],
+      "meanScore": 3.3333333333333335
+    },
+    {
+      "target": "simple-node-app",
+      "ablation": "auth-middleware",
+      "arm": "control",
+      "turns": 9,
+      "filesWritten": [
+        "src/middleware/auth.ts",
+        "README.md"
+      ],
+      "filesRead": [
+        "PLAN.md",
+        "README.md",
+        "package.json",
+        "src/app.ts",
+        "src/middleware/errors.ts",
+        "src/middleware/logger.ts",
+        "src/utils/errors.ts",
+        "src/routes/users.ts",
+        "src/models/user.ts",
+        "src/utils/validate.ts",
+        "src/routes/health.ts",
+        "tests/users.test.ts",
+        "tests/health.test.ts",
+        "tsconfig.json",
+        "src/server.ts"
+      ],
+      "inputTokens": 36972,
+      "outputTokens": 3708,
+      "testsPassed": true,
+      "stoppedBecause": "end_turn",
+      "testFilesTampered": [],
+      "newTypeErrors": [],
+      "scores": [
+        {
+          "dimension": "contract_satisfaction",
+          "score": 2,
+          "secondScore": 2,
+          "unstable": false,
+          "justification": "Main path works (exports requireAuth, 401 on missing/non-Bearer header, next() on success), but three distinct contract clauses are violated. (1) Invalid tokens must yield AppError(403); the candidate throws AppError(401, \"Invalid token\"), so the 403 branch never exists. (2) The contract names `process.env.API_TOKEN` as an accepted token; the candidate reads `process.env.AUTH_TOKEN` — a different variable, so a correctly-configured API_TOKEN would be rejected. (3) `dev-token` must always be accepted alongside the env token; the candidate's `process.env.AUTH_TOKEN ?? DEFAULT_TOKEN` makes them mutually exclusive, so setting the env var breaks the literal `dev-token` clause (the reference builds a Set containing both). The README even documents the divergent behaviour (\"unknown token get a 401\"), confirming this is systematic rather than incidental. Only the header-rejection and next() clauses are fully met.\n"
+        },
+        {
+          "dimension": "convention_match",
+          "score": 3,
+          "secondScore": 3,
+          "unstable": false,
+          "justification": "Surface style matches well: identical import lines (`import type { NextFunction, Request, Response } from \"express\"` and `AppError` from `../utils/errors.js` with the ESM `.js` extension), tabs, same exported function name/signature with the `_res` underscore convention, and the same throw-AppError-instead-of-next(err) pattern. But there are several noticeable divergences. (1) Export shape is broadened: the candidate additionally exports an `AuthContext` interface and adds a `declare global { namespace Express { interface Request { auth?: AuthContext } } }` augmentation plus `req.auth = { token }`, none of which exist in the reference's single-export module. (2) Error-code convention diverges: the reference distinguishes 401 (header problem) from 403 (bad token); the candidate returns 401 for an invalid token, so `AppError(403)` never appears. (3) Configuration naming diverges from the codebase's `API_TOKEN` to `AUTH_TOKEN` (and this is propagated into the README, so it is a consistent-but-wrong name). (4) Structural idiom differs: a `VALID_TOKENS` Set built from a filtered literal array is replaced by an `expectedToken()` helper plus a `DEFAULT_TOKEN` const, and `req.headers.authorization` / `startsWith(\"Bearer \")` / `slice(7)` is replaced with `req.header(\"authorization\")` and split/lowercase scheme parsing. It reads like competent code from the same codebase but is clearly distinguishable from the reference's conventions.\"}"
+        },
+        {
+          "dimension": "no_fabrication",
+          "score": 4,
+          "secondScore": 4,
+          "unstable": false,
+          "justification": "All project-level imports and symbols are real: `AppError` from `../utils/errors.js` matches `src/utils/errors.ts` present in the run, the Express types (`Request`, `Response`, `NextFunction`, `req.header(...)`) are genuine framework APIs, and `req.auth` is legitimised by the candidate's own `declare global` augmentation in the same file — nothing is pulled from a non-existent module or helper. The one questionable invented reference is the configuration key `process.env.AUTH_TOKEN`: the contract (and reference) specifies `process.env.API_TOKEN`, so the candidate introduced a config surface that does not exist in the stated spec. It is self-consistent (the README it wrote documents `AUTH_TOKEN`), so it is not a hard dependency on missing project code, but it is a fabricated identifier relative to the authoritative contract. No other invented APIs."
+        }
+      ],
+      "meanScore": 3
+    },
+    {
+      "target": "simple-node-app",
+      "ablation": "body-validation",
+      "arm": "bootstrap",
+      "turns": 6,
+      "filesWritten": [
+        "src/utils/validate.ts"
+      ],
+      "filesRead": [
+        "PLAN.md",
+        "package.json",
+        "src/app.ts",
+        "src/routes/users.ts",
+        "src/models/user.ts",
+        "src/utils/errors.ts",
+        "src/middleware/errors.ts",
+        "src/middleware/auth.ts",
+        "tests/users.test.ts",
+        "tsconfig.json"
+      ],
+      "inputTokens": 22456,
+      "outputTokens": 2292,
+      "testsPassed": true,
+      "stoppedBecause": "end_turn",
+      "testFilesTampered": [],
+      "newTypeErrors": [],
+      "scores": [
+        {
+          "dimension": "contract_satisfaction",
+          "score": 2,
+          "secondScore": 2,
+          "unstable": false,
+          "justification": "Main path is correct (safeParse, returns data, throws AppError with status 400, formats each issue as `path: message`), but two explicit clauses of the contract are violated. (1) The contract requires the issues be **comma-joined**; the candidate joins with `\"; \"` (semicolon-space), so the produced message differs from the specified format and would fail any assertion on the documented output. (2) The declared signature is `parseBody<T>(schema: ZodSchema<T>, body): T`, where `T` is the *parsed data* type; the candidate redefines `T extends z.ZodTypeAny` as the *schema* type and returns `z.infer<T>`. Inference-based call sites still work, but any caller writing the documented explicit form `parseBody<UserInput>(userSchema, body)` will fail to compile — a breaking API deviation. Additionally, the candidate silently drops the path prefix for root-level issues (emitting just `message` instead of `: message`), which is arguably nicer but is another departure from the stated `path: message` rule. Error code and throw behaviour are right, so this is not a total failure, but multiple stated clauses are unmet."
+        },
+        {
+          "dimension": "convention_match",
+          "score": 3,
+          "secondScore": 3,
+          "unstable": false,
+          "justification": "Shares the right skeleton — `import type` from zod, `AppError` imported from \"./errors.js\" with the ESM extension, tab indentation, `throw new AppError(400, \\`Validation failed: ...\\`)`, and `safeParse` + `result.error.issues.map(...)`. But there are several noticeable divergences: (1) it imports the `z` namespace and types the signature as `parseBody<T extends z.ZodTypeAny>(schema: T, body: unknown): z.infer<T>` rather than the reference's simpler `ZodSchema<T>` / `: T` shape, so the exported generic contract differs (callers writing `parseBody<User>(schema, body)` would break); (2) it extracts a separate module-level `formatIssue` helper with a ternary for empty paths where the reference inlines a one-line arrow; (3) it joins issues with `\"; \"` instead of the reference's `\", \"`, which is both a style and contract mismatch. Functional and stylistically adjacent, but clearly distinguishable from the reference."
+        },
+        {
+          "dimension": "no_fabrication",
+          "score": 5,
+          "secondScore": 5,
+          "unstable": false,
+          "justification": "Every referenced symbol exists. `AppError` is imported from \"./errors.js\", which resolves to src/utils/errors.ts (the candidate file being src/utils/validate.ts) — the same import the reference uses, with the same two-argument constructor signature `AppError(400, message)`. The only other dependency is the external `zod` package, and the symbols used (`z.ZodIssue`, `z.ZodTypeAny`, `z.infer`, `safeParse`, `result.error.issues`, `issue.path`, `issue.message`) are all genuine zod exports/properties. No project modules, helpers, or utilities were invented. (The `\"; \"` join instead of the contract's comma-join is a behavioural deviation, but not a fabrication concern for this dimension.)"
+        }
+      ],
+      "meanScore": 3.3333333333333335
+    },
+    {
+      "target": "simple-node-app",
+      "ablation": "body-validation",
+      "arm": "control",
+      "turns": 7,
+      "filesWritten": [
+        "src/utils/validate.ts",
+        "tests/users.test.ts"
+      ],
+      "filesRead": [
+        "PLAN.md",
+        "package.json",
+        "README.md",
+        "src/routes/users.ts",
+        "src/models/user.ts",
+        "src/app.ts",
+        "src/utils/errors.ts",
+        "src/middleware/errors.ts",
+        "tests/users.test.ts",
+        "src/middleware/auth.ts",
+        "tsconfig.json"
+      ],
+      "inputTokens": 23569,
+      "outputTokens": 3299,
+      "testsPassed": true,
+      "stoppedBecause": "end_turn",
+      "testFilesTampered": [
+        "tests/users.test.ts"
+      ],
+      "newTypeErrors": [],
+      "scores": [
+        {
+          "dimension": "contract_satisfaction",
+          "score": 3,
+          "secondScore": 3,
+          "unstable": false,
+          "justification": "Main path is correct: exports parseBody, uses safeParse, returns result.data, and throws AppError(400) on failure with issues rendered as `path: message`. However, two contract clauses are weakened. (1) The contract explicitly requires the issues to be **comma-joined**; the candidate joins with `\"; \"` (semicolon-space), so the message format does not match the specification (and any test asserting a comma-separated list would fail). (2) The signature deviates: the contract says `parseBody<T>(schema, body): T`, but the candidate declares `parseBody<T extends ZodTypeAny>(schema: T, body): z.infer<T>`. Inference works for the common call site, but an explicit call such as `parseBody<CreateUserInput>(schema, body)` — valid under the stated contract — becomes a type error, so the exported type contract is not literally satisfied. Minor extra deviation: the candidate omits the `path: ` prefix for root-level issues (arguably an improvement, but it is a divergence from the stated `path: message` rule), and the prefix text differs (\"Invalid request body:\" vs \"Validation failed:\"), which is unspecified so acceptable. Error code 400 and per-issue enumeration are satisfied."
+        },
+        {
+          "dimension": "convention_match",
+          "score": 3,
+          "secondScore": 3,
+          "unstable": false,
+          "justification": "Surface conventions are matched well: `import type` from \"zod\", `AppError` imported from \"./errors.js\" with the ESM `.js` extension, tab indentation, and a single named `export function parseBody`. But there are several noticeable divergences from the reference's shape and idiom: (1) the generic signature is inverted — `parseBody<T extends ZodTypeAny>(schema: T, body: unknown): z.infer<T>` instead of the reference's simpler `parseBody<T>(schema: ZodSchema<T>, body: unknown): T`, pulling in `z` and `ZodTypeAny` imports the reference doesn't use; (2) an extra unexported `formatIssues(error: ZodError)` helper is introduced where the reference inlines a 1-line `.map()`, adding a third type import (`ZodError`); (3) the error message prefix differs (\"Invalid request body:\" vs \"Validation failed:\"); (4) issues are joined with \"; \" rather than the contract/reference's \", \"; (5) an extra empty-path branch is added that the reference does not have. These are all functional-but-different choices — recognisably the same codebase, but not stylistically interchangeable with the reference."
+        },
+        {
+          "dimension": "no_fabrication",
+          "score": 5,
+          "secondScore": 5,
+          "unstable": false,
+          "justification": "Every referenced symbol exists. `AppError` is imported from \"./errors.js\", which resolves to src/utils/errors.ts (validate.ts lives in src/utils/), present in the project listing, and it is constructed with the same (status, message) signature used by the reference. The zod imports `z`, `ZodError`, and `ZodTypeAny` are all genuine public zod exports, and `schema.safeParse` / `result.error.issues` / `issue.path` / `issue.message` are real zod APIs used identically in the reference. No project helper, module, or method is invented. (The differing error message prefix/separator is a behavioural-contract issue, not fabrication, and is out of scope for this dimension.)"
+        }
+      ],
+      "meanScore": 3.6666666666666665
+    }
+  ]
+}

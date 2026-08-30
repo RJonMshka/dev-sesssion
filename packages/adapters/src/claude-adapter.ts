@@ -18,6 +18,7 @@ import type {
 	SessionState,
 	TransformStateContext,
 } from "@dev-session/core";
+import { DEFAULT_MAX_PROMPT_LINES } from "@dev-session/core";
 import { ClaudeBootstrapFormatter } from "./claude-bootstrap-formatter.js";
 
 // ---------------------------------------------------------------------------
@@ -63,13 +64,13 @@ function generateSessionSection(_projectName: string, sessionDir: string): strin
 		"",
 		"## dev-sesssion",
 		"",
-		`This project uses [dev-sesssion](https://github.com/anthropics/dev-sesssion) to manage AI coding sessions.`,
+		`This project uses [dev-sesssion](https://github.com/RJonMshka/dev-sesssion) to manage AI coding sessions.`,
 		"",
 		"### Session workflow",
 		"",
 		`**Start:** Read \`${sessionDir}/SESSION_STATE.md\` → note active chunk → load only files tagged to that chunk in \`FILE_INDEX.md\` → confirm before writing code.`,
 		"",
-		`**End:** Update \`SESSION_STATE.md\` (mark tasks done), update \`FILE_INDEX.md\` (add new files), rewrite \`NEXT_PROMPT.md\` (≤15 lines, self-contained). See \`${sessionDir}/ROUTINES.md\` for the full routine. Do not skip this.`,
+		`**End:** Update \`SESSION_STATE.md\` (mark tasks done), update \`FILE_INDEX.md\` (add new files), rewrite \`NEXT_PROMPT.md\` (≤${String(DEFAULT_MAX_PROMPT_LINES)} lines by default, self-contained). See \`${sessionDir}/ROUTINES.md\` for the full routine. Do not skip this.`,
 		"",
 	];
 	return lines.join("\n");

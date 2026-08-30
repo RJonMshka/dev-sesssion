@@ -257,4 +257,55 @@ describe("runUpdate --yes mode", () => {
 		// Should have 2 entries: the fake one + the one from update
 		expect(entries).toHaveLength(2);
 	});
+
+	// `--dry-run` is a GLOBAL flag and the guide tells users to "dry-run
+	// everything before committing" — but update never read it, so every write
+	// went through. Running it against this repo's own session overwrote a
+	// hand-written NEXT_PROMPT.md that was gitignored, and so unrecoverable.
+	//
+	// REQ-DRY-1  Where dry-run is set, update shall not modify SESSION_STATE.md.
+	// REQ-DRY-2  Where dry-run is set, update shall not modify NEXT_PROMPT.md.
+	// REQ-DRY-3  Where dry-run is set, update shall not append to CONTEXT_LOG.md.
+	describe("dry-run", () => {
+		const DRY = { yes: true, verbose: false, strict: false, dryRun: true } as const;
+
+		function read(name: string): string {
+			return fs.readFileSync(path.join(tmpDir, ".session", name), "utf-8");
+		}
+
+		it("leaves SESSION_STATE.md untouched (REQ-DRY-1)", async () => {
+			setupSession();
+			const before = read("SESSION_STATE.md");
+
+			await runUpdate({ cwd: tmpDir, ...DRY });
+
+			expect(read("SESSION_STATE.md")).toBe(before);
+		});
+
+		it("leaves NEXT_PROMPT.md untouched (REQ-DRY-2)", async () => {
+			setupSession();
+			const before = read("NEXT_PROMPT.md");
+
+			await runUpdate({ cwd: tmpDir, ...DRY });
+
+			expect(read("NEXT_PROMPT.md")).toBe(before);
+		});
+
+		it("does not append a context log entry (REQ-DRY-3)", async () => {
+			setupSession();
+			const sessionDir = path.join(tmpDir, ".session") as ValidatedPath;
+
+			await runUpdate({ cwd: tmpDir, ...DRY });
+
+			expect(SessionMemoryManager.load(sessionDir)).toHaveLength(0);
+		});
+
+		it("still reports what it would have done", async () => {
+			setupSession();
+
+			const result = await runUpdate({ cwd: tmpDir, ...DRY });
+
+			expect(result.promptRegenerated).toBe(true);
+		});
+	});
 });

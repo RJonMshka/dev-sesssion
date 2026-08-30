@@ -9,8 +9,11 @@ export const FileIndexEntrySchema = z
 	.object({
 		/** The relative file path from the project root. */
 		filepath: z.string().min(1),
-		/** The chunk IDs this file is tagged to (e.g., [1, 2]). Use `0` for "always include". */
-		chunk_tags: z.array(z.number().int().min(0)).min(1),
+		/**
+		 * The chunk IDs this file is tagged to (e.g., [1, 2]). Use `0` for "always include".
+		 * Fractional ids (`3.5`) are permitted, matching `PlanChunkSchema.chunk_id`.
+		 */
+		chunk_tags: z.array(z.number().min(0)).min(1),
 		/** A short description of the file's purpose. */
 		purpose: z.string().min(1),
 		/** Estimated token cost for loading this file into context. Populated by walker/scanner. */

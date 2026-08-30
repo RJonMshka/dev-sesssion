@@ -121,18 +121,100 @@ describe("splitPlan", () => {
 		).rejects.toThrow("Cannot read plan file");
 	});
 
-	it("throws CliError for plan with no h2 headings", async () => {
+	// Previously "throws CliError for plan with no h2 headings", asserting the
+	// message "No chunks found". h2 is no longer required, and an unrecognized
+	// document now reports what was tried instead of naming one dialect.
+	it("reports every candidate source and its score when none matches (REQ-PS-3)", async () => {
 		const planPath = path.join(tmpDir, "PLAN.md");
-		fs.writeFileSync(planPath, "# Just a title\n\nNo h2 headings here.\n");
+		fs.writeFileSync(planPath, "# Just a title\n\nNo structure here at all.\n");
 
-		await expect(
-			splitPlan(planPath, sessionDir, {
-				yes: true,
-				dryRun: false,
-				verbose: false,
-				cwd: tmpDir,
-			}),
-		).rejects.toThrow("No chunks found");
+		const run = splitPlan(planPath, sessionDir, {
+			yes: true,
+			dryRun: false,
+			verbose: false,
+			cwd: tmpDir,
+		});
+
+		await expect(run).rejects.toThrow(/headings/);
+		await expect(run).rejects.toThrow(/task-list/);
+		// Scores are shown, not just names.
+		await expect(run).rejects.toThrow(/0\.00/);
+	});
+
+	it("names every source tried when a recognized plan yields no chunks (REQ-PS-15)", async () => {
+		// The headings source recognizes this with high confidence — it declares a
+		// position — but chunk 0 has no representation, so nothing survives.
+		const planPath = path.join(tmpDir, "PLAN.md");
+		fs.writeFileSync(planPath, "## Chunk 0 -- Setup\n\n- [ ] init\n");
+
+		const run = splitPlan(planPath, sessionDir, {
+			yes: true,
+			dryRun: false,
+			verbose: false,
+			cwd: tmpDir,
+		});
+
+		await expect(run).rejects.toThrow(/No chunks found/);
+		await expect(run).rejects.toThrow(/headings/);
+		await expect(run).rejects.toThrow(/task-list/);
+	});
+
+	it("warns when a skipped section carries tasks (REQ-PS-11)", async () => {
+		const { log } = await import("@clack/prompts");
+		const planPath = path.join(tmpDir, "PLAN.md");
+		fs.writeFileSync(
+			planPath,
+			["## Chunk 1 -- Auth", "- [ ] login", "", "## Notes", "- [ ] do not lose me"].join("\n"),
+		);
+
+		await splitPlan(planPath, sessionDir, {
+			yes: true,
+			dryRun: false,
+			verbose: false,
+			cwd: tmpDir,
+		});
+
+		const warnings = vi.mocked(log.warn).mock.calls.map((c) => String(c[0]));
+		expect(warnings.some((w) => w.includes("Notes") && w.includes("1 task"))).toBe(true);
+	});
+
+	it("does not warn about a skipped section with no tasks (REQ-PS-11)", async () => {
+		const { log } = await import("@clack/prompts");
+		vi.mocked(log.warn).mockClear();
+		const planPath = path.join(tmpDir, "PLAN.md");
+		fs.writeFileSync(
+			planPath,
+			["## Chunk 1 -- Auth", "- [ ] login", "", "## Overview", "Just prose."].join("\n"),
+		);
+
+		await splitPlan(planPath, sessionDir, {
+			yes: true,
+			dryRun: false,
+			verbose: false,
+			cwd: tmpDir,
+		});
+
+		const warnings = vi.mocked(log.warn).mock.calls.map((c) => String(c[0]));
+		expect(warnings.some((w) => w.includes("Overview"))).toBe(false);
+	});
+
+	it("splits an h3-structured plan that yielded nothing before (REQ-PS-5)", async () => {
+		const planPath = path.join(tmpDir, "PLAN.md");
+		fs.writeFileSync(
+			planPath,
+			["# Roadmap", "", "### Auth", "- [ ] login", "", "### Billing", "- [ ] stripe"].join("\n"),
+		);
+
+		const result = await splitPlan(planPath, sessionDir, {
+			yes: true,
+			dryRun: false,
+			verbose: false,
+			cwd: tmpDir,
+		});
+
+		expect(result.chunks.map((c) => c.title)).toEqual(["Auth", "Billing"]);
+		expect(fs.existsSync(path.join(sessionDir, "PLAN_1.md"))).toBe(true);
+		expect(fs.existsSync(path.join(sessionDir, "PLAN_2.md"))).toBe(true);
 	});
 
 	it("verbose mode logs boundaries", async () => {

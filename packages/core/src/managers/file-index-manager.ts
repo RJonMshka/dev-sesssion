@@ -24,8 +24,26 @@ const FILE_INDEX_FILENAME = "FILE_INDEX.md";
  */
 export const FILE_INDEX_PAGE_SIZE = 500;
 
-/** Pattern matching "## Chunk N" or "## Chunk N — Title" headings. */
-const CHUNK_HEADING_PATTERN = /^##\s+Chunk\s+(\d+)(\s|$)/;
+/**
+ * Pattern matching any level-2 heading.
+ *
+ * Every h2 ends the current section, whether or not it names a chunk. Without
+ * this, rows under an unrecognized heading were attributed to the *preceding*
+ * chunk — mis-filing rather than skipping, which is strictly worse: the prompt's
+ * load list is capped, so a wrong entry evicts a real file.
+ */
+const SECTION_HEADING_PATTERN = /^##\s+\S/;
+
+/**
+ * Pattern matching "## Chunk N" or "## Chunk N — Title" headings, including
+ * fractional ids such as `## Chunk 3.5 — Token counting`.
+ *
+ * Ids carrying a non-numeric suffix (`## Chunk 13A`) deliberately do NOT match:
+ * `chunk_tags` is numeric, so there is no tag to map them to. They are still
+ * recognized as headings by {@link SECTION_HEADING_PATTERN} and therefore end
+ * the previous section instead of extending it.
+ */
+const CHUNK_HEADING_PATTERN = /^##\s+Chunk\s+(\d+(?:\.\d+)?)(\s|$)/;
 
 /** Pattern matching "## Always Include" heading. */
 const ALWAYS_INCLUDE_HEADING = /^##\s+Always\s+Include\s*$/;
@@ -84,7 +102,10 @@ export const FileIndexManager = {
 		cleanPageFiles(sessionDir);
 		// sessionDir is already validated by the caller; filename is a constant.
 		const filePath = path.join(sessionDir, FILE_INDEX_FILENAME) as ValidatedPath;
-		AtomicWriter.writeFile(filePath, serializeEntries(entries));
+		const layout = readLayout(filePath);
+		const content =
+			layout === undefined ? serializeEntries(entries) : serializeWithLayout(entries, layout);
+		AtomicWriter.writeFile(filePath, content);
 	},
 
 	/**
@@ -207,9 +228,11 @@ function parseFileIndex(content: string, relativePath: string): FileIndexEntry[]
 		const trimmed = line.trim();
 		if (trimmed === "") continue;
 
-		const chunkTag = parseSectionHeading(trimmed);
-		if (chunkTag !== undefined) {
-			currentChunkTag = chunkTag;
+		// Any h2 closes the current section. An unmappable one (`## Chunk 13A`,
+		// `## Design notes`) leaves the tag undefined, so its rows are dropped
+		// rather than inherited by the chunk above it.
+		if (SECTION_HEADING_PATTERN.test(trimmed)) {
+			currentChunkTag = parseSectionHeading(trimmed);
 			continue;
 		}
 
@@ -229,8 +252,10 @@ function parseFileIndex(content: string, relativePath: string): FileIndexEntry[]
 /**
  * Parses a section heading to extract the chunk tag.
  *
- * @param line - A trimmed line from the file.
- * @returns The chunk tag number, or `undefined` if this is not a section heading.
+ * @param line - A trimmed h2 heading line from the file.
+ * @returns The chunk tag number, or `undefined` if the heading names no chunk
+ *   the index can represent. Callers must treat `undefined` as "section closed",
+ *   not as "not a heading" — see {@link SECTION_HEADING_PATTERN}.
  */
 function parseSectionHeading(line: string): number | undefined {
 	if (ALWAYS_INCLUDE_HEADING.test(line)) {
@@ -241,8 +266,8 @@ function parseSectionHeading(line: string): number | undefined {
 	if (chunkMatch !== null) {
 		const rawNumber = chunkMatch[1];
 		if (rawNumber !== undefined) {
-			const parsed = Number.parseInt(rawNumber, 10);
-			if (!Number.isNaN(parsed)) {
+			const parsed = Number.parseFloat(rawNumber);
+			if (Number.isFinite(parsed)) {
 				return parsed;
 			}
 		}
@@ -420,6 +445,260 @@ function groupByChunkTag(entries: readonly FileIndexEntry[]): Map<number, FileIn
 	}
 
 	return grouped;
+}
+
+// ---------------------------------------------------------------------------
+// Internal: Layout preservation
+// ---------------------------------------------------------------------------
+
+/**
+ * One section of an existing FILE_INDEX.md.
+ *
+ * Both kinds keep their original lines. A `chunk` section is *patched* — rows
+ * are rewritten in place, dropped when the entry is gone, and new ones appended
+ * after the last existing row. Patching rather than regenerating is what keeps
+ * `###` sub-headings, multiple tables per section, and interleaved prose in
+ * their original positions.
+ *
+ * `opaque` sections are re-emitted byte-for-byte. That covers any heading the
+ * parser cannot map to a numeric tag (`## Chunk 13A`, `## Design notes`), whose
+ * rows are therefore absent from `entries` and would otherwise be deleted.
+ */
+type IndexBlock =
+	| { readonly kind: "chunk"; readonly tag: number; readonly lines: string[] }
+	| { readonly kind: "opaque"; readonly lines: string[] };
+
+/** The recoverable shape of an existing FILE_INDEX.md. */
+interface IndexLayout {
+	/** Everything before the first h2 — frontmatter and the `# File Index` title. */
+	readonly preamble: readonly string[];
+	/** Sections in their original document order. */
+	readonly blocks: readonly IndexBlock[];
+}
+
+/**
+ * Reads an existing FILE_INDEX.md and recovers its layout.
+ *
+ * @param filePath - Absolute path to FILE_INDEX.md.
+ * @returns The parsed layout, or `undefined` when the file does not exist or is
+ *   unreadable — in which case the caller emits the canonical format instead.
+ */
+function readLayout(filePath: string): IndexLayout | undefined {
+	if (!fs.existsSync(filePath)) {
+		return undefined;
+	}
+	try {
+		return parseLayout(fs.readFileSync(filePath, "utf-8"));
+	} catch {
+		// An unreadable index must not block a save — fall back to canonical output.
+		return undefined;
+	}
+}
+
+/**
+ * Splits FILE_INDEX.md content into a preamble and an ordered list of sections.
+ *
+ * @param content - Raw markdown content.
+ * @returns The recovered layout.
+ */
+function parseLayout(content: string): IndexLayout {
+	const preamble: string[] = [];
+	const blocks: IndexBlock[] = [];
+	let current: IndexBlock | undefined;
+
+	for (const line of content.split("\n")) {
+		const trimmed = line.trim();
+
+		if (SECTION_HEADING_PATTERN.test(trimmed)) {
+			if (current !== undefined) blocks.push(current);
+			const tag = parseSectionHeading(trimmed);
+			current =
+				tag === undefined
+					? { kind: "opaque", lines: [line] }
+					: { kind: "chunk", tag, lines: [line] };
+			continue;
+		}
+
+		if (current === undefined) {
+			preamble.push(line);
+		} else {
+			current.lines.push(line);
+		}
+	}
+
+	if (current !== undefined) blocks.push(current);
+
+	return { preamble: trimTrailingBlanks(preamble), blocks };
+}
+
+/**
+ * Serializes entries back into an existing document's layout.
+ *
+ * Section order, heading text, prose, sub-headings, and unmappable sections are
+ * all preserved; only the table rows are updated. Tags with no existing section
+ * are appended in ascending order.
+ *
+ * @param entries - The entries to serialize.
+ * @param layout - The layout recovered from the existing file.
+ * @returns The full markdown content string.
+ */
+function serializeWithLayout(entries: readonly FileIndexEntry[], layout: IndexLayout): string {
+	const grouped = groupByChunkTag(entries);
+	const collapsed = collapsedPurposes(layout);
+	const seen = new Set<number>();
+	const sections: string[] = [];
+
+	for (const block of layout.blocks) {
+		if (block.kind === "opaque") {
+			sections.push(trimTrailingBlanks(block.lines).join("\n"));
+			continue;
+		}
+
+		// A tag repeated across two headings is filled only at its first heading.
+		const rows = seen.has(block.tag) ? [] : (grouped.get(block.tag) ?? []);
+		seen.add(block.tag);
+		sections.push(patchSection(block.lines, rows, collapsed).join("\n"));
+	}
+
+	for (const tag of [...grouped.keys()].filter((t) => !seen.has(t)).sort((a, b) => a - b)) {
+		sections.push(buildSectionMarkdown(tag, grouped.get(tag) ?? []));
+	}
+
+	const preamble = refreshLastUpdated([...layout.preamble]);
+	return `${[preamble.join("\n"), ...sections].join("\n\n")}\n`;
+}
+
+/**
+ * Rewrites a chunk section's table rows in place against the current entries.
+ *
+ * Existing rows keep their position and are refreshed from the matching entry;
+ * rows whose file is no longer indexed are dropped; entries with no row yet are
+ * appended after the last existing row, or as a fresh table if the section has
+ * none.
+ *
+ * @param lines - The section's original lines, heading first.
+ * @param entries - The entries tagged to this section's chunk.
+ * @param collapsed - First-seen purpose per filepath, from {@link collapsedPurposes}.
+ * @returns The patched section lines.
+ */
+function patchSection(
+	lines: readonly string[],
+	entries: readonly FileIndexEntry[],
+	collapsed: ReadonlyMap<string, string>,
+): string[] {
+	const byPath = new Map(entries.map((e) => [e.filepath, e]));
+	const placed = new Set<string>();
+	const out: string[] = [];
+	let lastRowIndex = -1;
+
+	for (const line of lines) {
+		const trimmed = line.trim();
+		if (!isTableDataRow(trimmed) || isTableMetaRow(trimmed)) {
+			out.push(line);
+			continue;
+		}
+
+		const cells = trimmed.split("|");
+		const filepath = cells[1]?.trim();
+		const entry = filepath === undefined ? undefined : byPath.get(filepath);
+		if (entry === undefined) continue; // no longer indexed — drop the row
+
+		placed.add(entry.filepath);
+		out.push(`| ${entry.filepath} | ${resolvePurpose(entry, cells[2]?.trim(), collapsed)} |`);
+		lastRowIndex = out.length - 1;
+	}
+
+	const added = entries
+		.filter((e) => !placed.has(e.filepath))
+		.map((e) => `| ${e.filepath} | ${e.purpose} |`);
+	if (added.length === 0) {
+		return trimTrailingBlanks(out);
+	}
+
+	if (lastRowIndex === -1) {
+		return trimTrailingBlanks([...out, "", "| File | Purpose |", "|---|---|", ...added]);
+	}
+	out.splice(lastRowIndex + 1, 0, ...added);
+	return trimTrailingBlanks(out);
+}
+
+/**
+ * Builds the first-seen purpose per filepath across an existing document.
+ *
+ * This mirrors what `load()` does when it collapses a file that appears in
+ * several sections down to a single {@link FileIndexEntry}, and is the reference
+ * point {@link resolvePurpose} uses to tell "the caller edited this" apart from
+ * "the collapse chose this".
+ *
+ * @param layout - The recovered layout.
+ * @returns A map from filepath to the purpose `load()` would have produced.
+ */
+function collapsedPurposes(layout: IndexLayout): ReadonlyMap<string, string> {
+	const first = new Map<string, string>();
+
+	for (const block of layout.blocks) {
+		if (block.kind !== "chunk") continue;
+		for (const line of block.lines) {
+			const trimmed = line.trim();
+			if (!isTableDataRow(trimmed) || isTableMetaRow(trimmed)) continue;
+			const cells = trimmed.split("|");
+			const filepath = cells[1]?.trim();
+			const purpose = cells[2]?.trim();
+			if (filepath !== undefined && purpose !== undefined && !first.has(filepath)) {
+				first.set(filepath, purpose);
+			}
+		}
+	}
+
+	return first;
+}
+
+/**
+ * Decides which purpose a patched row should carry.
+ *
+ * `load()` cannot represent a per-section purpose, so an entry whose purpose
+ * still equals the collapsed first-seen value carries no intent from the caller
+ * — the row keeps the purpose it already had. Anything else is a deliberate
+ * edit and is written to every section.
+ *
+ * @param entry - The entry being written.
+ * @param existing - The purpose currently on this row, if any.
+ * @param collapsed - First-seen purpose per filepath.
+ * @returns The purpose to write.
+ */
+function resolvePurpose(
+	entry: FileIndexEntry,
+	existing: string | undefined,
+	collapsed: ReadonlyMap<string, string>,
+): string {
+	if (existing === undefined || existing === "") return entry.purpose;
+	return entry.purpose === collapsed.get(entry.filepath) ? existing : entry.purpose;
+}
+
+/**
+ * Rewrites the `last_updated` frontmatter line to today, leaving every other
+ * preamble line — including unknown frontmatter keys — untouched.
+ *
+ * @param preamble - The preamble lines.
+ * @returns The preamble with a refreshed date.
+ */
+function refreshLastUpdated(preamble: string[]): string[] {
+	const today = new Date().toISOString().slice(0, 10);
+	return preamble.map((line) =>
+		/^last_updated:/.test(line.trim()) ? `last_updated: "${today}"` : line,
+	);
+}
+
+/**
+ * Drops trailing blank lines so joined sections do not accumulate whitespace.
+ *
+ * @param lines - The lines to trim.
+ * @returns The lines with trailing blanks removed.
+ */
+function trimTrailingBlanks(lines: readonly string[]): string[] {
+	const out = [...lines];
+	while (out.length > 0 && (out[out.length - 1] ?? "").trim() === "") out.pop();
+	return out;
 }
 
 // ---------------------------------------------------------------------------

@@ -16,11 +16,17 @@ import { AtomicWriter, CliError, FrontmatterParser, ParseError } from "@dev-sess
 import type { PlanChunk, SessionState } from "../schemas/index.js";
 import { PlanChunkSchema, TaskStatus } from "../schemas/index.js";
 
-/** Pattern that matches plan chunk filenames like PLAN_1.md, PLAN_2.md, etc. */
-const PLAN_CHUNK_PATTERN = /^PLAN_(\d+)\.md$/;
+/**
+ * Pattern that matches plan chunk filenames like PLAN_1.md, PLAN_2.md, PLAN_3.5.md.
+ *
+ * Fractional ids are accepted because `PlanChunkSchema` and PROTOCOL.md both
+ * allow them, so that an interstitial chunk can be inserted between two existing
+ * ones without renumbering the plan.
+ */
+const PLAN_CHUNK_PATTERN = /^PLAN_(\d+(?:\.\d+)?)\.md$/;
 
 /** The filename used for the done/archive log. */
-const DONE_LOG_FILENAME = "DONE_LOG.md";
+export const DONE_LOG_FILENAME = "DONE_LOG.md";
 
 /**
  * Reads and validates a single plan chunk file.
@@ -70,7 +76,10 @@ function listChunkFiles(sessionDir: ValidatedPath): readonly { name: string; chu
 		if (match !== null) {
 			const idStr = match[1];
 			if (idStr !== undefined) {
-				chunks.push({ name: entry, chunkId: Number.parseInt(idStr, 10) });
+				const chunkId = Number.parseFloat(idStr);
+				if (Number.isFinite(chunkId)) {
+					chunks.push({ name: entry, chunkId });
+				}
 			}
 		}
 	}
