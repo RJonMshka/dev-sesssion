@@ -1,3 +1,28 @@
+## [2.3.0](https://github.com/RJonMshka/dev-sesssion/compare/v2.2.1...v2.3.0) (2026-08-30)
+
+### Features
+
+* **cli:** report what splitting a plan skipped and why ([4c2d677](https://github.com/RJonMshka/dev-sesssion/commit/4c2d6770d2a3d32c60022da796080fc457ced978))
+* **core:** add a registry of plan sources ([3bdbdb4](https://github.com/RJonMshka/dev-sesssion/commit/3bdbdb4afdbdef8ea13f550605543c714f88f66d))
+
+### Bug Fixes
+
+* **adapters:** correct stale line cap and repository URL in boilerplate ([41a95a6](https://github.com/RJonMshka/dev-sesssion/commit/41a95a654aea0f558e0b8c32a3cc9f82fe126316))
+* **core,cli:** stop FILE_INDEX corruption, support fractional chunk ids, honour --dry-run ([fc38979](https://github.com/RJonMshka/dev-sesssion/commit/fc38979a16a4693bd361d7c8f6cc845fa75be1e9))
+
+### Documentation
+
+* add an index for docs/ ([99596bd](https://github.com/RJonMshka/dev-sesssion/commit/99596bd07193f2ead9f4300f1e63e3c48af5f771))
+* adopt HLD/LLD/EARS + TDD as the working method; freeze .session/ ([481706d](https://github.com/RJonMshka/dev-sesssion/commit/481706d3e97938e5d179644bde18c82224188cb3))
+* correct the audit step in the releasing guide ([3c445c8](https://github.com/RJonMshka/dev-sesssion/commit/3c445c8ce5f51db0af8e3b03b55e0e5336a4f851))
+* delete the semantic-release setup scratch notes ([b7cb725](https://github.com/RJonMshka/dev-sesssion/commit/b7cb72559029e3d5a7d45b4333693f87d7374e65))
+* **evals:** add the eval report ([c063320](https://github.com/RJonMshka/dev-sesssion/commit/c06332088af44274d557c5ba4a5e297774e64392))
+* fold the release and test plans into one releasing guide ([cc029a8](https://github.com/RJonMshka/dev-sesssion/commit/cc029a8edd985cf93c9a63ca98f5b35ad2f44772))
+* move the superseded plans into docs/archive/ ([8f5fb2f](https://github.com/RJonMshka/dev-sesssion/commit/8f5fb2f3948040de4ea557515d865aebe6f646f6))
+* **plan:** add the LLD for the plan source registry ([2503aac](https://github.com/RJonMshka/dev-sesssion/commit/2503aacb044bb2d28deb66c7b6c82cc421c239cc))
+* retire the .session/ archive ([eca8031](https://github.com/RJonMshka/dev-sesssion/commit/eca803139b0c6dbeff05d89c13e2987f21a0f8d2))
+* stop duplicating the command reference in GUIDE.md ([b93ebc8](https://github.com/RJonMshka/dev-sesssion/commit/b93ebc87ee70853926c92ca234c1525658e7f9ec))
+
 ## [2.2.1](https://github.com/RJonMshka/dev-sesssion/compare/v2.2.0...v2.2.1) (2026-08-23)
 
 ### Bug Fixes
