@@ -119,6 +119,21 @@ belongs there.
 path that bypasses it — a registered third-party formatter can otherwise produce
 output the writer would have refused.
 
+**Schemas are the protocol.** `PROTOCOL.md` specifies the on-disk `.session/`
+format independently of this implementation, and the Zod schemas in
+`packages/core/src/schemas/` are what actually enforce it — eight of them are
+`.strict()`, so an unrecognized key is a hard parse failure, not a warning. Two
+consequences: every schema addition must be **optional**, and it must land with
+the `PROTOCOL.md` change in the same commit, or the spec and the reference
+implementation drift. They have drifted before — `PROTOCOL.md` once specified an
+`in_progress` status and a string `active_chunk`, both of which the schemas
+reject, so a tool written against the spec failed validation.
+
+Known open tension: conformance rule 5 says a conforming tool "ignores unknown
+optional fields rather than failing", which `.strict()` does not do. Do not
+silently relax `.strict()` to resolve it — strictness is what catches
+hand-edited state files, and the spec is the side more likely to be wrong.
+
 **Build topology.** Only `packages/cli` is published; core, security and
 adapters are `private: true` and bundled into it by tsup `noExternal`, so the
 npm artifact is a single file. Consequence: a dependency of `core` is *inlined*
