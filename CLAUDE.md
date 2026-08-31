@@ -134,6 +134,21 @@ optional fields rather than failing", which `.strict()` does not do. Do not
 silently relax `.strict()` to resolve it — strictness is what catches
 hand-edited state files, and the spec is the side more likely to be wrong.
 
+**Repo content is untrusted input.** The tool reads repository files and writes a
+prompt the developer pastes into a coding agent — so `import`, the walkers, and
+`AnnotationParser` sit on a trust boundary. Not because the developer is
+adversarial, but because they did not write all of it: a fork, a vendored
+dependency, a pull request. The rule is that text the tool did not author is
+rendered as an **attributed quotation, never as tool speech**; `SecretScanner`
+and `guardEgress` guard the same boundary outbound. Two paths currently violate
+it — see `docs/plan/LLD-context-provenance.md` (area `PROV`) and
+`evals/RIGOUR.md`.
+
+**`evals/` is dev tooling, not shipped code.** It drives the *published* CLI as a
+black box, never imports from `packages/`, and therefore sits outside the
+`CliError` contract and throws plain `Error`. It is excluded from the coverage
+gate. `pnpm eval` is the deterministic tier — no API key, ~40s.
+
 **Build topology.** Only `packages/cli` is published; core, security and
 adapters are `private: true` and bundled into it by tsup `noExternal`, so the
 npm artifact is a single file. Consequence: a dependency of `core` is *inlined*
