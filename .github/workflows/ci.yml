@@ -62,5 +62,14 @@ jobs:
       - name: Test + coverage gate
         run: pnpm test:coverage
 
+      - name: Eval harness tests
+        run: pnpm test:evals
+
+      # Drives the *published* CLI, so it needs no workspace build and no API
+      # key. ~40s. Deliberately not continue-on-error: the audit step above
+      # shows what a gate that cannot fail is worth.
+      - name: Eval — deterministic tier
+        run: pnpm eval
+
       - name: Publint
         run: pnpm publint

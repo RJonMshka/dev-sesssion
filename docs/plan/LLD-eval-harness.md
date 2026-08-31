@@ -197,6 +197,27 @@ REQ-EVAL-1 is the one to watch fail first in the most literal sense: invert the
 ternary at `judge.ts:182`, confirm the test goes red, restore it. A test that
 cannot catch that inversion is not testing the thing that matters.
 
+### What actually happened
+
+| Requirement | Outcome |
+|---|---|
+| REQ-EVAL-1, REQ-EVAL-2 | **Failed first**, as designed — `compareArms` had no seam, so all 7 tests hit the live API. The inversion check then failed 4 of 7 and passed again on restore |
+| REQ-EVAL-3, REQ-EVAL-4, REQ-EVAL-5 | **Passed on the first run.** The behaviour already existed; these tests are regression locks, not fixes. Recorded here per [METHOD.md](../METHOD.md) rather than dressed up as changes |
+| REQ-EVAL-7 | **Failed first.** `run.ts` computed a failure count, printed it, and exited 0 |
+| REQ-EVAL-8 | Passed — verified with `ANTHROPIC_API_KEY` unset |
+| REQ-EVAL-6 | **Not built.** The adversarial corpus is the remaining slice |
+
+Wiring REQ-EVAL-7 immediately earned its keep: with the exit code live,
+`pnpm eval` went red because `DEFAULT_VERSION` was still `2.2.0` — the release
+that *has* the duplicate-ref bug 2.2.1 fixed. A gate pointed at a superseded
+version is not a gate, and nothing could surface that while the exit code was
+ignored.
+
+One unplanned signal: re-running the tier reproduced the committed
+`deterministic-2.2.1.json` byte for byte, which is a free determinism check on
+the generator. Worth keeping an eye on rather than asserting yet — see the
+output-determinism metric in `evals/RIGOUR.md`.
+
 ---
 
 ## Out of scope
