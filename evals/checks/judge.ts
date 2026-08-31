@@ -129,6 +129,32 @@ const PAIRWISE_SCHEMA = {
 	additionalProperties: false,
 } as const;
 
+/**
+ * One comparison's answer, stated by position.
+ *
+ * Deliberately positional rather than by arm: the judge is blinded, so it can
+ * only name a position, and mapping that back to an arm is the harness's job.
+ * Keeping the two apart is what makes the mapping testable without a model.
+ */
+export interface PositionalVerdict {
+	readonly winner: "first" | "second" | "tie";
+	readonly margin: string;
+	readonly justification: string;
+}
+
+/**
+ * Produces one positional verdict for a dimension and an ordered candidate pair.
+ *
+ * Injectable so the arm mapping and the order-swap logic can be tested against
+ * scripted verdicts, with no API key and no network.
+ */
+export type Comparator = (
+	dim: Dimension,
+	grounding: string,
+	first: Candidate,
+	second: Candidate,
+) => Promise<PositionalVerdict>;
+
 /** One dimension's pairwise result, after the order swap. */
 export interface PairwiseVerdict {
 	readonly dimension: string;
@@ -142,14 +168,14 @@ export interface PairwiseVerdict {
 	readonly raw: readonly (Arm | "tie")[];
 }
 
-/** Issues one pairwise call and maps the verdict back to an arm. */
+/** Issues one pairwise call. Returns the verdict by position; mapping is the caller's. */
 async function compareOnce(
 	client: Anthropic,
 	dim: Dimension,
 	grounding: string,
 	first: Candidate,
 	second: Candidate,
-): Promise<{ winner: Arm | "tie"; margin: string; justification: string }> {
+): Promise<PositionalVerdict> {
 	const prompt = [
 		`# Dimension under comparison\n${dim.name}\n\n${dim.focus}`,
 		grounding,
@@ -174,16 +200,26 @@ async function compareOnce(
 
 	for (const block of res.content) {
 		if (block.type !== "text") continue;
-		const parsed = JSON.parse(block.text) as {
-			winner: "first" | "second" | "tie";
-			margin: string;
-			justification: string;
-		};
-		const winner: Arm | "tie" =
-			parsed.winner === "tie" ? "tie" : parsed.winner === "first" ? first.arm : second.arm;
-		return { winner, margin: parsed.margin, justification: parsed.justification };
+		return JSON.parse(block.text) as PositionalVerdict;
 	}
 	throw new Error("judge returned no text block");
+}
+
+/**
+ * Maps a positional verdict onto the arm that occupied that position.
+ *
+ * @param winner - The position the judge chose.
+ * @param first - Candidate shown first.
+ * @param second - Candidate shown second.
+ * @returns The winning arm, or `"tie"`.
+ */
+function toArm(
+	winner: PositionalVerdict["winner"],
+	first: Candidate,
+	second: Candidate,
+): Arm | "tie" {
+	if (winner === "tie") return "tie";
+	return winner === "first" ? first.arm : second.arm;
 }
 
 /**
@@ -193,7 +229,8 @@ async function compareOnce(
  * only if it survives the swap; one that flips is position bias and is reported
  * as an unstable tie rather than a result.
  *
- * @param opts - Contract, reference, project listing, and both candidates.
+ * @param opts - Contract, reference, project listing, both candidates, and an
+ *   optional comparator (defaults to the live judge).
  * @returns One verdict per dimension.
  */
 export async function compareArms(opts: {
@@ -202,24 +239,35 @@ export async function compareArms(opts: {
 	readonly projectFiles: readonly string[];
 	readonly bootstrap: Candidate;
 	readonly control: Candidate;
+	readonly compare?: Comparator;
 }): Promise<PairwiseVerdict[]> {
-	const client = new Anthropic();
+	const compare: Comparator =
+		opts.compare ??
+		(() => {
+			const client = new Anthropic();
+			return (dim, grounding, first, second) => compareOnce(client, dim, grounding, first, second);
+		})();
 	const grounding = renderGrounding(opts.contract, opts.reference, opts.projectFiles);
 
 	const out: PairwiseVerdict[] = [];
 	for (const dim of DIMENSIONS) {
+		// Both orderings, so a judge that simply favours a position cannot pass.
 		const [ab, ba] = await Promise.all([
-			compareOnce(client, dim, grounding, opts.bootstrap, opts.control),
-			compareOnce(client, dim, grounding, opts.control, opts.bootstrap),
+			compare(dim, grounding, opts.bootstrap, opts.control),
+			compare(dim, grounding, opts.control, opts.bootstrap),
 		]);
-		const agreed = ab.winner === ba.winner;
+		// Map each verdict onto the arm that stood in that position *for that call*.
+		const abArm = toArm(ab.winner, opts.bootstrap, opts.control);
+		const baArm = toArm(ba.winner, opts.control, opts.bootstrap);
+
+		const agreed = abArm === baArm;
 		out.push({
 			dimension: dim.name,
-			winner: agreed && ab.winner !== "tie" ? ab.winner : null,
+			winner: agreed && abArm !== "tie" ? abArm : null,
 			orderStable: agreed,
 			margin: agreed ? ab.margin : "none",
 			justification: ab.justification,
-			raw: [ab.winner, ba.winner],
+			raw: [abArm, baArm],
 		});
 	}
 	return out;

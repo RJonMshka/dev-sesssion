@@ -32,6 +32,18 @@ export default defineConfig({
 					globalSetup: ["tests/setup/e2e-global-setup.ts"],
 				},
 			},
+			{
+				test: {
+					name: "evals",
+					// The harness is dev tooling, but it is the only code that produces
+					// published claims, so its pure functions are tested like any other.
+					include: ["evals/**/*.test.ts"],
+					// evals/.cache/deps holds installed fixture dependencies; a bare
+					// evals/** glob otherwise collects several hundred zod tests.
+					exclude: ["evals/.cache/**"],
+					environment: "node",
+				},
+			},
 		],
 		coverage: {
 			// In-process coverage only (unit + integration). Subprocess-tested

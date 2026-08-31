@@ -18,6 +18,7 @@
 		"test:unit": "vitest run --project unit",
 		"test:integration": "vitest run --project integration",
 		"test:e2e": "vitest run --project e2e",
+		"test:evals": "vitest run --project evals",
 		"test:coverage": "pnpm build && pnpm test:coverage:unit && pnpm test:coverage:e2e && node tests/coverage/merge-coverage.mjs",
 		"test:coverage:unit": "vitest run --project unit --project integration --coverage",
 		"test:coverage:e2e": "node tests/coverage/collect-e2e-coverage.mjs",
