@@ -1,7 +1,7 @@
 # HLD — in-flight work
 
-Architecture across the four features currently planned. Per-feature detail
-lives in `LLD-<feature>.md`, written when that feature is about to be built.
+Architecture across the features currently planned. Per-feature detail lives in
+`LLD-<feature>.md`, written when that feature is about to be built.
 
 Method: [../METHOD.md](../METHOD.md).
 
@@ -20,12 +20,19 @@ The eval harness has measured this. Two findings shape what follows:
 | It reduces context burn | Bootstrap arm ≤ control on turns *and* tokens in 8/8 pairs |
 | It does **not** improve correctness | All 16 arm-runs passed the fixture's tests |
 
-The second is the gap. Everything below either widens the funnel of projects the
-tool can serve at all (features 1 and 3), or aims at correctness (feature 4).
+The second is the gap. Features 1–4 below either widen the funnel of projects the
+tool can serve at all (1 and 3), or aim at correctness (4).
+
+Measuring any of that turned up two further concerns that are not product
+features and do not fit that framing. The tool is a **pipe from repository
+content to agent instructions**, and it never marks which text came from where
+(feature 5). And the instrument producing these findings is the only code in the
+repository with no tests, having been wrong more often than the product it
+measures (feature 6).
 
 ---
 
-## The four features
+## The features
 
 | # | Feature | LLD | Problem in one line |
 |---|---|---|---|
@@ -33,8 +40,12 @@ tool can serve at all (features 1 and 3), or aims at correctness (feature 4).
 | 2 | `symbols` command | `LLD-symbols.md` | Symbol data is extracted and indexed but never shown to a human |
 | 3 | Bootstrap auto-pilot | `LLD-file-index.md` | Init demands up to 30 tagging prompts, or dumps every file into chunk 1 |
 | 4 | Workflow-shaped prompt | `LLD-workflow-prompt.md` | `Next:` is a flat bullet list with no position and no exit condition |
+| 5 | Context provenance | `LLD-context-provenance.md` | Text lifted from repo files reaches the agent indistinguishable from the tool's own instructions |
+| 6 | Eval harness integrity | `LLD-eval-harness.md` | The harness that produces our published numbers has no tests and no CI |
 
-They are independent except that 4 depends on notes decay landing first.
+1–4 are independent except that 4 depends on notes decay landing first. 5 and 6
+are coupled in one direction: 6 supplies the adversarial corpus that locks 5's
+fix, so 5's regression tests live in 6's tier. Neither blocks the others.
 
 ---
 
@@ -105,6 +116,33 @@ one-line merge; the prefix-drift bug was three private copies of a string
 constant. `formatter-utils.ts:105` codifies the rule. Anything a formatter does
 more than once goes in that module.
 
+### The trust boundary
+
+Feature 5 names a contract that was always there and never written down.
+
+```
+repository files          ← the developer has not read all of this
+   │  walkers, AnnotationParser, import
+   ▼
+.session/ artifacts       ← tool-owned, but carrying quoted foreign text
+   │  BootstrapFormatter, AiIndexManager, MCP tools
+   ▼
+the agent's context       ← acts on what it reads, with write access
+```
+
+Repository content is **untrusted input**, not because the developer is
+adversarial but because they did not write all of it: a fork, a vendored
+dependency, a pull request. Two paths carry it across that boundary unmarked and
+are confirmed reproducible — an imported `CLAUDE.md` section becomes a `Note:`
+line, and an `@ai-summary` becomes text served by `read_file_layer`.
+
+The rule this establishes: **text the tool did not author is rendered as an
+attributed quotation, never as tool speech.** `SecretScanner` and `guardEgress`
+already guard the outbound direction; this is the same boundary, inbound. The
+mitigation is provenance rather than filtering — classifying text as
+instruction-like is an arms race, and a filter that mostly works is worse than a
+label that always does.
+
 ---
 
 ## Cross-cutting decisions
@@ -160,3 +198,12 @@ Note that the tool is no longer run against this repository, so the class of bug
 that dogfooding used to catch — three data-loss bugs in Slice 0, none caught by
 any test — now has to be caught by the eval harness and by fixtures captured
 from real projects (`tests/fixtures/messy-file-index/`).
+
+**That load-bearing role is why feature 6 exists.** The harness carries the
+coverage dogfooding used to provide, and three of its first four rounds found
+defects in *itself* rather than in the product. Until its own arithmetic is
+tested and it runs unprompted, it is a safety net nobody has inspected. Its
+methodological limits — a ceiling effect on the primary outcome, an uncalibrated
+judge, statistics that overstate what 8 pairs can support — are catalogued in
+[`evals/RIGOUR.md`](../../evals/RIGOUR.md); those are the LLD after next, and
+they are worth nothing until the instrument itself is trustworthy.

@@ -27,7 +27,10 @@ import { TARGETS } from "./targets.js";
 import type { GroundingResult, SessionMetrics } from "./types.js";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const DEFAULT_VERSION = "2.2.0";
+// Track the current release. The tier gates CI, so defaulting to a superseded
+// version means gating on bugs that are already fixed — 2.2.0 still carries the
+// duplicate-ref bug that 2.2.1 shipped the fix for.
+const DEFAULT_VERSION = "2.2.1";
 
 /** One deterministic-tier result row. */
 interface DeterministicRow {
@@ -164,6 +167,15 @@ async function main(): Promise<void> {
 	process.stdout.write(
 		`${String(rows.length - failures.length)}/${String(rows.length)} runs clean\n`,
 	);
+
+	// A reported failure has to be an exit code, or CI cannot gate on this tier —
+	// it previously printed the failure count and exited 0.
+	if (failures.length > 0) {
+		for (const r of failures) {
+			process.stderr.write(`FAIL ${r.target}/${r.ablation}\n`);
+		}
+		process.exitCode = 1;
+	}
 }
 
 main().catch((err: unknown) => {

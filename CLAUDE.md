@@ -1,4 +1,6 @@
-# CLAUDE.md — dev-sesssion
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 Self-managing context architecture for AI-assisted coding. Installs via `npx dev-sesssion init`. Manages `.session/` to keep AI sessions lean and self-resuming. Licensed MIT; published to npm as `dev-sesssion` (the other three packages are private).
 
@@ -49,18 +51,111 @@ The method is advisory. Nothing in CI enforces it.
 
 ```bash
 pnpm install
-pnpm build
-pnpm typecheck
-pnpm lint
-pnpm test
-pnpm test:unit
-pnpm test:integration
-pnpm test:e2e
-pnpm test:coverage
-pnpm dev
-npm audit --omit=dev
-npx gitleaks protect --staged
+pnpm build              # tsup, all four packages
+pnpm typecheck          # runs build first — dts feeds the downstream packages
+pnpm lint               # biome check .   (lint:fix to apply)
+pnpm test               # all three projects
+pnpm test:unit          # packages/*/src/**/*.test.ts
+pnpm test:integration   # tests/**/*.integration.test.ts
+pnpm test:e2e           # tests/**/*.e2e.test.ts — spawns the built CLI, needs a build
+pnpm test:coverage      # build + unit/integration + subprocess e2e, merged, gated 80/75
+pnpm publint            # packaging lint, all packages
+pnpm eval               # deterministic eval tier, no API key (~40s)
+pnpm benchmark:status   # status latency (<500ms on 200 files)
+pnpm audit --prod       # NOT `npm audit` — no package-lock, npm exits ENOLOCK
+gitleaks detect --config .gitleaks.toml   # Go binary, `brew install`; not npx-runnable
 ```
+
+**A single test file or case:**
+
+```bash
+pnpm vitest run tests/plan-dialects.integration.test.ts
+pnpm vitest run packages/core/src/__tests__/plan-sources/registry.test.ts
+pnpm vitest run --project unit -t "REQ-PS-4"     # by requirement id
+```
+
+Vitest is configured with three named projects (`vitest.config.ts`), split by
+glob. `vitest run <path>` picks the right one; `--project` is only needed with
+`-t`. e2e sets a 60s timeout and a global setup that builds the CLI.
+
+---
+
+## Architecture
+
+One pipeline runs end to end. Understanding it is most of understanding the repo:
+
+```
+plan markdown
+  │  PlanSource.detect() → confidence, across a registry   parsers/plan-sources/
+  │  PlanSource.parse()
+PlanChunk[]                    ← the seam: nothing downstream knows formats vary
+  │  managers/ — SessionManager, PlanChunkManager, FileIndexManager
+  │  calculators/ + counters/ — context budget
+BootstrapContext
+  │  BootstrapFormatter — one per tool, chosen from the adapter registry
+  │  NextPromptWriter.validate() → write()
+.session/NEXT_PROMPT.md
+```
+
+**Two registries are the extension points.** `parsers/plan-sources/registry.ts`
+(`registerPlanSource`, `detectPlanSource`, `parsePlan`) decides which dialect a
+plan is written in — highest confidence above `PLAN_SOURCE_MIN_CONFIDENCE` wins,
+and a tie or a miss reports candidates rather than guessing.
+`packages/adapters/src/registry.ts` (`registerAdapter`, `getAdapterByName`,
+`getRegisteredTools`) decides output shape. Neither has a hand-maintained name
+list — deriving `--adapter`'s valid names from the registry is what killed a
+whole bug class where a new adapter worked via auto-detect but not via the flag.
+
+**`formatters/formatter-utils.ts` is the single source of truth for prompt line
+prefixes** (`LOAD_PREFIX`, `LOAD_FULL_PREFIX`, `SUMMARIES_PREFIX`,
+`FILE_LOAD_PREFIXES`, `LAYER_SUFFIX_RE`). The formatter that emits a line, the
+validator that accepts it, and `ReplayScorer` which parses it back all derive
+from that module, and it is exported from the core barrel so out-of-tree
+formatters import rather than hardcode. Private copies of these strings have
+shipped two separate bug classes. Anything a formatter does more than once
+belongs there.
+
+**`NextPromptWriter.write()` validates before persisting.** Do not add a write
+path that bypasses it — a registered third-party formatter can otherwise produce
+output the writer would have refused.
+
+**Schemas are the protocol.** `PROTOCOL.md` specifies the on-disk `.session/`
+format independently of this implementation, and the Zod schemas in
+`packages/core/src/schemas/` are what actually enforce it — eight of them are
+`.strict()`, so an unrecognized key is a hard parse failure, not a warning. Two
+consequences: every schema addition must be **optional**, and it must land with
+the `PROTOCOL.md` change in the same commit, or the spec and the reference
+implementation drift. They have drifted before — `PROTOCOL.md` once specified an
+`in_progress` status and a string `active_chunk`, both of which the schemas
+reject, so a tool written against the spec failed validation.
+
+Known open tension: conformance rule 5 says a conforming tool "ignores unknown
+optional fields rather than failing", which `.strict()` does not do. Do not
+silently relax `.strict()` to resolve it — strictness is what catches
+hand-edited state files, and the spec is the side more likely to be wrong.
+
+**Repo content is untrusted input.** The tool reads repository files and writes a
+prompt the developer pastes into a coding agent — so `import`, the walkers, and
+`AnnotationParser` sit on a trust boundary. Not because the developer is
+adversarial, but because they did not write all of it: a fork, a vendored
+dependency, a pull request. The rule is that text the tool did not author is
+rendered as an **attributed quotation, never as tool speech**; `SecretScanner`
+and `guardEgress` guard the same boundary outbound. Two paths currently violate
+it — see `docs/plan/LLD-context-provenance.md` (area `PROV`) and
+`evals/RIGOUR.md`.
+
+**`evals/` is dev tooling, not shipped code.** It drives the *published* CLI as a
+black box, never imports from `packages/`, and therefore sits outside the
+`CliError` contract and throws plain `Error`. It is excluded from the coverage
+gate. `pnpm eval` is the deterministic tier — no API key, ~40s.
+
+**Build topology.** Only `packages/cli` is published; core, security and
+adapters are `private: true` and bundled into it by tsup `noExternal`, so the
+npm artifact is a single file. Consequence: a dependency of `core` is *inlined*
+into the published bundle rather than installed, since tsup externalizes only
+`cli`'s own dependencies. `read-version.ts` must stay at `src` depth-1 so
+`../package.json` resolves in both the source tree and the dist bundle; the
+version is read at runtime because semantic-release sets it after the build.
 
 ---
 
@@ -118,3 +213,5 @@ dev-sesssion/
 - Name tests for the requirement they cover: `it("… (REQ-IDX-1)")`
 - Strip ANSI before assertions (`strip-ansi`) — never snapshot colored output
 - No `process.exit()` in tests — use Commander's `.exitOverride()`
+- The repo directory is named `dev-sesssion`, which is exactly what the CLI's auto-run heuristic matches (`packages/cli/src/index.ts:32`). Unit and integration projects set `DEV_SESSSION_NO_AUTORUN=1` so importing the entry point does not execute it twice
+- Coverage attribution must stay **disjoint**: `cli/**` and `core/src/checkers/**` come from c8 over `NODE_V8_COVERAGE` (vitest cannot instrument execa subprocesses), everything else from vitest, merged by `tests/coverage/merge-coverage.mjs`. The two collectors emit different statement maps for the same file, so overlapping them corrupts the percentages
