@@ -96,9 +96,15 @@ export const WindsurfBootstrapFormatter: BootstrapFormatter = {
 		lines.push(formatBudgetLine(budget));
 
 		// -- Context section (up to 4 lines) --
-		const resolvedLayers = context.resolvedLayers;
-		if (resolvedLayers !== undefined && resolvedLayers.length > 0) {
-			for (const line of formatLayeredContextLines(resolvedLayers, (f) => f, MAX_FILES_TO_SHOW)) {
+		const resolvedLayers = context.resolvedLayers ?? [];
+		const focusUnits = context.focusUnits ?? [];
+		if (resolvedLayers.length > 0 || focusUnits.length > 0) {
+			for (const line of formatLayeredContextLines(
+				resolvedLayers,
+				(f) => f,
+				MAX_FILES_TO_SHOW,
+				focusUnits,
+			)) {
 				lines.push(line);
 			}
 		} else {

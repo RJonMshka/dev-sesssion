@@ -98,6 +98,12 @@ function normalizeRef(raw: string): string | null {
 
 	ref = ref.replace(/^@/, "").replace(/^`|`$/g, "").replace(LAYER_SUFFIX_RE, "").trim();
 
+	// A focused unit (`path#id:start-end`) is attributed to its file (REQ-UNIT-14).
+	const hash = ref.indexOf("#");
+	if (hash !== -1) {
+		ref = ref.slice(0, hash);
+	}
+
 	// A path must look like one; prose on a Load: line should not count.
 	if (!ref.includes("/") && !ref.includes(".")) {
 		return null;

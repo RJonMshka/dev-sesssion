@@ -30,9 +30,12 @@ export type {
 	LayerHint,
 	ParsedFile,
 	ParsedSymbol,
+	ParsedUnit,
 	SymbolAnnotations,
 	SymbolEntry,
 	SymbolSurface,
+	UnitEntry,
+	UnitKind,
 } from "./annotation/index.js";
 // Annotation: ai-index auto-extraction (Chunk 12) + @ai-* refinement (Chunk 13)
 export {
@@ -45,11 +48,18 @@ export {
 // Calculators
 export { ContextBudgetCalculator } from "./calculators/context-budget-calculator.js";
 export type {
+	ContextPlan,
 	FileLayerRole,
 	LayerResolverInput,
 	ResolvedFileLayer,
 } from "./calculators/layer-resolver.js";
 export { LayerResolver } from "./calculators/layer-resolver.js";
+export type {
+	FocusedUnit,
+	UnitFocusInput,
+	UnitFocusResult,
+} from "./calculators/unit-focus.js";
+export { MAX_FOCUS_UNITS, UnitFocusResolver } from "./calculators/unit-focus.js";
 export type {
 	HealthIssue,
 	HealthReport,
@@ -76,10 +86,12 @@ export {
 	DEFAULT_MAX_NOTES,
 	DEFAULT_MAX_PROMPT_LINES,
 	FILE_LOAD_PREFIXES,
+	FOCUS_PREFIX,
 	formatBudgetLine,
 	formatChunkProgress,
 	formatCompletedChunksSummary,
 	formatLayeredContextLines,
+	formatUnitRef,
 	getPendingTasks,
 	LAYER_SUFFIX_RE,
 	LEGACY_LOAD_PREFIX,
@@ -97,6 +109,8 @@ export { GitReader } from "./git/git-reader.js";
 export type { LintResult } from "./linters/context-linter.js";
 // Linters
 export { ContextLinter } from "./linters/context-linter.js";
+export type { ManifestInput } from "./managers/context-manifest.js";
+export { ContextManifest } from "./managers/context-manifest.js";
 export { FILE_INDEX_PAGE_SIZE, FileIndexManager } from "./managers/file-index-manager.js";
 export { NextPromptWriter } from "./managers/next-prompt-writer.js";
 export { DONE_LOG_FILENAME, PlanChunkManager } from "./managers/plan-chunk-manager.js";
@@ -147,10 +161,12 @@ export type {
 	ContextLog,
 	ContextLogEntry,
 	ContextLogStats,
+	ContextManifestData,
 	DetectedToolValue,
 	DirectoryGroup,
 	ExternalTokenCounter,
 	FileIndexEntry,
+	ManifestEntry,
 	NextPrompt,
 	PlanChunk,
 	ProjectInfo,
@@ -170,15 +186,18 @@ export type {
 export {
 	AdapterConfigSchema,
 	CONTEXT_LOG_FILENAME,
+	CONTEXT_MANIFEST_FILENAME,
 	ContextBudgetSummarySchema,
 	ContextLogEntrySchema,
 	ContextLogSchema,
+	ContextManifestSchema,
 	countPromptLines,
 	DEFAULT_CONTEXT_BUDGET,
 	DetectedTool,
 	FileIndexEntrySchema,
 	MAX_CONFIGURABLE_PROMPT_LINES,
 	MAX_PROMPT_LINES,
+	ManifestEntrySchema,
 	MIN_CONFIGURABLE_PROMPT_LINES,
 	NextPromptSchema,
 	PlanChunkSchema,
@@ -191,6 +210,7 @@ export {
 } from "./schemas/index.js";
 export type { TrimOverrideEntry, TrimOverrides } from "./schemas/trim-overrides.js";
 export { TRIM_OVERRIDES_FILENAME, TrimOverridesSchema } from "./schemas/trim-overrides.js";
+export { ContextManifestChecker } from "./verifiers/context-manifest-checker.js";
 export type {
 	ReplayReport,
 	ReplayScore,

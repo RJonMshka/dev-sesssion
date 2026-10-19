@@ -21,6 +21,8 @@ import { AiIndexManager } from "../annotation/ai-index-manager.js";
 import type { AiIndex, FileEntry } from "../annotation/types.js";
 import type { FileIndexEntry, Task } from "../schemas/index.js";
 import { ContextBudgetCalculator } from "./context-budget-calculator.js";
+import type { FocusedUnit } from "./unit-focus.js";
+import { UnitFocusResolver } from "./unit-focus.js";
 
 /** The role a file plays in the bootstrap, which sets its base layer. */
 export type FileLayerRole = "chunk" | "always-include";
@@ -55,6 +57,24 @@ export interface LayerResolverInput {
 	readonly tasks: readonly Task[];
 	/** The loaded ai-index, or `null` if none has been generated. */
 	readonly index: AiIndex | null;
+	/**
+	 * Units focused by the active tasks. A task that focuses a unit in a file
+	 * does not also escalate that file to full source (REQ-UNIT-12).
+	 */
+	readonly focus?: readonly FocusedUnit[];
+}
+
+/**
+ * Everything a prompt loads: per-file layers plus the code units the tasks
+ * name. Produced by {@link LayerResolver.plan}.
+ */
+export interface ContextPlan {
+	/** One resolved layer per distinct file. */
+	readonly layers: readonly ResolvedFileLayer[];
+	/** Units focused by the active tasks (REQ-UNIT-7). */
+	readonly focus: readonly FocusedUnit[];
+	/** Names too ambiguous to focus (REQ-UNIT-9). */
+	readonly ambiguous: readonly string[];
 }
 
 /** Base layer for each role, before any annotation floor or escalation. */
@@ -99,13 +119,24 @@ function taskReferencesFile(taskText: string, filepath: string): boolean {
 /**
  * Finds the first active (non-done) task that references the given file.
  *
+ * A task that focuses a unit inside the file is skipped: it named something
+ * smaller than the file, and the unit is loaded on its own (REQ-UNIT-12).
+ *
  * @param filepath - The relative file path.
  * @param tasks - The chunk's tasks.
+ * @param focus - Units focused by those tasks.
  * @returns The referencing task's text, or `undefined` if none.
  */
-function findEscalatingTask(filepath: string, tasks: readonly Task[]): string | undefined {
+function findEscalatingTask(
+	filepath: string,
+	tasks: readonly Task[],
+	focus: readonly FocusedUnit[],
+): string | undefined {
 	for (const task of tasks) {
 		if (task.status === "done") {
+			continue;
+		}
+		if (focus.some((u) => u.task === task.text && u.filepath === filepath)) {
 			continue;
 		}
 		if (taskReferencesFile(task.text, filepath)) {
@@ -152,6 +183,7 @@ export const LayerResolver = {
 	 */
 	resolve(input: LayerResolverInput): readonly ResolvedFileLayer[] {
 		const { chunkFiles, alwaysIncludeFiles, tasks, index } = input;
+		const focus = input.focus ?? [];
 		const seen = new Set<string>();
 		const resolved: ResolvedFileLayer[] = [];
 
@@ -165,7 +197,7 @@ export const LayerResolver = {
 			const roleBase = ROLE_BASE_LAYER[role];
 			const baseLayer = indexEntry ? maxLayer(roleBase, indexEntry.layer_default) : roleBase;
 
-			const escalatedBy = findEscalatingTask(entry.filepath, tasks);
+			const escalatedBy = findEscalatingTask(entry.filepath, tasks, focus);
 			const escalated = escalatedBy !== undefined;
 			const layer = escalated ? 2 : baseLayer;
 
@@ -194,5 +226,22 @@ export const LayerResolver = {
 		}
 
 		return resolved;
+	},
+
+	/**
+	 * Resolves unit focus, then file layers with that focus applied.
+	 *
+	 * The single entry point prompt writers use, so focus and escalation are
+	 * always decided together (REQ-UNIT-12).
+	 *
+	 * @param input - Chunk files, always-include files, tasks, and ai-index.
+	 * @returns Layers, focused units, and ambiguous names.
+	 */
+	plan(input: Omit<LayerResolverInput, "focus">): ContextPlan {
+		const { focused, ambiguous } = UnitFocusResolver.resolve({
+			tasks: input.tasks,
+			index: input.index,
+		});
+		return { layers: this.resolve({ ...input, focus: focused }), focus: focused, ambiguous };
 	},
 } as const;

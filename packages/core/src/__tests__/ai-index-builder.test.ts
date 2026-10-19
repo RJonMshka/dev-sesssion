@@ -37,6 +37,10 @@ function makeParsedFile(relativePath: string, overrides: Partial<ParsedFile> = {
 		exports: [],
 		tokenCost: 100,
 		tokenCostAccurate: false,
+		units: [],
+		hash: "0123456789abcdef",
+		imports: [],
+		memberRefs: [],
 		...overrides,
 	};
 }
