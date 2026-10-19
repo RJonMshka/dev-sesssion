@@ -159,8 +159,8 @@ Two rules bind every formatter, built-in or custom:
   put malformed output on disk.
 - **Use a known file-load prefix.** A file-load line is recognised by its prefix,
   and the accepted set is one shared list (`FILE_LOAD_PREFIXES`): `Load:`,
-  `Files to load:` (legacy), `Focus (read_unit):`, `Load full:`, and
-  `Summaries (read_file_layer for detail):`. The last three are the layered section
+  `Files to load:` (legacy), `Load full:`, and
+  `Summaries (read_file_layer for detail):`. The last two are the layered section
   and are best produced by `formatLayeredContextLines`, which also appends the
   `·L<n>` layer marker that replay scoring strips back off. See
   [authoring-adapters.md](authoring-adapters.md#your-file-load-line-must-carry-a-known-prefix).

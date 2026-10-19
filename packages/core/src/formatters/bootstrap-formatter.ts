@@ -17,7 +17,6 @@
 
 import type { AiIndex } from "../annotation/types.js";
 import type { ResolvedFileLayer } from "../calculators/layer-resolver.js";
-import type { FocusedUnit } from "../calculators/unit-focus.js";
 import type { ContextBudget } from "../schemas/context-budget.js";
 import type { FileIndexEntry, PlanChunk, SessionState } from "../schemas/index.js";
 
@@ -46,13 +45,6 @@ export interface BootstrapContext {
 	 * absent, formatters fall back to the flat `Load:` line.
 	 */
 	readonly resolvedLayers?: readonly ResolvedFileLayer[];
-	/**
-	 * Code units the active tasks name (REQ-UNIT-13). When present, formatters
-	 * emit a Focus line ahead of the layered lines so the next session loads
-	 * those units instead of their whole files. Optional, so a third-party
-	 * formatter that ignores it still produces valid output.
-	 */
-	readonly focusUnits?: readonly FocusedUnit[];
 	/**
 	 * Line cap for the generated prompt. Defaults to `DEFAULT_MAX_PROMPT_LINES`
 	 * when absent. Formatters must honor it — a prompt over the cap is refused

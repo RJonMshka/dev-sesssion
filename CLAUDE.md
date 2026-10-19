@@ -60,8 +60,7 @@ pnpm test:integration   # tests/**/*.integration.test.ts
 pnpm test:e2e           # tests/**/*.e2e.test.ts — spawns the built CLI, needs a build
 pnpm test:coverage      # build + unit/integration + subprocess e2e, merged, gated 80/75
 pnpm publint            # packaging lint, all packages
-pnpm eval               # deterministic eval tier, no API key (~40s); --local for the workspace build
-pnpm eval:units         # code-units eval over the packed workspace build (~15s, needs build)
+pnpm eval               # deterministic eval tier, no API key (~40s)
 pnpm benchmark:status   # status latency (<500ms on 200 files)
 pnpm audit --prod       # NOT `npm audit` — no package-lock, npm exits ENOLOCK
 gitleaks detect --config .gitleaks.toml   # Go binary, `brew install`; not npx-runnable

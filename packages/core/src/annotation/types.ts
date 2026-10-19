@@ -38,54 +38,6 @@ export interface ParsedSymbol {
 }
 
 /**
- * What kind of declaration a code unit is.
- */
-export type UnitKind = "function" | "class" | "method" | "variable" | "type" | "interface" | "enum";
-
-/**
- * An addressable piece of a source file — a top-level declaration, or a method
- * of a top-level class or object literal (LLD-code-units.md).
- *
- * Units are what a prompt can focus on instead of escalating a whole file.
- */
-export interface ParsedUnit {
-	/**
-	 * Unique within the file: the declared name, `Parent.member` for a member,
-	 * `~n` appended to repeats (overloads, merged declarations).
-	 */
-	readonly id: string;
-	/** Declaration kind. */
-	readonly kind: UnitKind;
-	/** First line, 1-based inclusive; the attached JSDoc block when present. */
-	readonly start: number;
-	/** Last line, 1-based inclusive. */
-	readonly end: number;
-	/** Heuristic token cost of the range. */
-	readonly tokens: number;
-	/** Content hash of the range, per the PROTOCOL.md contract. */
-	readonly hash: string;
-	/** Whether the unit (or, for a member, its parent) is exported. */
-	readonly exported: boolean;
-	/**
-	 * References in the unit's own file that certainly bind to it, outside its
-	 * own lines (REQ-UNIT-31). 0 when an inner binding could capture the name.
-	 */
-	readonly refs: number;
-}
-
-/**
- * A relative import or re-export resolved to an existing file (REQ-UNIT-31).
- */
-export interface ParsedImport {
-	/** The imported file: absolute in a `ParsedFile`, repo-relative in the index. */
-	readonly from: string;
-	/** The name on the exporting side; `*` for a namespace, `default` for a default import. */
-	readonly name: string;
-	/** The name bound in the importing file (the exported name, for a re-export). */
-	readonly local: string;
-}
-
-/**
  * Extraction result for a single TypeScript/JS file.
  */
 export interface ParsedFile {
@@ -99,14 +51,6 @@ export interface ParsedFile {
 	readonly tokenCost: number;
 	/** Whether `tokenCost` came from an accurate external counter. */
 	readonly tokenCostAccurate: boolean;
-	/** Every code unit in the file, in source order. Empty when unparseable. */
-	readonly units: readonly ParsedUnit[];
-	/** Content hash of the whole file, per the PROTOCOL.md contract. */
-	readonly hash: string;
-	/** Relative imports and re-exports resolved to existing files. */
-	readonly imports: readonly ParsedImport[];
-	/** `local.prop` accesses through imported bindings, sorted and unique. */
-	readonly memberRefs: readonly string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -131,27 +75,6 @@ export interface SymbolEntry {
 }
 
 /**
- * A code unit as stored in the ai-index, keyed by its id under
- * {@link FileEntry.units}. Structure only — no signature or summary.
- */
-export interface UnitEntry {
-	/** Declaration kind. */
-	readonly kind: UnitKind;
-	/** First line, 1-based inclusive. */
-	readonly start: number;
-	/** Last line, 1-based inclusive. */
-	readonly end: number;
-	/** Heuristic token cost of the range. */
-	readonly tokens: number;
-	/** Content hash of the range. */
-	readonly hash: string;
-	/** Whether the unit is exported. */
-	readonly exported: boolean;
-	/** Certain in-file references (REQ-UNIT-31). Absent in older indexes: no evidence. */
-	readonly refs?: number;
-}
-
-/**
  * A file entry in the ai-index.
  */
 export interface FileEntry {
@@ -170,17 +93,6 @@ export interface FileEntry {
 	readonly token_cost_accurate: boolean;
 	/** Exported symbols keyed by name. */
 	readonly exports: Readonly<Record<string, SymbolEntry>>;
-	/**
-	 * Every code unit keyed by id. Absent in indexes written before code units
-	 * existed, which still load (REQ-UNIT-6).
-	 */
-	readonly units?: Readonly<Record<string, UnitEntry>>;
-	/** Content hash of the whole file. Absent in older indexes. */
-	readonly hash?: string;
-	/** Resolved relative imports, `from` repo-relative. Absent in older indexes. */
-	readonly imports?: readonly ParsedImport[];
-	/** `local.prop` accesses through imported bindings. Absent in older indexes. */
-	readonly member_refs?: readonly string[];
 }
 
 /**

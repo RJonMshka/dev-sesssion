@@ -120,25 +120,6 @@ export function registerSessionTools(server: McpServer, manager: SessionManager)
 	);
 
 	server.registerTool(
-		"read_unit",
-		{
-			description:
-				"Return one code unit's current source — a function, method, class or type — by `path#id` " +
-				"(e.g. `src/utils.ts#parseBody`, `src/store.ts#Store.add`). Use the refs on the prompt's Focus line.",
-			inputSchema: {
-				ref: z.string().min(1),
-			},
-		},
-		(args) => {
-			try {
-				return ok(manager.readUnit(args.ref));
-			} catch (error: unknown) {
-				return errorResult(error);
-			}
-		},
-	);
-
-	server.registerTool(
 		"query_index",
 		{
 			description:

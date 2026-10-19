@@ -217,20 +217,16 @@ can recognise them in a prompt — not so you can retype them into a formatter.
 | `LEGACY_LOAD_PREFIX` | `Files to load:` | The legacy `NextPromptWriter.generate()` path; still accepted when validating older prompts |
 | `LOAD_FULL_PREFIX` | `Load full:` | The layered section — layer-2 files, escalated by an active task |
 | `SUMMARIES_PREFIX` | `Summaries (read_file_layer for detail):` | The layered section — layer 0–1 files |
-| `FOCUS_PREFIX` | `Focus (read_unit):` | The layered section — code units the active tasks name, each as `path#id:start-end` |
 
 | Constant | Type | What it is |
 |---|---|---|
-| `FILE_LOAD_PREFIXES` | `readonly string[]` | All five, ordered most-specific-first so a prefix search cannot match a shorter entry by accident. `NextPromptWriter.validate()` accepts a line starting with any of them; `ReplayScorer` parses from the same list. |
+| `FILE_LOAD_PREFIXES` | `readonly string[]` | All four, ordered most-specific-first so a prefix search cannot match a shorter entry by accident. `NextPromptWriter.validate()` accepts a line starting with any of them; `ReplayScorer` parses from the same list. |
 | `LAYER_SUFFIX_RE` | `RegExp` | Matches the `·L<n>` marker `formatLayeredContextLines` appends to each summary-line path. Strip it before treating a reference as a path. |
 
-The layered lines are built from these constants by
-`formatLayeredContextLines(resolved, ref, maxFiles, focus?)`. It returns a
-`Focus (read_unit):` line when units are focused, then a `Load full:` line, a
-`Summaries (…):` line, or both. When there is nothing to load it falls back to
-`Load: (none)`. Pass `context.focusUnits` as `focus`; a formatter that omits it
-still produces valid output, just without the Focus line. A unit reference is
-attributed to its file wherever paths are parsed, so cut at `#`.
+Both the layered lines are built from these constants by
+`formatLayeredContextLines(resolved, ref, maxFiles)`, which returns a `Load full:`
+line, a `Summaries (…):` line, or both — falling back to `Load: (none)` when there
+is nothing to load.
 
 All six constants are exported from `@dev-session/core`, as is
 `formatLayeredContextLines`. An out-of-tree formatter should import them: a

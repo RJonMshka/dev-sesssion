@@ -225,12 +225,9 @@ dev-sesssion verify [--replay] [--limit <n>] [--lookback <n>] [--json]
 | Modified files absent from FILE_INDEX.md | `UNINDEXED_CHANGE` | warning |
 | Session files with uncommitted changes | `UNCOMMITTED_SESSION` | info |
 | Not a git repository (history checks skipped) | `NOT_A_REPO` | info |
-| A unit or file the prompt points at has changed or been removed since `context-manifest.json` was written | `STALE_CONTEXT` | warning |
-| A focused unit is unchanged, but its line range has moved | `MOVED_CONTEXT` | info |
 
-The two context checks read the working tree, not git history, so they also run
-outside a repository. Apart from them, outside a git repository the command
-degrades to a single informational finding rather than failing. It exits non-zero only on an error-severity finding.
+Outside a git repository the command degrades to a single informational finding
+rather than failing. It exits non-zero only on an error-severity finding.
 
 ### Replay scoring
 
@@ -508,7 +505,6 @@ dev-sesssion mcp [--read-only]
 | `get_active_chunk` | Active chunk ID, title, and live task list |
 | `list_context_files` | Files in `FILE_INDEX.md`, optionally filtered to a chunk |
 | `read_file_layer` | Render a file at layer 0 (summary), 1 (signatures), or 2 (full source) |
-| `read_unit` | Return one function, method, class or type by `path#id` — the refs on the prompt's `Focus (read_unit):` line. Reads the file as it is now, so the range is current even after edits |
 | `query_index` | Query the ai-index by exactly one of tag, chunk, or layer |
 | `mark_task_done` | Mark a task done by exact text match — disabled in read-only mode |
 | `get_next_prompt` | Read the raw contents of `NEXT_PROMPT.md` |

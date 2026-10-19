@@ -18,10 +18,6 @@ export type {
 	FileEntry,
 	ParsedFile,
 	ParsedSymbol,
-	ParsedUnit,
 	SymbolEntry,
 	SymbolSurface,
-	UnitEntry,
-	UnitKind,
 } from "./types.js";
-export { contentHash, sliceLines } from "./unit-extractor.js";

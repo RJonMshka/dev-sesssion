@@ -124,8 +124,7 @@ describe("init integration — with PLAN.md (migration path A)", () => {
 			{ cwd: tmpDir, yes: true, dryRun: false, verbose: false, strict: false },
 		);
 
-		// SESSION_STATE, ROUTINES, NEXT_PROMPT, and its context manifest (REQ-UNIT-16).
-		expect(finalResult.filesWritten).toBe(4);
+		expect(finalResult.filesWritten).toBe(3);
 
 		// Verify all expected files exist
 		expect(fs.existsSync(path.join(sessionPath, "PLAN_1.md"))).toBe(true);
@@ -186,8 +185,7 @@ describe("init integration — without PLAN.md (migration path B)", () => {
 			{ cwd: tmpDir, yes: true, dryRun: false, verbose: false, strict: false },
 		);
 
-		// SESSION_STATE, ROUTINES, NEXT_PROMPT, and its context manifest (REQ-UNIT-16).
-		expect(finalResult.filesWritten).toBe(4);
+		expect(finalResult.filesWritten).toBe(3);
 
 		// Verify files
 		expect(fs.existsSync(path.join(sessionPath, "PLAN_1.md"))).toBe(true);

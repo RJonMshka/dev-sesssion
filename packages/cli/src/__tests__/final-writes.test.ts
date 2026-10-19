@@ -68,10 +68,8 @@ describe("runFinalWrites", () => {
 			strict: false,
 		});
 
-		// SESSION_STATE, ROUTINES, NEXT_PROMPT, and its context manifest (REQ-UNIT-16).
-		expect(result.filesWritten).toBe(4);
+		expect(result.filesWritten).toBe(3);
 		expect(fs.existsSync(path.join(sessionDir, "SESSION_STATE.md"))).toBe(true);
-		expect(fs.existsSync(path.join(sessionDir, "context-manifest.json"))).toBe(true);
 		expect(fs.existsSync(path.join(sessionDir, "ROUTINES.md"))).toBe(true);
 		expect(fs.existsSync(path.join(sessionDir, "NEXT_PROMPT.md"))).toBe(true);
 	});

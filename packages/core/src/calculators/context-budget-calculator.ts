@@ -16,7 +16,6 @@ import type { ContextBudget, ContextBudgetBreakdown } from "../schemas/context-b
 import { DEFAULT_CONTEXT_BUDGET } from "../schemas/context-budget.js";
 import type { FileIndexEntry, PlanChunk, SessionState } from "../schemas/index.js";
 import type { ResolvedFileLayer } from "./layer-resolver.js";
-import type { FocusedUnit } from "./unit-focus.js";
 
 /** Bytes-per-token heuristic for English text and code. */
 const BYTES_PER_TOKEN = 4;
@@ -190,8 +189,6 @@ export const ContextBudgetCalculator = {
 	 * @param chunk - The active plan chunk.
 	 * @param resolved - Per-file resolved layers from `LayerResolver.resolve`.
 	 * @param budgetCap - The maximum token budget (defaults to {@link DEFAULT_CONTEXT_BUDGET}).
-	 * @param focus - Focused code units, each charged at its own cost under its
-	 *   `path#id` key in the per-file breakdown (REQ-UNIT-17).
 	 * @returns A {@link ContextBudget} computed from layered file costs.
 	 */
 	estimateLayered(
@@ -199,7 +196,6 @@ export const ContextBudgetCalculator = {
 		chunk: PlanChunk,
 		resolved: readonly ResolvedFileLayer[],
 		budgetCap?: number,
-		focus: readonly FocusedUnit[] = [],
 	): ContextBudget {
 		const cap = budgetCap ?? DEFAULT_CONTEXT_BUDGET;
 
@@ -217,10 +213,6 @@ export const ContextBudgetCalculator = {
 				fileBreakdown.set(file.filepath, file.layeredTokenCost);
 				filesTotal += file.layeredTokenCost;
 			}
-		}
-		for (const unit of focus) {
-			fileBreakdown.set(unit.ref, unit.tokens);
-			filesTotal += unit.tokens;
 		}
 
 		const totalTokens = sessionStateTokens + planChunkTokens + filesTotal + alwaysIncludeTotal;

@@ -9,7 +9,6 @@
  */
 
 import type { ResolvedFileLayer } from "../calculators/layer-resolver.js";
-import type { FocusedUnit } from "../calculators/unit-focus.js";
 import type { ContextBudget } from "../schemas/context-budget.js";
 import type { FileIndexEntry, PlanChunk, SessionState, Task } from "../schemas/index.js";
 
@@ -139,12 +138,6 @@ export const LOAD_FULL_PREFIX = "Load full:";
 export const SUMMARIES_PREFIX = "Summaries (read_file_layer for detail):";
 
 /**
- * Prefix introducing the focused-units line (REQ-UNIT-13). Each reference is
- * `path#id:start-end`; everything before `#` is the file.
- */
-export const FOCUS_PREFIX = "Focus (read_unit):";
-
-/**
  * Every prefix that can introduce file references in a generated prompt.
  *
  * Single source of truth, deliberately: the formatter that writes these lines,
@@ -156,7 +149,6 @@ export const FOCUS_PREFIX = "Focus (read_unit):";
  */
 export const FILE_LOAD_PREFIXES: readonly string[] = [
 	LEGACY_LOAD_PREFIX,
-	FOCUS_PREFIX,
 	LOAD_FULL_PREFIX,
 	SUMMARIES_PREFIX,
 	LOAD_PREFIX,
@@ -210,41 +202,24 @@ function capRefList(refs: readonly string[], maxFiles: number): string {
 }
 
 /**
- * Renders one focused unit as `path#id:start-end`.
- *
- * Deliberately not passed through a formatter's `ref` callback: an
- * `@path#id` mention is not a valid file reference in any supported tool, and
- * the line range lets an agent without `read_unit` do a plain ranged read.
- *
- * @param unit - The focused unit.
- * @returns The rendered reference.
- */
-export function formatUnitRef(unit: FocusedUnit): string {
-	return `${unit.ref}:${String(unit.start)}-${String(unit.end)}`;
-}
-
-/**
  * Builds the layered "Load" section lines from resolved per-file layers.
  *
- * Focused units, when any, come first on a {@link FOCUS_PREFIX} line — they
- * are what the active tasks actually name. Files escalated to layer 2 (full
- * source, referenced by an active task) are listed on a {@link LOAD_FULL_PREFIX}
- * line; the remaining summary-only files (layers 0–1) are listed on a
- * {@link SUMMARIES_PREFIX} line annotated with their layer. The `ref` callback
- * applies the formatter's native file-reference syntax (e.g. an `@`-mention
- * for Claude Code).
+ * Files escalated to layer 2 (full source, referenced by an active task) are
+ * listed on a {@link LOAD_FULL_PREFIX} line; the remaining summary-only files
+ * (layers 0–1) are listed on a {@link SUMMARIES_PREFIX} line annotated with
+ * their layer. The `ref`
+ * callback applies the formatter's native file-reference syntax (e.g. an
+ * `@`-mention for Claude Code).
  *
  * @param resolved - Per-file resolved layers from `LayerResolver.resolve`.
  * @param ref - Renders a single filepath in the formatter's reference syntax.
  * @param maxFiles - Maximum files to list per line before truncating.
- * @param focus - Units focused by the active tasks (REQ-UNIT-13).
- * @returns The prompt lines describing what to load and at which granularity.
+ * @returns One or two prompt lines describing what to load and at which layer.
  */
 export function formatLayeredContextLines(
 	resolved: readonly ResolvedFileLayer[],
 	ref: (filepath: string) => string,
 	maxFiles: number,
-	focus: readonly FocusedUnit[] = [],
 ): readonly string[] {
 	const full: string[] = [];
 	const summary: string[] = [];
@@ -257,9 +232,6 @@ export function formatLayeredContextLines(
 	}
 
 	const lines: string[] = [];
-	if (focus.length > 0) {
-		lines.push(`${FOCUS_PREFIX} ${capRefList(focus.map(formatUnitRef), maxFiles)}`);
-	}
 	if (full.length > 0) {
 		lines.push(`${LOAD_FULL_PREFIX} ${capRefList(full, maxFiles)}`);
 	}

@@ -20,10 +20,8 @@ import {
 	AiIndexManager,
 	type BootstrapContext,
 	CONTEXT_LOG_FILENAME,
-	CONTEXT_MANIFEST_FILENAME,
 	ContextBudgetCalculator,
 	type ContextLogEntry,
-	ContextManifest,
 	FileIndexManager,
 	LayerResolver,
 	NextPromptWriter,
@@ -167,17 +165,16 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 	// Resolve per-file context layers (Chunk 15); charge layered budget when an
 	// ai-index is present.
 	const aiIndex = AiIndexManager.load(sessionDir);
-	const plan = LayerResolver.plan({
+	const resolvedLayers = LayerResolver.resolve({
 		chunkFiles,
 		alwaysIncludeFiles: alwaysInclude,
 		tasks: chunk.tasks,
 		index: aiIndex,
 	});
-	const resolvedLayers = plan.layers;
 
 	const budget =
 		aiIndex !== null
-			? ContextBudgetCalculator.estimateLayered(state, chunk, resolvedLayers, undefined, plan.focus)
+			? ContextBudgetCalculator.estimateLayered(state, chunk, resolvedLayers)
 			: ContextBudgetCalculator.estimate(state, chunk, chunkFiles, alwaysInclude);
 
 	const excludePatterns = buildExcludePatterns(state.active_chunk, allChunks);
@@ -208,7 +205,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 		excludePatterns,
 		projectName,
 		maxPromptLines: state.max_prompt_lines,
-		...(aiIndex !== null ? { resolvedLayers, focusUnits: plan.focus } : {}),
+		...(aiIndex !== null ? { resolvedLayers } : {}),
 	};
 
 	const promptContent = NextPromptWriter.generateWithFormatter(adapter.formatter, bootstrapContext);
@@ -225,22 +222,10 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 	}
 
 	// Step 7: Write regenerated prompt
-	const manifest = ContextManifest.build({
-		plan,
-		index: aiIndex,
-		prompt: promptContent,
-		activeChunk: state.active_chunk,
-	});
 	if (dryRun) {
 		dryRunWrite(path.join(sessionDir, "NEXT_PROMPT.md"), promptContent, options.cwd);
-		dryRunWrite(
-			path.join(sessionDir, CONTEXT_MANIFEST_FILENAME),
-			ContextManifest.serialize(manifest),
-			options.cwd,
-		);
 	} else {
 		NextPromptWriter.write(sessionDir, promptContent, state.max_prompt_lines);
-		ContextManifest.write(sessionDir, manifest);
 	}
 
 	log.info(ContextBudgetCalculator.formatSummary(budget));

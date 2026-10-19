@@ -84,12 +84,6 @@ shall exit non-zero.
 **REQ-EVAL-8** — The deterministic tier shall complete every check it defines
 without a model API key.
 
-**REQ-EVAL-9** — Where `--local` is passed, the harness shall install the CLI from
-a tarball packed from the workspace build rather than from npm. Unreleased
-features — the units eval ([LLD-code-units.md](LLD-code-units.md)) first among
-them — can then be measured through the same install path users take, so a
-packaging defect still reproduces.
-
 ---
 
 ## Design
@@ -198,7 +192,6 @@ gating (`docs/releasing.md`).
 | REQ-EVAL-6 | integration | Each corpus case through the real CLI; assert planted text appears only attributed |
 | REQ-EVAL-7 | e2e | A deliberately failing case makes `pnpm eval` exit non-zero |
 | REQ-EVAL-8 | e2e | The deterministic tier completes with `ANTHROPIC_API_KEY` unset |
-| REQ-EVAL-9 | eval | `pnpm eval:units` installs from the packed tarball and reports the installed version as `local` |
 
 REQ-EVAL-1 is the one to watch fail first in the most literal sense: invert the
 ternary at `judge.ts:182`, confirm the test goes red, restore it. A test that

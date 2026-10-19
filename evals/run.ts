@@ -5,7 +5,7 @@
  * that need no API key. The cold-agent and judge tiers layer on top of the
  * records this produces.
  *
- * Usage: `pnpm eval [--version 2.2.0 | --local] [--keep]`
+ * Usage: `pnpm eval [--version 2.2.0] [--keep]`
  *
  * @module
  */
@@ -21,11 +21,7 @@ import {
 	duplicatePromptRefs,
 } from "./checks/grounding.js";
 import { collectSessionMetrics } from "./checks/session-metrics.js";
-import {
-	type InstalledCli,
-	installLocalCli,
-	installPublishedCli,
-} from "./harness/published-cli.js";
+import { installPublishedCli } from "./harness/published-cli.js";
 import { prepareWorkspace } from "./harness/workspace.js";
 import { TARGETS } from "./targets.js";
 import type { GroundingResult, SessionMetrics } from "./types.js";
@@ -68,11 +64,13 @@ async function readOrNull(p: string): Promise<string | null> {
 /**
  * Runs the deterministic tier for every target and ablation.
  *
- * @param cli - The installed CLI to evaluate.
+ * @param version - Published CLI version to evaluate.
  * @param keep - Leave workspaces on disk for inspection.
  * @returns One row per run.
  */
-async function runDeterministic(cli: InstalledCli, keep: boolean): Promise<DeterministicRow[]> {
+async function runDeterministic(version: string, keep: boolean): Promise<DeterministicRow[]> {
+	process.stdout.write(`Installing dev-sesssion@${version}...\n`);
+	const cli = await installPublishedCli(version);
 	process.stdout.write(`  binary: ${cli.binPath}\n\n`);
 
 	const rows: DeterministicRow[] = [];
@@ -148,18 +146,10 @@ async function runDeterministic(cli: InstalledCli, keep: boolean): Promise<Deter
 async function main(): Promise<void> {
 	const argv = process.argv.slice(2);
 	const vIdx = argv.indexOf("--version");
-	const requested = vIdx !== -1 ? (argv[vIdx + 1] ?? DEFAULT_VERSION) : DEFAULT_VERSION;
+	const version = vIdx !== -1 ? (argv[vIdx + 1] ?? DEFAULT_VERSION) : DEFAULT_VERSION;
 	const keep = argv.includes("--keep");
 
-	// `--local` packs the workspace build instead of installing from npm (REQ-EVAL-9).
-	const local = argv.includes("--local");
-	process.stdout.write(
-		local ? "Packing workspace build...\n" : `Installing dev-sesssion@${requested}...\n`,
-	);
-	const cli = local ? await installLocalCli(REPO_ROOT) : await installPublishedCli(requested);
-	const version = cli.version;
-
-	const rows = await runDeterministic(cli, keep);
+	const rows = await runDeterministic(version, keep);
 
 	const reportDir = path.join(REPO_ROOT, "evals", "report");
 	await fs.mkdir(reportDir, { recursive: true });

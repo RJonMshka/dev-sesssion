@@ -17,9 +17,7 @@ import * as path from "node:path";
 import { CliError, PathValidator, type ValidatedPath } from "@dev-session/security";
 
 import { AiIndexManager } from "../annotation/ai-index-manager.js";
-import { AutoExtractor } from "../annotation/auto-extractor.js";
-import type { FileEntry, ParsedUnit } from "../annotation/types.js";
-import { sliceLines } from "../annotation/unit-extractor.js";
+import type { FileEntry } from "../annotation/types.js";
 import type { FileIndexEntry, Task } from "../schemas/index.js";
 import { FileIndexManager } from "./file-index-manager.js";
 import { PlanChunkManager } from "./plan-chunk-manager.js";
@@ -189,41 +187,6 @@ export class SessionManager {
 	}
 
 	/**
-	 * Return one code unit's current source (REQ-UNIT-23..25).
-	 *
-	 * The file is extracted as it stands now rather than looked up in the
-	 * index, so the slice is right even after the code has moved on since the
-	 * prompt was written. The first line is a header naming the unit, its
-	 * range, cost and hash, so anything quoted from it stays traceable.
-	 *
-	 * @param ref - `path#id`, optionally with the `:start-end` suffix a Focus line carries.
-	 * @returns The header line followed by the unit's source.
-	 * @throws {SecurityError} If the path escapes the project root.
-	 * @throws {CliError} If the reference has no id, the file is missing, or the id names no unit.
-	 */
-	readUnit(ref: string): string {
-		const bare = ref.trim().replace(/:\d+-\d+$/, "");
-		const hashAt = bare.indexOf("#");
-		if (hashAt <= 0 || hashAt === bare.length - 1) {
-			throw new CliError({
-				message: `Not a unit reference: ${bare}`,
-				suggestion: "Pass `path#id`, e.g. `src/utils.ts#parseBody` or `src/store.ts#Store.add`.",
-			});
-		}
-		const relPath = bare.slice(0, hashAt);
-		const id = bare.slice(hashAt + 1);
-		const validated = PathValidator.safeResolvePath(relPath, this.projectRoot);
-		if (!fs.existsSync(validated)) {
-			throw new CliError({ message: `No such file: ${relPath}` });
-		}
-
-		const unit = findUnit(new AutoExtractor().extractFile(validated).units, id, relPath);
-		const source = fs.readFileSync(validated, "utf-8");
-		const header = `// ${relPath}#${unit.id} L${String(unit.start)}-${String(unit.end)} · ${String(unit.tokens)} tokens · hash ${unit.hash}`;
-		return `${header}\n${sliceLines(source.split("\n"), unit.start, unit.end)}`;
-	}
-
-	/**
 	 * Query the ai-index by exactly one of tag, chunk, or layer.
 	 *
 	 * @param query - The query selector (exactly one field set).
@@ -310,28 +273,4 @@ export class SessionManager {
 			});
 		}
 	}
-}
-
-/** Unit ids listed in an unknown-id error before summarizing. */
-const MAX_IDS_LISTED = 20;
-
-/**
- * Finds a unit by id, or explains which ids exist (REQ-UNIT-24).
- *
- * @param units - The file's current units.
- * @param id - The requested id.
- * @param relPath - The file, for the error message.
- * @returns The unit.
- * @throws {CliError} If no unit has that id.
- */
-function findUnit(units: readonly ParsedUnit[], id: string, relPath: string): ParsedUnit {
-	const unit = units.find((u) => u.id === id);
-	if (unit !== undefined) return unit;
-	const ids = units.map((u) => u.id);
-	const shown = ids.slice(0, MAX_IDS_LISTED).join(", ");
-	const more = ids.length > MAX_IDS_LISTED ? `, +${String(ids.length - MAX_IDS_LISTED)} more` : "";
-	throw new CliError({
-		message: `No unit "${id}" in ${relPath}`,
-		suggestion: ids.length > 0 ? `Units in this file: ${shown}${more}` : "This file has no units.",
-	});
 }

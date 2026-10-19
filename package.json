@@ -28,8 +28,7 @@
 		"benchmark:status": "pnpm build && tsx tests/benchmarks/status-latency.ts",
 		"eval": "tsx evals/run.ts",
 		"eval:agent": "tsx evals/run-agent.ts",
-		"eval:baseline": "tsx evals/baseline-check.ts",
-		"eval:units": "tsx evals/units.ts"
+		"eval:baseline": "tsx evals/baseline-check.ts"
 	},
 	"devDependencies": {
 		"@anthropic-ai/sdk": "0.120.0",

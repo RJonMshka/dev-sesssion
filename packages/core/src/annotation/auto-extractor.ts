@@ -22,8 +22,6 @@ import { TokenCounter } from "../counters/token-counter.js";
 import { GitignoreAwareWalker } from "../walkers/gitignore-aware-walker.js";
 import { AnnotationParser } from "./annotation-parser.js";
 import type { ParsedFile, ParsedSymbol, SymbolSurface } from "./types.js";
-import { contentHash, extractUnits, findLeadingJsdocComment } from "./unit-extractor.js";
-import { extractUsage } from "./usage-extractor.js";
 
 /** Shared, stateless parser for the optional `@ai-*` override tags (Chunk 13). */
 const annotationParser = new AnnotationParser();
@@ -91,14 +89,16 @@ export class AutoExtractor {
 				errorOnUnknownASTType: false,
 			});
 
+			const moduleSummary = extractModuleSummary(ast);
+			const exports = extractExports(ast, source);
+			const tokenCost = TokenCounter.heuristicCount(source);
+
 			return {
 				path: filePath,
-				moduleSummary: extractModuleSummary(ast),
-				exports: extractExports(ast, source),
-				tokenCost: TokenCounter.heuristicCount(source),
+				moduleSummary,
+				exports,
+				tokenCost,
 				tokenCostAccurate: false,
-				...unitsWithUsage(ast, source, filePath),
-				hash: contentHash(source),
 			};
 		} catch {
 			// Parse error (e.g., syntax error in the file) — emit warning and continue
@@ -313,8 +313,8 @@ function handleDefaultExport(
 /**
  * Find the `/** * /` JSDoc comment that immediately precedes a node.
  *
- * Delegates to the shared {@link findLeadingJsdocComment} so the export
- * summaries and the code-unit ranges agree on what "attached" means.
+ * "Immediately precedes" means only whitespace (and possibly other blank lines)
+ * between the comment end and the node start.
  *
  * @param ast - The full program (contains all comments).
  * @param node - The AST node to search for.
@@ -326,12 +326,29 @@ function findLeadingJsdoc(
 	node: TSESTree.Node,
 	source: string,
 ): string | null {
-	return findLeadingJsdocComment(ast, node, source)?.value ?? null;
-}
+	const comments = ast.comments ?? [];
+	const nodeStart = node.range?.[0] ?? 0;
 
-// ---------------------------------------------------------------------------
-// Internal: summary helpers
-// ---------------------------------------------------------------------------
+	// Scan comments in reverse to find the nearest one before the node
+	for (let i = comments.length - 1; i >= 0; i--) {
+		const comment = comments[i];
+		if (!comment || comment.type !== "Block") continue;
+		if (!comment.value.startsWith("*")) continue; // must be /** ... */
+
+		const commentEnd = comment.range?.[1] ?? 0;
+		if (commentEnd > nodeStart) continue;
+
+		// Ensure only whitespace between comment and node
+		const gap = source.slice(commentEnd, nodeStart);
+		if (/^\s*$/.test(gap)) {
+			return comment.value;
+		}
+		// Found a non-jsdoc gap — stop searching
+		break;
+	}
+
+	return null;
+}
 
 /**
  * Extract the first descriptive sentence from a JSDoc comment value.
@@ -457,35 +474,5 @@ function emptyParsedFile(filePath: string, source: string): ParsedFile {
 		exports: [],
 		tokenCost: TokenCounter.heuristicCount(source),
 		tokenCostAccurate: false,
-		units: [],
-		hash: contentHash(source),
-		imports: [],
-		memberRefs: [],
 	};
-}
-
-/**
- * Extracts units and annotates each with its usage facts (REQ-UNIT-31, -34).
- *
- * @param ast - The parsed program.
- * @param source - Raw source.
- * @param filePath - Absolute path, for resolving imports.
- * @returns Units, imports and member refs for the `ParsedFile`.
- */
-function unitsWithUsage(
-	ast: TSESTree.Program,
-	source: string,
-	filePath: string,
-): Pick<ParsedFile, "units" | "imports" | "memberRefs"> {
-	const usage = extractUsage(ast, filePath);
-	const units = extractUnits(ast, source).map((u) => {
-		const base = u.id.replace(/~\d+$/, "");
-		const parent = base.split(".")[0] ?? base;
-		return {
-			...u,
-			exported: u.exported || usage.localExports.has(parent),
-			refs: usage.refsFor(base, u.start, u.end),
-		};
-	});
-	return { units, imports: usage.imports, memberRefs: usage.memberRefs };
 }
