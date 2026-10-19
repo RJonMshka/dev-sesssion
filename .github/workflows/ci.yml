@@ -71,5 +71,11 @@ jobs:
       - name: Eval — deterministic tier
         run: pnpm eval
 
+      # Packs *this* build (code units are unreleased) and installs the tarball,
+      # so packaging defects still reproduce. Hash fidelity over every unit,
+      # Focus grounding, manifest/prompt agreement, stale detection. ~15s.
+      - name: Eval — code units
+        run: pnpm eval:units
+
       - name: Publint
         run: pnpm publint

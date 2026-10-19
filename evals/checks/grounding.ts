@@ -18,6 +18,7 @@ import type { GroundingResult } from "../types.js";
  */
 const LOAD_PREFIXES: readonly string[] = [
 	"Summaries (read_file_layer for detail):",
+	"Focus (read_unit):",
 	"Files to load:",
 	"Load full:",
 	"Load:",
@@ -90,7 +91,10 @@ export function declaredFromAdapterFile(adapterFile: string): string[] {
  * @returns The bare repo-relative path.
  */
 function normalizeRef(raw: string): string {
-	return raw.trim().replace(LAYER_SUFFIX_RE, "").replace(/^@/, "").trim();
+	// A focused unit (`path#id:start-end`) grounds against its file.
+	const ref = raw.trim().replace(LAYER_SUFFIX_RE, "").replace(/^@/, "").trim();
+	const hash = ref.indexOf("#");
+	return hash === -1 ? ref : ref.slice(0, hash);
 }
 
 /**
