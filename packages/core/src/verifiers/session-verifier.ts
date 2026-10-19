@@ -11,8 +11,10 @@
  */
 
 import type { GitReader as GitReaderType } from "../git/git-reader.js";
+import type { ContextManifestData } from "../schemas/context-manifest.js";
 import type { FileIndexEntry, PlanChunk, SessionState } from "../schemas/index.js";
 import { TaskStatus } from "../schemas/index.js";
+import { ContextManifestChecker } from "./context-manifest-checker.js";
 
 /** Severity of a verification finding. */
 export const VerifySeverity = {
@@ -71,6 +73,11 @@ export interface VerifyInput {
 	 * session's claims. Defaults to 20.
 	 */
 	readonly lookback?: number;
+	/**
+	 * The context manifest beside the current prompt. When given, its
+	 * references are checked against the working tree (REQ-UNIT-20..22).
+	 */
+	readonly manifest?: ContextManifestData | null;
 }
 
 /** Default number of commits treated as "this session's" history. */
@@ -163,6 +170,11 @@ export const SessionVerifier = {
 	 * @returns A {@link VerifyReport} describing every discrepancy found.
 	 */
 	async verify(input: VerifyInput, reader: typeof GitReaderType): Promise<VerifyReport> {
+		// The manifest check reads the working tree, so it runs with or without git.
+		const manifestFindings =
+			input.manifest != null ? ContextManifestChecker.check(input.manifest, input.cwd) : [];
+		const manifestChecks = input.manifest != null ? 1 : 0;
+
 		const gitAvailable = await reader.isRepo(input.cwd);
 		if (!gitAvailable) {
 			return buildReport(
@@ -172,14 +184,15 @@ export const SessionVerifier = {
 						"NOT_A_REPO",
 						"Not a git repository — skipped every history-backed check",
 					),
+					...manifestFindings,
 				],
-				0,
+				manifestChecks,
 				false,
 			);
 		}
 
-		const findings: VerifyFinding[] = [];
-		let checksRun = 0;
+		const findings: VerifyFinding[] = [...manifestFindings];
+		let checksRun = manifestChecks;
 
 		const lookback = input.lookback ?? DEFAULT_LOOKBACK;
 		const dirty = new Set(await reader.dirtyFiles(input.cwd));

@@ -42,6 +42,7 @@ is specific to it. This document describes version **1.0** of the format.
 ├── DONE_LOG.md          # OPTIONAL — archive of completed chunks
 ├── CONTEXT_LOG.md       # OPTIONAL — append-only session memory / analytics
 ├── ai-index.yaml        # OPTIONAL — extracted symbol index (layered loading)
+├── context-manifest.json # OPTIONAL — what the current NEXT_PROMPT.md loads, and why
 ├── trim-overrides.json  # OPTIONAL — per-file context exclusions
 └── backups/             # OPTIONAL — pre-compaction file backups
 ```
@@ -173,6 +174,58 @@ for **layered context loading**: Layer 0 = module summaries, Layer 1 = public
 signatures, Layer 2 = full source (loaded on demand). Serialized with sorted
 keys. When present, prompts reference summaries instead of inlining whole files.
 
+A file entry MAY also carry two optional keys. An entry without them stays
+valid, and a reader MUST accept it:
+
+- `hash` — the content hash of the whole file.
+- `units` — every **code unit** in the file, keyed by id. A unit is a top-level
+  declaration, exported or not, or a method of a top-level class or object
+  literal. Each one records `kind` (`function`, `class`, `method`, `variable`,
+  `type`, `interface`, `enum`), `start` and `end` (1-based, inclusive; `start`
+  is the attached `/** */` block when there is one), `tokens`, `hash`, and
+  `exported`. An id is the declared name, `Parent.member` for a member, with
+  `~2`, `~3`… appended to repeats of the same name, such as overloads.
+  `exported` is also true for a declaration exported through a local
+  `export { name }`. A unit MAY carry `refs`: how many references in its own
+  file certainly bind to it. References inside its own lines are not counted,
+  and the count is 0 when an inner binding of the same name could capture them.
+- `imports` — `{ from, name, local }` for each relative import or re-export
+  whose specifier resolves to a file inside the project. `name` is `*` for a
+  namespace import. Package and alias specifiers are not recorded.
+- `member_refs` — `local.prop` for each member access through an imported
+  binding.
+
+`refs`, `imports` and `member_refs` are the *usage evidence* a tool uses to
+tell apart declarations that share a name. They are kept per file, so an
+incremental re-index of one file never leaves another file's facts stale.
+
+**Content hash.** Split the file on `\n`, take lines `start..end` inclusive,
+join them with `\n`, take the SHA-256 digest, and keep the first 16 lowercase
+hex characters. A `\r` stays part of its line. A file hash is the same digest
+over the whole file. Any tool can recompute a hash independently, and that is
+how a reference is checked against the code it points at.
+
+### `context-manifest.json`
+Written alongside every `NEXT_PROMPT.md` and overwritten with it. It records
+each item the prompt references:
+
+- `ref`: `path`, or `path#id` for a code unit
+- `granularity`: `summary`, `signature`, `unit` or `file`
+- `tokens`: the cost at that granularity
+- `file_tokens`: the cost of the whole file
+- `hash`, plus `start` and `end` for a unit
+- `reason`: `always-include`, `chunk` or `task`; when it is `task`, the task's
+  text appears in `task`
+- `listed`: whether the prompt names the item itself, or only counts it in a
+  `+N more`
+- `evidence`: when a unit was chosen among several declarations with the same
+  name, the proof of use, e.g. `imported by 2 files`
+
+The top level carries `version: 1`, `generated_at`, `active_chunk`,
+`prompt_hash` (the content hash of the prompt it describes), and `totals`, the
+sums of `tokens` and of `file_tokens`, with each path counted once. JSON with
+sorted keys. Every object is strict: an unknown key is a parse failure.
+
 ### `DONE_LOG.md`
 Append-only archive of chunks that have been completed and advanced past,
 written when a chunk is archived. It exists so `SESSION_STATE.md` can be
@@ -193,6 +246,14 @@ When `ai-index.yaml` exists, each indexed file is assigned an effective layer:
 | 0 | Module summary + symbol names | Default for chunk files |
 | 1 | Public signatures | Always-include files; raised by `@ai-layer-default` |
 | 2 | Full source | Files referenced by an active task |
+| unit | One code unit's source, on a `Focus (read_unit):` line as `path#id:start-end` | Units an active task names by a code-shaped identifier (`parseBody`, `Store.add`), or by any identifier in backticks |
+
+A task that names a unit loads that unit instead of escalating its file to
+layer 2. When the name is declared in more than one place, the tool loads
+every declaration it can prove is used: one imported elsewhere, or one
+referenced in its own file. It loads none it cannot prove. If none can be
+proven, or more than three can, it loads nothing, because guessing would point
+the session at the wrong code.
 
 Layering is the mechanism that keeps the resume prompt within budget while still
 pointing the assistant at everything relevant.

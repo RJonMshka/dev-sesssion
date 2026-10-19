@@ -11,7 +11,15 @@
  */
 
 import { ParseError } from "@dev-session/security";
-import type { AiIndex, FileEntry, ParsedFile, SymbolEntry } from "./types.js";
+import type {
+	AiIndex,
+	FileEntry,
+	ParsedFile,
+	ParsedImport,
+	SymbolEntry,
+	UnitEntry,
+	UnitKind,
+} from "./types.js";
 import { deserializeFromYaml, serializeToYaml } from "./yaml-utils.js";
 
 // ---------------------------------------------------------------------------
@@ -77,6 +85,10 @@ export const AiIndexBuilder = {
 				token_cost: tokenCost,
 				token_cost_accurate: accurate,
 				exports: exportsMap,
+				units: buildUnitsMap(file),
+				hash: file.hash,
+				imports: relativeImports(file.imports, projectRoot),
+				member_refs: [...file.memberRefs],
 			};
 		}
 
@@ -220,6 +232,12 @@ function buildSerializableFiles(
 			module_summary: entry.module_summary,
 			token_cost: entry.token_cost,
 			token_cost_accurate: entry.token_cost_accurate,
+			// Optional keys are omitted, not written as null, so an index without
+			// units serializes byte-for-byte as it did before units existed.
+			...(entry.units !== undefined ? { units: { ...entry.units } } : {}),
+			...(entry.hash !== undefined ? { hash: entry.hash } : {}),
+			...(entry.imports !== undefined ? { imports: entry.imports.map((i) => ({ ...i })) } : {}),
+			...(entry.member_refs !== undefined ? { member_refs: [...entry.member_refs] } : {}),
 		};
 	}
 	return out;
@@ -264,6 +282,7 @@ function parseFiles(raw: unknown): Record<string, FileEntry> {
 		const layerRaw = entry.layer_default;
 		const layer: 0 | 1 | 2 = layerRaw === 0 || layerRaw === 1 || layerRaw === 2 ? layerRaw : 1;
 
+		const units = parseUnits(entry.units);
 		result[relPath] = {
 			module_summary: typeof entry.module_summary === "string" ? entry.module_summary : "",
 			layer_default: layer,
@@ -271,8 +290,130 @@ function parseFiles(raw: unknown): Record<string, FileEntry> {
 			token_cost_accurate:
 				typeof entry.token_cost_accurate === "boolean" ? entry.token_cost_accurate : false,
 			exports: exportsMap,
+			...(units !== undefined ? { units } : {}),
+			...(typeof entry.hash === "string" ? { hash: entry.hash } : {}),
+			...parseUsage(entry),
 		};
 	}
 
 	return result;
+}
+
+/**
+ * Convert a file's extracted units into the index's id-keyed map.
+ *
+ * @param file - The extraction result.
+ * @returns Units keyed by id.
+ */
+function buildUnitsMap(file: ParsedFile): Record<string, UnitEntry> {
+	const units: Record<string, UnitEntry> = Object.create(null) as Record<string, UnitEntry>;
+	for (const u of file.units) {
+		units[u.id] = {
+			kind: u.kind,
+			start: u.start,
+			end: u.end,
+			tokens: u.tokens,
+			hash: u.hash,
+			exported: u.exported,
+			refs: u.refs,
+		};
+	}
+	return units;
+}
+
+/**
+ * Converts resolved imports to repo-relative paths, dropping any outside the
+ * project — the index never records an absolute path.
+ *
+ * @param imports - Imports with absolute `from`.
+ * @param projectRoot - Absolute project root.
+ * @returns Imports with relative `from`.
+ */
+function relativeImports(imports: readonly ParsedImport[], projectRoot: string): ParsedImport[] {
+	const root = projectRoot.endsWith("/") ? projectRoot : `${projectRoot}/`;
+	return imports
+		.filter((i) => i.from.startsWith(root))
+		.map((i) => ({ from: i.from.slice(root.length), name: i.name, local: i.local }));
+}
+
+/**
+ * Whether a value is a well-formed serialized import.
+ *
+ * @param v - Anything.
+ * @returns True for `{ from, name, local }` strings.
+ */
+function isImport(v: unknown): v is ParsedImport {
+	if (typeof v !== "object" || v === null) return false;
+	const i = v as Record<string, unknown>;
+	return typeof i.from === "string" && typeof i.name === "string" && typeof i.local === "string";
+}
+
+/**
+ * Parses a file entry's optional usage facts (REQ-UNIT-31). Malformed rows are
+ * dropped: missing evidence makes the resolver refuse, wrong evidence would not.
+ *
+ * @param entry - The raw file entry.
+ * @returns The `imports` and `member_refs` present.
+ */
+function parseUsage(entry: Record<string, unknown>): Pick<FileEntry, "imports" | "member_refs"> {
+	const out: { imports?: ParsedImport[]; member_refs?: string[] } = {};
+	if (Array.isArray(entry.imports)) out.imports = entry.imports.filter(isImport);
+	if (Array.isArray(entry.member_refs)) {
+		out.member_refs = entry.member_refs.filter((r): r is string => typeof r === "string");
+	}
+	return out;
+}
+
+/** Every unit kind the reader accepts. */
+const UNIT_KINDS: ReadonlySet<string> = new Set<UnitKind>([
+	"function",
+	"class",
+	"method",
+	"variable",
+	"type",
+	"interface",
+	"enum",
+]);
+
+/**
+ * Parse one serialized unit row, rejecting any field of the wrong shape.
+ *
+ * A malformed row is dropped rather than repaired: a unit with an invented
+ * range would point a prompt at the wrong lines.
+ *
+ * @param raw - The raw row.
+ * @returns The unit, or `null` when any field is malformed.
+ */
+function parseUnit(raw: unknown): UnitEntry | null {
+	if (typeof raw !== "object" || raw === null) return null;
+	const u = raw as Record<string, unknown>;
+	const { kind, start, end, tokens, hash, exported } = u;
+	if (typeof kind !== "string" || !UNIT_KINDS.has(kind)) return null;
+	if (!Number.isInteger(start) || !Number.isInteger(end) || !Number.isInteger(tokens)) return null;
+	if (typeof hash !== "string" || typeof exported !== "boolean") return null;
+	return {
+		kind: kind as UnitKind,
+		start: start as number,
+		end: end as number,
+		tokens: tokens as number,
+		hash,
+		exported,
+		...(Number.isInteger(u.refs) ? { refs: u.refs as number } : {}),
+	};
+}
+
+/**
+ * Parse a file entry's `units` map, when present (REQ-UNIT-6).
+ *
+ * @param raw - The raw `units` value.
+ * @returns Units keyed by id, or `undefined` when the entry has none.
+ */
+function parseUnits(raw: unknown): Record<string, UnitEntry> | undefined {
+	if (typeof raw !== "object" || raw === null) return undefined;
+	const units: Record<string, UnitEntry> = Object.create(null) as Record<string, UnitEntry>;
+	for (const [id, row] of Object.entries(raw as Record<string, unknown>)) {
+		const unit = parseUnit(row);
+		if (unit !== null) units[id] = unit;
+	}
+	return units;
 }

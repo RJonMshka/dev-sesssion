@@ -13,7 +13,9 @@ import { confirm, isCancel, log } from "@clack/prompts";
 import type { BootstrapContext, FileIndexEntry, PlanChunk, SessionState } from "@dev-session/core";
 import {
 	AiIndexManager,
+	CONTEXT_MANIFEST_FILENAME,
 	ContextBudgetCalculator,
+	ContextManifest,
 	DEFAULT_CONTEXT_BUDGET,
 	FileIndexManager,
 	LayerResolver,
@@ -69,6 +71,7 @@ const GITIGNORE_ENTRIES_PERSONAL = [
 	".session/NEXT_PROMPT.md",
 	".session/DONE_LOG.md",
 	".session/ai-index.yaml",
+	".session/context-manifest.json",
 ] as const;
 
 /** Lines to add to .gitignore in team mode (only truly ephemeral files). */
@@ -78,6 +81,7 @@ const GITIGNORE_ENTRIES_TEAM = [
 	".session/SESSION_STATE.md",
 	".session/NEXT_PROMPT.md",
 	".session/DONE_LOG.md",
+	".session/context-manifest.json",
 ] as const;
 
 /** Lines to add to .gitattributes for team merge strategy. */
@@ -152,12 +156,13 @@ export async function runFinalWrites(
 	// escalate to full source when referenced by an active task. The budget is
 	// charged at the layered cost when an ai-index is available.
 	const aiIndex = AiIndexManager.load(sessionDir);
-	const resolvedLayers = LayerResolver.resolve({
+	const plan = LayerResolver.plan({
 		chunkFiles,
 		alwaysIncludeFiles,
 		tasks: activeChunk.tasks,
 		index: aiIndex,
 	});
+	const resolvedLayers = plan.layers;
 
 	const budget =
 		aiIndex !== null
@@ -166,6 +171,7 @@ export async function runFinalWrites(
 					activeChunk,
 					resolvedLayers,
 					DEFAULT_CONTEXT_BUDGET,
+					plan.focus,
 				)
 			: ContextBudgetCalculator.estimate(
 					sessionState,
@@ -217,18 +223,30 @@ export async function runFinalWrites(
 		excludePatterns,
 		projectName,
 		maxPromptLines: sessionState.max_prompt_lines,
-		...(aiIndex !== null ? { resolvedLayers } : {}),
+		...(aiIndex !== null ? { resolvedLayers, focusUnits: plan.focus } : {}),
 	};
 
 	const promptContent = NextPromptWriter.generateWithFormatter(adapter.formatter, bootstrapContext);
 
 	secretWarnings += scanContent(promptContent, "NEXT_PROMPT.md", options.verbose);
 
+	const manifest = ContextManifest.build({
+		plan,
+		index: aiIndex,
+		prompt: promptContent,
+		activeChunk: activeChunk.chunk_id,
+	});
 	if (options.dryRun) {
 		dryRunWrite(path.join(sessionDir, "NEXT_PROMPT.md"), promptContent, options.cwd);
+		dryRunWrite(
+			path.join(sessionDir, CONTEXT_MANIFEST_FILENAME),
+			ContextManifest.serialize(manifest),
+			options.cwd,
+		);
 	} else {
 		NextPromptWriter.write(sessionDir, promptContent, sessionState.max_prompt_lines);
-		filesWritten++;
+		ContextManifest.write(sessionDir, manifest);
+		filesWritten += 2;
 	}
 
 	// --- 4. Offer to patch .gitignore ---

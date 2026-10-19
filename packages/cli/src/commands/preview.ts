@@ -261,12 +261,13 @@ export async function runPreview(options: PreviewOptions): Promise<void> {
 	// (layer 2) when an active task references them. Layered costs require an
 	// ai-index; without one every file is charged at its whole-file cost.
 	const aiIndex = AiIndexManager.load(sessionDir);
-	const resolved = LayerResolver.resolve({
+	const plan = LayerResolver.plan({
 		chunkFiles,
 		alwaysIncludeFiles: alwaysInclude,
 		tasks: chunk.tasks,
 		index: aiIndex,
 	});
+	const resolved = plan.layers;
 
 	// Read each file once to derive its whole-file ("full") cost, then charge
 	// the effective layered cost from the resolver.
@@ -303,7 +304,13 @@ export async function runPreview(options: PreviewOptions): Promise<void> {
 	const accurate = false; // heuristic only
 
 	// Build bootstrap context for prompt generation (layered cost).
-	const budget = ContextBudgetCalculator.estimateLayered(state, chunk, resolved);
+	const budget = ContextBudgetCalculator.estimateLayered(
+		state,
+		chunk,
+		resolved,
+		undefined,
+		plan.focus,
+	);
 	const projectName = detectProjectName(options.cwd);
 
 	const {
@@ -330,7 +337,7 @@ export async function runPreview(options: PreviewOptions): Promise<void> {
 		budget,
 		excludePatterns,
 		projectName,
-		...(aiIndex !== null ? { resolvedLayers: resolved } : {}),
+		...(aiIndex !== null ? { resolvedLayers: resolved, focusUnits: plan.focus } : {}),
 	};
 
 	const promptText = NextPromptWriter.generateWithFormatter(adapter.formatter, bootstrapContext);
