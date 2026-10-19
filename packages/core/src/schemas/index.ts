@@ -33,6 +33,13 @@ export {
 	ContextLogEntrySchema,
 	ContextLogSchema,
 } from "./context-log.js";
+// Context manifest
+export type { ContextManifestData, ManifestEntry } from "./context-manifest.js";
+export {
+	CONTEXT_MANIFEST_FILENAME,
+	ContextManifestSchema,
+	ManifestEntrySchema,
+} from "./context-manifest.js";
 export type { AuditResult, FileIndexEntry } from "./file-index-entry.js";
 
 // File index

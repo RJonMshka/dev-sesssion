@@ -190,6 +190,42 @@ holding up.
 
 ---
 
+## Code units — unreleased, measured on the packed workspace build
+
+`pnpm eval:units` measures the code-units feature
+([LLD-code-units.md](../docs/plan/LLD-code-units.md)) before release. It packs
+`packages/cli` into a tarball and installs it the way users would, then runs two
+targets: the small fixture, and a temp copy of this repo's own
+`packages/core/src`. Deterministic, no API key, about 15s, gated in CI. Raw
+data: `report/units-local.json`.
+
+| Check | `simple-node-app` | `core-src` (real code) |
+|---|---|---|
+| Units indexed (exported) | 19 (16) across 10 files | 610 (313) across 56 files |
+| Hash recomputed from range = stored hash | 19/19 | 610/610 |
+| Focus refs grounded, same range | all | all |
+| Manifest `prompt_hash` = the prompt beside it | all | all |
+| `verify` flags an edited unit / a shifted unit | yes / yes | yes / yes |
+| Expected focus, including negatives | 4/4 | 5/5 |
+
+**Tokens.** On real code, a focused unit costs **1.3–7.1%** of its whole file.
+On the fixture it costs 10–86%, because most of its files are a single
+function. That is the floor, and it is reported as such.
+
+**Same-named declarations.** `trimToMaxLines` is declared twice in core: a
+shared export imported by 3 files, and a private copy used in
+`next-prompt-writer.ts`. Both are focused, and the manifest records why each
+was chosen. Two planted unused twins are correctly refused. The first run of
+this eval refused `trimToMaxLines` outright. Review changed the rule from
+"refuse" to "keep what is provably used" (REQ-UNIT-30..34).
+
+**Not shown.** This counts tokens a prompt *offers*. It does not count tokens
+an agent *reads*, and it does not show that the focused unit was the right
+context. Neither claim is made until the agent tier and unit-level replay
+scoring exist.
+
+---
+
 ## What this cannot yet tell you
 
 - **n** — one target and two ablations. Every pair draws from the same fixture,
@@ -227,8 +263,10 @@ holding up.
 pnpm eval                      # deterministic tier — no API key, ~40s
 pnpm eval:baseline             # probe a target's unablated baseline
 pnpm eval:agent                # cold-agent + judge — needs ANTHROPIC_API_KEY
+pnpm eval:units                # code units over the packed workspace build — ~15s (needs pnpm build)
 
 pnpm eval --version 2.2.1
+pnpm eval --local              # deterministic tier over the packed workspace build
 pnpm eval:agent --version 2.2.1 --only body-validation --tag run4
 ```
 

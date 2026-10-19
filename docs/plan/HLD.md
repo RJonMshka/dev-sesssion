@@ -42,6 +42,7 @@ measures (feature 6).
 | 4 | Workflow-shaped prompt | `LLD-workflow-prompt.md` | `Next:` is a flat bullet list with no position and no exit condition |
 | 5 | Context provenance | `LLD-context-provenance.md` | Text lifted from repo files reaches the agent indistinguishable from the tool's own instructions |
 | 6 | Eval harness integrity | `LLD-eval-harness.md` | The harness that produces our published numbers has no tests and no CI |
+| 7 | Code units | `LLD-code-units.md` | The smallest thing a prompt can load beyond signatures is a whole file, and nothing records what a prompt loaded |
 
 1–4 are independent except that 4 depends on notes decay landing first. 5 and 6
 are coupled in one direction: 6 supplies the adversarial corpus that locks 5's
@@ -95,6 +96,29 @@ Already extracted and already indexed. `AutoExtractor` → `ai-index.yaml` holds
 `{ signature, summary, line, surface, tags }` per exported symbol, and
 `AiIndexManager.renderLayer0/renderLayer1` already format it. Feature 2 adds a
 *console consumer* of existing data, not a new pipeline.
+
+### Code units and the context manifest
+
+Feature 7 adds a rung between signatures and full source. The ai-index stores
+every function, method, and declaration as a **unit**, with a line range, a
+token cost, and a content hash. That is about 8 units per file, measured on this
+repo. A task that names a unit focuses that unit, instead of escalating its file
+to full source. The prompt carries references (`path#id:start-end`), never
+source.
+
+```
+ai-index units ──► UnitFocusResolver ──► LayerResolver ──► formatters (Focus line)
+                         │                    │
+                         └────────┬───────────┘
+                                  ▼
+                   .session/context-manifest.json   ◄── verify: STALE / MOVED
+```
+
+The manifest is the session's record of *what went into context and why*:
+each item has its granularity, its cost against its whole file, its hash, and
+the task that caused it. It is overwritten with each prompt. `verify` uses it
+to detect references that the code has since moved past. Feature 2 (`symbols`)
+reads the same unit data.
 
 ### File → chunk tagging
 
