@@ -1,3 +1,13 @@
+## [2.4.1](https://github.com/RJonMshka/dev-sesssion/compare/v2.4.0...v2.4.1) (2026-10-19)
+
+### Bug Fixes
+
+* **security:** quote repository text lifted into agent-facing output ([87cda6f](https://github.com/RJonMshka/dev-sesssion/commit/87cda6f8b7a69ef5c74509609aaa61e523db4c5f))
+
+### Documentation
+
+* **plan:** finish the context-provenance design against 2.4.0 ([6895a0c](https://github.com/RJonMshka/dev-sesssion/commit/6895a0c77f09612a37ee7a48c7f6eab879f4dc9a))
+
 ## [2.4.0](https://github.com/RJonMshka/dev-sesssion/compare/v2.3.0...v2.4.0) (2026-10-19)
 
 ### Features
