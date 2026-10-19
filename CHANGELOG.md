@@ -1,3 +1,22 @@
+## [2.4.0](https://github.com/RJonMshka/dev-sesssion/compare/v2.3.0...v2.4.0) (2026-10-19)
+
+### Features
+
+* **core:** code units, unit focus, and the context manifest (REQ-UNIT) ([0855cf1](https://github.com/RJonMshka/dev-sesssion/commit/0855cf1b0fb27df8a14548ea63c6e098f5d31a81))
+
+### Bug Fixes
+
+* **evals:** exit non-zero on a failed check, and gate CI on it (REQ-EVAL-7) ([fa1c042](https://github.com/RJonMshka/dev-sesssion/commit/fa1c04220ab171f22ce233b343c9d920b073b354))
+
+### Documentation
+
+* **evals:** critique the eval methodology and confirm two injection paths ([6220a4e](https://github.com/RJonMshka/dev-sesssion/commit/6220a4eeb8095dd5c422047ac1cbac11bf201539))
+* give CLAUDE.md the architecture and test commands it was missing ([8f84ef9](https://github.com/RJonMshka/dev-sesssion/commit/8f84ef9a2e3bf6b35f7a854ea1b7010bde16e4ec))
+* **plan:** add LLD for code units (REQ-UNIT-1..34) ([0c66f8f](https://github.com/RJonMshka/dev-sesssion/commit/0c66f8fa05a56f6f40fbbc5f39c5ac703ef3bf88))
+* **plan:** design context provenance and eval harness integrity ([56e1265](https://github.com/RJonMshka/dev-sesssion/commit/56e12654aa4b05bad446687a96fdfd04a06e5881))
+* record the schema/PROTOCOL.md coupling in CLAUDE.md ([3236650](https://github.com/RJonMshka/dev-sesssion/commit/3236650dd5a1e53f11b8ea05d747343f9f909c46))
+* record the trust boundary and evals/ status in CLAUDE.md ([8d10072](https://github.com/RJonMshka/dev-sesssion/commit/8d10072f6a5e6269404b85c7a3b63bd2b92a47c1))
+
 ## [2.3.0](https://github.com/RJonMshka/dev-sesssion/compare/v2.2.1...v2.3.0) (2026-08-30)
 
 ### Features
