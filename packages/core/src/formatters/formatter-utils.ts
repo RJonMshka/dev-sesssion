@@ -168,6 +168,93 @@ export const FILE_LOAD_PREFIXES: readonly string[] = [
 export const LAYER_SUFFIX_RE = /\u00b7L\d+$/;
 
 /**
+ * Longest a note lifted from a repository file may be, attribution included
+ * (REQ-PROV-4). A note is one prompt line, and the line cap counts lines, not
+ * characters, so without this one note could fill the whole budget.
+ */
+export const MAX_NOTE_CHARS = 240;
+
+/** Marks a summary the layer renderer quotes from a doc comment (REQ-PROV-2, -8). */
+export const QUOTED_LABEL = "quoted:";
+
+/** Appended to text shortened to fit a cap. */
+const ELLIPSIS = "…";
+
+/**
+ * Renders untrusted text as a one-line, double-quoted literal (REQ-PROV-12).
+ *
+ * JSON string escaping: `"` and `\` are escaped and line breaks become `\n`,
+ * so the quotation stays on one prompt line and only the closing quote the
+ * tool adds can end it. Every quotation of repository text goes through here.
+ *
+ * @param text - Text the tool did not write.
+ * @returns The text as a quoted literal.
+ */
+export function quoteText(text: string): string {
+	return JSON.stringify(text);
+}
+
+/**
+ * Shortens `text` to the longest prefix, plus an ellipsis, whose rendering fits.
+ *
+ * Truncation happens before quoting, so a cut can never split an escape or
+ * drop the closing quote.
+ *
+ * @param text - The text to shorten.
+ * @param render - Renders a candidate; its length is what must fit.
+ * @param max - The cap the rendering must not exceed.
+ * @returns The text, shortened if needed, or `null` when even an ellipsis does not fit.
+ */
+function fitText(text: string, render: (t: string) => string, max: number): string | null {
+	if (render(text).length <= max) return text;
+	const cut = (n: number): string => `${text.slice(0, n)}${ELLIPSIS}`;
+	if (render(cut(0)).length > max) return null;
+	let lo = 0;
+	let hi = text.length - 1;
+	while (lo < hi) {
+		const mid = Math.ceil((lo + hi) / 2);
+		if (render(cut(mid)).length <= max) lo = mid;
+		else hi = mid - 1;
+	}
+	return cut(lo);
+}
+
+/**
+ * Renders text lifted from a repository file as an attributed quotation
+ * (REQ-PROV-1), capped at {@link MAX_NOTE_CHARS} (REQ-PROV-4).
+ *
+ * The attribution comes first, so a reader meets it before the quoted text:
+ * `Quoted from CLAUDE.md § "Setup step": "Before any task…"`. The section
+ * heading is quoted too, because the file wrote it. When the note is too
+ * long, the body is shortened first, and the heading only when the
+ * attribution alone would not fit.
+ *
+ * @param opts - The source file, the section within it if any, and the text.
+ * @returns One line, at most {@link MAX_NOTE_CHARS} characters.
+ */
+export function formatQuotedNote(opts: {
+	readonly sourceFile: string;
+	readonly section?: string;
+	readonly text: string;
+}): string {
+	const { sourceFile, section, text } = opts;
+	const render = (s: string | undefined, t: string): string => {
+		const head =
+			s === undefined ? `Quoted from ${sourceFile}` : `Quoted from ${sourceFile} § ${quoteText(s)}`;
+		return t.length === 0 ? head : `${head}: ${quoteText(t)}`;
+	};
+
+	const body = fitText(text, (t) => render(section, t), MAX_NOTE_CHARS);
+	if (body !== null) return render(section, body);
+
+	const placeholder = text.length === 0 ? "" : ELLIPSIS;
+	const heading =
+		section === undefined ? null : fitText(section, (s) => render(s, placeholder), MAX_NOTE_CHARS);
+	if (heading !== null) return render(heading, placeholder);
+	return `Quoted from ${sourceFile}`.slice(0, MAX_NOTE_CHARS);
+}
+
+/**
  * Trims a lines array to the maximum allowed line count.
  *
  * Truncation is never silent: when lines are dropped, the final slot is spent

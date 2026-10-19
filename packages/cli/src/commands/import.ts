@@ -17,6 +17,7 @@ import * as path from "node:path";
 
 import { intro, log, outro, spinner } from "@clack/prompts";
 import {
+	ClaudeMdNotes,
 	type FileIndexEntry,
 	FileIndexManager,
 	GitignoreAwareWalker,
@@ -86,8 +87,9 @@ export async function runImport(options: ImportOptions): Promise<void> {
 /**
  * Parse CLAUDE.md H2 sections and add them as notes in SESSION_STATE.md.
  *
- * Each H2 section title + first 120 chars of its content becomes a note.
- * Already-imported notes (same prefix) are deduplicated.
+ * Each H2 section becomes a note quoting its heading and the start of its
+ * body, attributed to CLAUDE.md (REQ-PROV-1). The note format and the merge
+ * rules live in `ClaudeMdNotes` in core.
  *
  * @param sessionDir - Validated path to .session/
  * @param options - CLI options
@@ -106,91 +108,44 @@ async function importFromClaude(sessionDir: ValidatedPath, options: ImportOption
 	s.start("Parsing CLAUDE.md...");
 
 	const content = fs.readFileSync(claudePath, "utf-8");
-	const sections = extractH2Sections(content);
+	const sectionCount = ClaudeMdNotes.build(content).length;
 
-	s.stop(
-		`Found ${String(sections.length)} section${sections.length === 1 ? "" : "s"} in CLAUDE.md.`,
-	);
+	s.stop(`Found ${String(sectionCount)} section${sectionCount === 1 ? "" : "s"} in CLAUDE.md.`);
 
-	if (sections.length === 0) {
+	if (sectionCount === 0) {
 		log.warn("No H2 sections found in CLAUDE.md — nothing to import.");
 		outro("Import complete (nothing added).");
 		return;
 	}
 
 	const state = SessionStateManager.load(sessionDir);
-	const notes = buildClaudeNotes(sections);
+	const merged = ClaudeMdNotes.merge(content, state.notes);
 
-	// Deduplicate against existing notes
-	const existingNoteTexts = new Set(state.notes);
-	const newNotes = notes.filter((n) => !existingNoteTexts.has(n));
-
-	if (newNotes.length === 0) {
+	if (merged.added.length === 0 && merged.replaced === 0) {
 		log.info("All sections already imported — no new notes added.");
 		outro("Import complete (no changes).");
 		return;
 	}
 
 	if (options.verbose) {
-		for (const note of newNotes) {
+		for (const note of merged.added) {
 			log.message(`  + ${note}`);
 		}
 	}
 
 	if (!options.dryRun) {
-		const updated = { ...state, notes: [...state.notes, ...newNotes] };
-		SessionStateManager.save(sessionDir, updated);
+		SessionStateManager.save(sessionDir, { ...state, notes: [...merged.notes] });
 	}
 
+	if (merged.replaced > 0) {
+		log.info(
+			`Replaced ${String(merged.replaced)} unquoted note${merged.replaced === 1 ? "" : "s"} from an earlier import.`,
+		);
+	}
 	log.success(
-		`Added ${String(newNotes.length)} note${newNotes.length === 1 ? "" : "s"} to SESSION_STATE.md${options.dryRun ? " (dry run)" : ""}.`,
+		`Added ${String(merged.added.length)} note${merged.added.length === 1 ? "" : "s"} to SESSION_STATE.md${options.dryRun ? " (dry run)" : ""}.`,
 	);
 	outro("Import from CLAUDE.md complete.");
-}
-
-/**
- * Extract H2 sections from markdown content.
- *
- * @param content - Raw markdown string
- * @returns Array of `{ title, excerpt }` objects
- */
-function extractH2Sections(content: string): Array<{ title: string; excerpt: string }> {
-	const lines = content.split("\n");
-	const sections: Array<{ title: string; excerpt: string }> = [];
-	let currentTitle: string | null = null;
-	const currentBody: string[] = [];
-
-	const flush = (): void => {
-		if (currentTitle === null) return;
-		const excerpt = currentBody.join(" ").replace(/\s+/g, " ").trim().slice(0, 120);
-		sections.push({ title: currentTitle, excerpt });
-		currentBody.length = 0;
-	};
-
-	for (const line of lines) {
-		if (line.startsWith("## ")) {
-			flush();
-			currentTitle = line.replace(/^##\s+/, "").trim();
-		} else if (currentTitle !== null && line.trim() !== "" && !line.startsWith("#")) {
-			currentBody.push(line.trim());
-		}
-	}
-	flush();
-
-	return sections;
-}
-
-/**
- * Build note strings from CLAUDE.md sections.
- *
- * @param sections - Parsed H2 sections
- * @returns Array of note strings to add to SESSION_STATE
- */
-function buildClaudeNotes(sections: ReadonlyArray<{ title: string; excerpt: string }>): string[] {
-	return sections.map(({ title, excerpt }) => {
-		const base = `CLAUDE.md: ${title}`;
-		return excerpt.length > 0 ? `${base} — ${excerpt}` : base;
-	});
 }
 
 // ---------------------------------------------------------------------------

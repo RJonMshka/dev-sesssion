@@ -31,6 +31,31 @@ export function countPromptLines(content: string): number {
 }
 
 /**
+ * Most characters a NEXT_PROMPT.md may hold, whatever its line count
+ * (REQ-PROV-5).
+ *
+ * The line cap alone does not bound size: one 8,000-character note is one
+ * line. This is the configurable line maximum (50) times the note cap (240),
+ * a backstop for third-party formatters and hand-edited state rather than a
+ * target. Not configurable, because nothing legitimate comes near it.
+ */
+export const MAX_PROMPT_CHARS = 12_000;
+
+/**
+ * Counts the characters in a NEXT_PROMPT.md body.
+ *
+ * The single definition of a prompt's size in characters, the sibling of
+ * {@link countPromptLines}. The writer's validation and the health check both
+ * use it, so they cannot disagree about where the cap falls.
+ *
+ * @param content - The raw NEXT_PROMPT.md content string.
+ * @returns The number of UTF-16 code units, newlines included.
+ */
+export function countPromptChars(content: string): number {
+	return content.length;
+}
+
+/**
  * Zod schema for the content of NEXT_PROMPT.md.
  *
  * The next prompt is a self-contained bootstrap for the next AI session.
@@ -63,6 +88,8 @@ export interface ValidationResult {
 	readonly valid: boolean;
 	/** The number of lines in the prompt. */
 	readonly lineCount: number;
+	/** The number of characters in the prompt (see {@link countPromptChars}). */
+	readonly charCount: number;
 	/** List of validation errors (empty if valid). */
 	readonly errors: readonly string[];
 }

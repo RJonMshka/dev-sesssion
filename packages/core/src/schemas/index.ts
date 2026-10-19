@@ -47,8 +47,10 @@ export { FileIndexEntrySchema } from "./file-index-entry.js";
 export type { NextPrompt, ValidationResult } from "./next-prompt.js";
 // Next prompt
 export {
+	countPromptChars,
 	countPromptLines,
 	MAX_CONFIGURABLE_PROMPT_LINES,
+	MAX_PROMPT_CHARS,
 	MAX_PROMPT_LINES,
 	MIN_CONFIGURABLE_PROMPT_LINES,
 	NextPromptSchema,

@@ -145,7 +145,7 @@ Generates `NEXT_PROMPT.md` content. Use `generateWithFormatter` for adapter-awar
 | `generate` | `(state, chunk, files) => string` | `string` | Plain-text prompt (legacy; no adapter formatting) |
 | `generateWithFormatter` | `(formatter: BootstrapFormatter, ctx: BootstrapContext) => string` | `string` | Prompt via formatter — recommended path |
 | `write` | `(sessionDir, content: string, maxLines?: number) => void` | `void` | Validate, then atomically write `NEXT_PROMPT.md` |
-| `validate` | `(content: string, maxLines?: number) => ValidationResult` | `ValidationResult` | Check required fields and line count against the cap |
+| `validate` | `(content: string, maxLines?: number) => ValidationResult` | `ValidationResult` | Check required fields, the line cap, and `MAX_PROMPT_CHARS` |
 
 `maxLines` defaults to `MAX_PROMPT_LINES` (20) on both methods. Pass
 `state.max_prompt_lines` to honour a project-level override.
@@ -161,6 +161,7 @@ flat and the layered context sections satisfy it.
 interface ValidationResult {
   valid: boolean;
   lineCount: number;      // non-empty lines only — see countPromptLines
+  charCount: number;      // see countPromptChars; capped at MAX_PROMPT_CHARS
   errors: string[];       // empty when valid
 }
 ```
@@ -181,6 +182,8 @@ NextPromptWriter.write(sessionDir, content, state.max_prompt_lines);
 | Export | Kind | What it is |
 |---|---|---|
 | `countPromptLines` | `(content: string) => number` | The single definition of "a prompt line" — counts non-empty lines, so a trailing newline never inflates the total. Used by `validate` and by `HealthChecker`. |
+| `countPromptChars` | `(content: string) => number` | The single definition of a prompt's size in characters. `validate` refuses, and `HealthChecker` warns, above `MAX_PROMPT_CHARS` (12,000), whatever the line count. |
+| `MAX_PROMPT_CHARS` | `12000` | Character cap, fixed. One long note is one line, so the line cap alone does not bound size. |
 | `MAX_PROMPT_LINES` | `20` | Default cap when a project sets no override. |
 | `MIN_CONFIGURABLE_PROMPT_LINES` | `5` | Lower bound for `max_prompt_lines`. |
 | `MAX_CONFIGURABLE_PROMPT_LINES` | `50` | Upper bound for `max_prompt_lines`. |
@@ -190,6 +193,20 @@ NextPromptWriter.write(sessionDir, content, state.max_prompt_lines);
 `max_prompt_lines` is an optional `SESSION_STATE.md` frontmatter field
 (integer, 5–50). `SessionStateManager.save` serializes it only when it differs
 from the default, so existing state files are left untouched.
+
+### Quoting repository text
+
+Text the tool did not write — a `CLAUDE.md` section, a doc comment — is rendered
+as an attributed quotation, never as the tool's own words. A formatter or
+importer that lifts such text must use these rather than its own format:
+
+| Export | Kind | What it is |
+|---|---|---|
+| `quoteText` | `(text: string) => string` | JSON-escaped, double-quoted, one line. Only the tool's closing quote can end it. |
+| `formatQuotedNote` | `({ sourceFile, section?, text }) => string` | `Quoted from CLAUDE.md § "Setup step": "…"`, capped at `MAX_NOTE_CHARS`. |
+| `MAX_NOTE_CHARS` | `240` | Cap on one quoted note, attribution included. |
+| `QUOTED_LABEL` | `"quoted:"` | Precedes each summary `renderLayer0` / `renderLayer1` quote from a doc comment. |
+| `ClaudeMdNotes` | `{ build, merge }` | Turns `CLAUDE.md` `##` sections into quoted notes. `merge` swaps an earlier unquoted note for the quoted one. |
 
 ### File-load line prefixes
 

@@ -29,7 +29,13 @@ vi.mock("@clack/prompts", () => ({
 	isCancel: vi.fn(() => false),
 }));
 
-import { HealthChecker, HealthSeverity } from "@dev-session/core";
+import {
+	HealthChecker,
+	HealthSeverity,
+	MAX_PROMPT_CHARS,
+	NextPromptWriter,
+	PlainTextFormatter,
+} from "@dev-session/core";
 import { runHealth } from "../commands/health.js";
 
 // ---------------------------------------------------------------------------
@@ -333,5 +339,82 @@ last_updated: "2026-04-08"
 		// FILE_INDEX should no longer contain the ghost file
 		const updated = fs.readFileSync(path.join(sessionDir, "FILE_INDEX.md"), "utf-8");
 		expect(updated).not.toContain("ghost-file.ts");
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Prompt character cap (LLD-context-provenance.md)
+// ---------------------------------------------------------------------------
+
+describe("HealthChecker prompt character cap", () => {
+	let tmpDir: string;
+	let sessionDir: string;
+
+	beforeEach(() => {
+		tmpDir = makeTmpDir();
+		sessionDir = makeSessionDir(tmpDir);
+		fs.writeFileSync(path.join(sessionDir, "SESSION_STATE.md"), VALID_STATE);
+		fs.writeFileSync(path.join(sessionDir, "PLAN_1.md"), VALID_PLAN);
+		fs.writeFileSync(path.join(sessionDir, "FILE_INDEX.md"), VALID_INDEX);
+		fs.writeFileSync(path.join(tmpDir, "CLAUDE.md"), "# CLAUDE.md\n");
+	});
+
+	afterEach(() => {
+		fs.rmSync(tmpDir, { recursive: true, force: true });
+	});
+
+	/** Audits with the given NEXT_PROMPT.md and returns its PROMPT_TOO_LONG issue. */
+	function promptIssue(content: string) {
+		fs.writeFileSync(path.join(sessionDir, "NEXT_PROMPT.md"), content);
+		const report = HealthChecker.audit(sessionDir as Parameters<typeof HealthChecker.audit>[0]);
+		return report.issues.find((i) => i.code === "PROMPT_TOO_LONG");
+	}
+
+	/** Real formatter output for a session whose only note is `note`. */
+	function generated(note: string): string {
+		const state = {
+			active_chunk: 1,
+			session_id: "test-session",
+			last_updated: "2026-10-19",
+			tasks: [],
+			notes: [note],
+			last_worked_files: [],
+			completed_chunks: {},
+		};
+		const chunk = {
+			chunk_id: 1,
+			title: "Test Chunk",
+			depends_on: [],
+			tasks: [{ text: "Task", status: "todo" as const }],
+		};
+		return NextPromptWriter.generateWithFormatter(PlainTextFormatter, {
+			state,
+			chunk,
+			chunkFiles: [],
+			alwaysIncludeFiles: [],
+			budget: {
+				totalTokens: 0,
+				budgetCap: 4000,
+				overBudget: false,
+				breakdown: { sessionState: 0, planChunk: 0, files: new Map(), alwaysInclude: 0 },
+				accurate: false,
+			},
+			excludePatterns: [],
+			projectName: "test",
+			maxPromptLines: 50,
+		});
+	}
+
+	it("flags an over-cap prompt at the line cap's severity (REQ-PROV-7)", () => {
+		const overChars = promptIssue(generated("x".repeat(MAX_PROMPT_CHARS)));
+		// The baseline only supplies the line cap's severity to compare against.
+		const overLines = promptIssue(
+			Array.from({ length: 25 }, (_, i) => `Line ${String(i)}`).join("\n"),
+		);
+
+		expect(overChars).toBeDefined();
+		expect(overLines).toBeDefined();
+		expect(overChars?.severity).toBe(overLines?.severity);
+		expect(overChars?.message).toContain(`${String(MAX_PROMPT_CHARS)} characters`);
 	});
 });

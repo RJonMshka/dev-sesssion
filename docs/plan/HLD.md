@@ -156,9 +156,11 @@ the agent's context       ← acts on what it reads, with write access
 
 Repository content is **untrusted input**, not because the developer is
 adversarial but because they did not write all of it: a fork, a vendored
-dependency, a pull request. Two paths carry it across that boundary unmarked and
-are confirmed reproducible — an imported `CLAUDE.md` section becomes a `Note:`
-line, and an `@ai-summary` becomes text served by `read_file_layer`.
+dependency, a pull request. Two paths carried it across that boundary unmarked,
+both confirmed reproducible: an imported `CLAUDE.md` section became a `Note:`
+line, and an `@ai-summary` became text served by `read_file_layer`. Both are now
+quoted and attributed (`LLD-context-provenance.md`), as are plain doc-comment
+summaries, and unit ids on the `Focus` line are restricted to identifiers.
 
 The rule this establishes: **text the tool did not author is rendered as an
 attributed quotation, never as tool speech.** `SecretScanner` and `guardEgress`

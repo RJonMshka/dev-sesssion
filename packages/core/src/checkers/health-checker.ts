@@ -18,7 +18,12 @@ import { FILE_INDEX_PAGE_SIZE, FileIndexManager } from "../managers/file-index-m
 import { PlanChunkManager } from "../managers/plan-chunk-manager.js";
 import { SessionStateManager } from "../managers/session-state-manager.js";
 import type { FileIndexEntry, PlanChunk, SessionState } from "../schemas/index.js";
-import { countPromptLines, TaskStatus } from "../schemas/index.js";
+import {
+	countPromptChars,
+	countPromptLines,
+	MAX_PROMPT_CHARS,
+	TaskStatus,
+} from "../schemas/index.js";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -348,21 +353,33 @@ function checkPrompt(sessionDir: string, maxLines: number): PromptCheckResult {
 	}
 
 	const lineCount = countPromptLines(content);
+	const issues: HealthIssue[] = [];
 	if (lineCount > maxLines) {
-		return {
-			issues: [
-				makeIssue(
-					HealthSeverity.WARNING,
-					"PROMPT_TOO_LONG",
-					`NEXT_PROMPT.md has ${String(lineCount)} lines (max ${String(maxLines)}) — run \`dev-sesssion update\` to regenerate`,
-					false,
-				),
-			],
-			lineCount,
-		};
+		issues.push(
+			makeIssue(
+				HealthSeverity.WARNING,
+				"PROMPT_TOO_LONG",
+				`NEXT_PROMPT.md has ${String(lineCount)} lines (max ${String(maxLines)}) — run \`dev-sesssion update\` to regenerate`,
+				false,
+			),
+		);
 	}
 
-	return { issues: [], lineCount };
+	// Same code and severity as the line cap: both mean the prompt is too big
+	// to paste (REQ-PROV-7). One long note passes the line check alone.
+	const charCount = countPromptChars(content);
+	if (charCount > MAX_PROMPT_CHARS) {
+		issues.push(
+			makeIssue(
+				HealthSeverity.WARNING,
+				"PROMPT_TOO_LONG",
+				`NEXT_PROMPT.md has ${String(charCount)} characters (max ${String(MAX_PROMPT_CHARS)} characters) — shorten long notes in SESSION_STATE.md, then run \`dev-sesssion update\``,
+				false,
+			),
+		);
+	}
+
+	return { issues, lineCount };
 }
 
 /**

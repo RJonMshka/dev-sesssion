@@ -484,6 +484,8 @@ dev-sesssion import --from claude
 
 Every `##` section in your `CLAUDE.md` becomes a note in `SESSION_STATE.md`. The AI can then
 reference those rules at the start of each session without loading the full `CLAUDE.md` file.
+Each note is quoted and attributed (`Quoted from CLAUDE.md § "…": "…"`), so the agent can
+tell text copied from a file apart from your own notes.
 
 ---
 

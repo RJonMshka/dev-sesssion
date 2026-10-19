@@ -88,7 +88,7 @@ max_prompt_lines: 20          # optional; NEXT_PROMPT.md line cap (5-50)
 | `session_id` | string | Opaque; identifies the working session. |
 | `last_updated` | string | `YYYY-MM-DD`. |
 | `tasks[]` | list | `{ text, status }`; `status ∈ {todo, in-progress, done}`. Optional ISO-8601 `added_at` / `completed_at`. |
-| `notes[]` | list of string | Durable gotchas/decisions. Trim aggressively. |
+| `notes[]` | list of string | Durable gotchas/decisions. Trim aggressively. A note copied from a repository file is written as an attributed quotation, e.g. `Quoted from CLAUDE.md § "Setup step": "…"`, so a reader can tell it from the owner's own notes. |
 | `last_worked_files[]` | list of string | Repo-relative paths. |
 | `completed_chunks` | map | chunk id → ISO date. |
 | `max_prompt_lines` | number | Optional. `NEXT_PROMPT.md` line cap, 5–50. Defaults to 20; omitted from the file when default. |
@@ -185,6 +185,10 @@ valid, and a reader MUST accept it:
   is the attached `/** */` block when there is one), `tokens`, `hash`, and
   `exported`. An id is the declared name, `Parent.member` for a member, with
   `~2`, `~3`… appended to repeats of the same name, such as overloads.
+  A member name is letters, digits, `_`, `$` and `-` only: a member whose
+  string key holds anything else, such as `"a b"` or `"a.b"`, is not a unit,
+  and a reader drops a row whose id is not of that shape. Ids are printed in
+  prompts, so they must stay references.
   `exported` is also true for a declaration exported through a local
   `export { name }`. A unit MAY carry `refs`: how many references in its own
   file certainly bind to it. References inside its own lines are not counted,
@@ -269,7 +273,8 @@ A tool conforms to Session Protocol v1.0 if it:
 3. Keeps `NEXT_PROMPT.md` within the configured line cap and self-contained.
    The cap defaults to 20 and may be set per project via `max_prompt_lines`
    in `SESSION_STATE.md` frontmatter (bounds: 5–50). A conforming tool MUST
-   refuse to write a prompt that exceeds it.
+   refuse to write a prompt that exceeds it, or that exceeds 12,000
+   characters, whatever its line count.
 4. Parses frontmatter safely (no code execution) and validates required fields.
 5. Ignores unknown optional fields and files rather than failing.
 
