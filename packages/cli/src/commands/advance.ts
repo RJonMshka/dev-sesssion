@@ -18,8 +18,10 @@ import {
 	AiIndexManager,
 	type BootstrapContext,
 	CONTEXT_LOG_FILENAME,
+	CONTEXT_MANIFEST_FILENAME,
 	ContextBudgetCalculator,
 	type ContextLogEntry,
+	ContextManifest,
 	DONE_LOG_FILENAME,
 	FileIndexManager,
 	LayerResolver,
@@ -196,16 +198,23 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 	// Resolve per-file context layers (Chunk 15); charge layered budget when an
 	// ai-index is present.
 	const aiIndex = AiIndexManager.load(sessionDir);
-	const resolvedLayers = LayerResolver.resolve({
+	const plan = LayerResolver.plan({
 		chunkFiles,
 		alwaysIncludeFiles: alwaysInclude,
 		tasks: newChunk.tasks,
 		index: aiIndex,
 	});
+	const resolvedLayers = plan.layers;
 
 	const budget =
 		aiIndex !== null
-			? ContextBudgetCalculator.estimateLayered(state, newChunk, resolvedLayers)
+			? ContextBudgetCalculator.estimateLayered(
+					state,
+					newChunk,
+					resolvedLayers,
+					undefined,
+					plan.focus,
+				)
 			: ContextBudgetCalculator.estimate(state, newChunk, chunkFiles, alwaysInclude);
 
 	const excludePatterns = buildExcludePatterns(state.active_chunk, allChunks);
@@ -235,15 +244,27 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 		excludePatterns,
 		projectName,
 		maxPromptLines: state.max_prompt_lines,
-		...(aiIndex !== null ? { resolvedLayers } : {}),
+		...(aiIndex !== null ? { resolvedLayers, focusUnits: plan.focus } : {}),
 	};
 
 	const promptContent = NextPromptWriter.generateWithFormatter(adapter.formatter, bootstrapContext);
 
+	const manifest = ContextManifest.build({
+		plan,
+		index: aiIndex,
+		prompt: promptContent,
+		activeChunk: state.active_chunk,
+	});
 	if (dryRun) {
 		dryRunWrite(path.join(sessionDir, "NEXT_PROMPT.md"), promptContent, options.cwd);
+		dryRunWrite(
+			path.join(sessionDir, CONTEXT_MANIFEST_FILENAME),
+			ContextManifest.serialize(manifest),
+			options.cwd,
+		);
 	} else {
 		NextPromptWriter.write(sessionDir, promptContent, state.max_prompt_lines);
+		ContextManifest.write(sessionDir, manifest);
 	}
 
 	// Step 7: Clear trim overrides (session-scoped, reset on advance)

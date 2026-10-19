@@ -67,7 +67,7 @@ describe("dev-sesssion MCP server", () => {
 		await client.close();
 	});
 
-	it("advertises all six session tools", async () => {
+	it("advertises all seven session tools", async () => {
 		seedSession();
 		const client = await connectClient();
 		const { tools } = await client.listTools();
@@ -80,6 +80,7 @@ describe("dev-sesssion MCP server", () => {
 				"mark_task_done",
 				"query_index",
 				"read_file_layer",
+				"read_unit",
 			].sort(),
 		);
 		await client.close();
@@ -109,6 +110,36 @@ describe("dev-sesssion MCP server", () => {
 		const result = await client.callTool({
 			name: "read_file_layer",
 			arguments: { path: "../../etc/passwd", layer: 2 },
+		});
+		expect((result as { isError?: boolean }).isError).toBe(true);
+		await client.close();
+	});
+
+	it("read_unit returns one unit's source (REQ-UNIT-23)", async () => {
+		seedSession();
+		fs.mkdirSync(path.join(projectRoot, "src"));
+		fs.writeFileSync(
+			path.join(projectRoot, "src", "math.ts"),
+			"export function addOne(n: number): number {\n  return n + 1;\n}\n\nexport const other = 2;\n",
+		);
+		const client = await connectClient();
+		const result = await client.callTool({
+			name: "read_unit",
+			arguments: { ref: "src/math.ts#addOne:1-3" },
+		});
+		const text = firstText(result);
+		expect(text).toMatch(/^\/\/ src\/math\.ts#addOne L1-3 /);
+		expect(text).toContain("return n + 1;");
+		expect(text).not.toContain("other");
+		await client.close();
+	});
+
+	it("rejects a path-traversal argument to read_unit (REQ-UNIT-25)", async () => {
+		seedSession();
+		const client = await connectClient();
+		const result = await client.callTool({
+			name: "read_unit",
+			arguments: { ref: "../../etc/passwd#x" },
 		});
 		expect((result as { isError?: boolean }).isError).toBe(true);
 		await client.close();

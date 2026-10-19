@@ -17,6 +17,7 @@
 
 import { intro, log, outro, spinner } from "@clack/prompts";
 import {
+	ContextManifest,
 	FileIndexManager,
 	GitReader,
 	PlanChunkManager,
@@ -83,6 +84,7 @@ export async function runVerify(options: VerifyOptions): Promise<void> {
 			chunk,
 			entries,
 			lookback: options.lookback,
+			manifest: ContextManifest.load(sessionDir),
 		},
 		GitReader,
 	);
