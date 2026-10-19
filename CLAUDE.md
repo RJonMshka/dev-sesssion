@@ -141,9 +141,12 @@ prompt the developer pastes into a coding agent — so `import`, the walkers, an
 adversarial, but because they did not write all of it: a fork, a vendored
 dependency, a pull request. The rule is that text the tool did not author is
 rendered as an **attributed quotation, never as tool speech**; `SecretScanner`
-and `guardEgress` guard the same boundary outbound. Two paths currently violate
-it — see `docs/plan/LLD-context-provenance.md` (area `PROV`) and
-`evals/RIGOUR.md`.
+and `guardEgress` guard the same boundary outbound. Quoting goes through
+`quoteText` / `formatQuotedNote` in `formatter-utils.ts`: imported `CLAUDE.md`
+notes are quoted when written, every doc-comment summary when rendered, and
+unit ids are identifier-shaped by construction. A new path that lifts repo text
+into agent-facing output must do the same — see
+`docs/plan/LLD-context-provenance.md` (area `PROV`) and `evals/RIGOUR.md`.
 
 **`evals/` is dev tooling, not shipped code.** It drives the *published* CLI as a
 black box, never imports from `packages/`, and therefore sits outside the

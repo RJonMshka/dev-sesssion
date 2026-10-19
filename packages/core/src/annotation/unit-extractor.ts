@@ -21,6 +21,39 @@ import type { ParsedUnit, UnitKind } from "./types.js";
 /** Hex characters kept from a SHA-256 digest. Part of the PROTOCOL.md contract. */
 const HASH_HEX_CHARS = 16;
 
+/** One identifier: ECMAScript `ID_Start` / `ID_Continue`, plus `$` and `_`. */
+const IDENTIFIER_SRC = "[\\p{ID_Start}$_][\\p{ID_Continue}$\\u200C\\u200D]*";
+
+/**
+ * A member name: identifier characters plus `-`, so a kebab-case key such as
+ * `"dry-run"` stays addressable. No spaces, dots or other punctuation, so it
+ * reads as a reference, the way a file path does.
+ */
+const MEMBER_NAME_SRC = "[\\p{ID_Continue}$\\u200C\\u200D-]+";
+
+/** A whole string that is a usable member name. */
+const MEMBER_NAME_RE = new RegExp(`^${MEMBER_NAME_SRC}$`, "u");
+
+/**
+ * Shape of every unit id: a declared name, optionally `.member` or
+ * `.#member`, then an optional `~n` repeat suffix. Single source of truth for
+ * the extractor and the index reader (REQ-PROV-9, -10).
+ */
+export const UNIT_ID_RE = new RegExp(
+	`^${IDENTIFIER_SRC}(?:\\.#?${MEMBER_NAME_SRC})?(?:~\\d+)?$`,
+	"u",
+);
+
+/**
+ * Whether a string is a well-formed unit id — a reference, never free text.
+ *
+ * @param id - A candidate id.
+ * @returns `true` when it matches {@link UNIT_ID_RE}.
+ */
+export function isUnitId(id: string): boolean {
+	return UNIT_ID_RE.test(id);
+}
+
 /**
  * Hashes text per the PROTOCOL.md contract: SHA-256, first 16 hex characters.
  *
@@ -288,17 +321,23 @@ function isFunctionNode(node: TSESTree.Node | null | undefined): boolean {
 }
 
 /**
- * Returns a member's name when it has a static one.
+ * Returns a member's name when it has a static, name-shaped one.
  *
  * @param key - The member's key node.
  * @param computed - Whether the key is computed (`[expr]`).
- * @returns The name, or `undefined` for a computed or unnamed key.
+ * @returns The name, or `undefined` for a computed key or a string key that
+ *   is not name-shaped (`"a b"`, `"a.b"`, `""`).
  */
 function memberName(key: TSESTree.Node, computed: boolean): string | undefined {
 	if (computed) return undefined;
 	if (key.type === "Identifier") return key.name;
 	if (key.type === "PrivateIdentifier") return `#${key.name}`;
-	if (key.type === "Literal" && typeof key.value === "string") return key.value;
+	// A string key becomes part of an id, and ids are printed on the prompt's
+	// Focus line. Only a name-shaped key keeps that a reference rather than
+	// text from the file (REQ-PROV-9).
+	if (key.type === "Literal" && typeof key.value === "string" && MEMBER_NAME_RE.test(key.value)) {
+		return key.value;
+	}
 	return undefined;
 }
 

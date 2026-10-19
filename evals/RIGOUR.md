@@ -205,8 +205,10 @@ The harness measures whether the tool *helps*. Nothing measures whether it can
 developer pastes into a coding agent — and `SecretScanner` guards data going
 *out* while nothing guards instructions coming *in*.
 
-Two paths were tested against the built CLI. **Both carry attacker-controlled
-text through, verbatim.**
+Two paths were tested against the built CLI. **Both carried attacker-controlled
+text through, verbatim.** Both are fixed: the text now arrives as an attributed
+quotation. See `docs/plan/LLD-context-provenance.md` for the fix, and for two
+more paths found while building it.
 
 ### Path 1 — `import --from claude` → `NEXT_PROMPT.md` (confirmed, zero hops)
 
@@ -266,7 +268,7 @@ fork. They win if they influence what the developer's agent does.
 
 | Class | Concrete attempt | Status |
 |---|---|---|
-| **Instruction injection** | The two paths above | **Confirmed.** Text passes through unescaped, uncapped, and unmarked |
+| **Instruction injection** | The two paths above | **Mitigated** (`LLD-context-provenance.md`). Both paths, plain doc-comment summaries, and string-literal unit ids are now quoted, attributed, capped, or restricted. The inputs are permanent fixtures in `tests/fixtures/provenance/` |
 | **Context eviction** | 30 files annotated to look critical, pushing real files out of the capped load list | Untested. The list is capped, so eviction is silent by construction |
 | **Path traversal** | A FILE_INDEX row naming `../../.ssh/id_rsa` | Untested. `PathValidator` should reject — **assert it, do not assume it** |
 | **Resource exhaustion** | Deeply nested YAML frontmatter, a 10MB plan, a 50k-line index | Untested. Should error cleanly, not hang or OOM |

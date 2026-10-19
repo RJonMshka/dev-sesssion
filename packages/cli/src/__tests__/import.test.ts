@@ -27,6 +27,8 @@ vi.mock("@clack/prompts", () => ({
 	},
 }));
 
+import { ClaudeMdNotes, SessionStateManager } from "@dev-session/core";
+import type { ValidatedPath } from "@dev-session/security";
 import { runImport } from "../commands/import.js";
 
 // ---------------------------------------------------------------------------
@@ -129,9 +131,13 @@ describe("runImport --from claude", () => {
 
 		await runImport({ ...BASE_OPTS, cwd: tmpDir, from: "claude" });
 
-		const updated = fs.readFileSync(path.join(sessionDir, "SESSION_STATE.md"), "utf-8");
-		expect(updated).toContain("CLAUDE.md: HARD RULES");
-		expect(updated).toContain("CLAUDE.md: Session workflow");
+		const { notes } = SessionStateManager.load(sessionDir as ValidatedPath);
+		const imported = ClaudeMdNotes.build(claudeMd);
+		expect(imported).toHaveLength(2);
+		for (const note of imported) {
+			expect(note.startsWith("Quoted from CLAUDE.md")).toBe(true);
+			expect(notes).toContain(note);
+		}
 	});
 
 	it("deduplicates notes that were already imported", async () => {
@@ -142,9 +148,9 @@ describe("runImport --from claude", () => {
 		await runImport({ ...BASE_OPTS, cwd: tmpDir, from: "claude" });
 		await runImport({ ...BASE_OPTS, cwd: tmpDir, from: "claude" });
 
-		const updated = fs.readFileSync(path.join(sessionDir, "SESSION_STATE.md"), "utf-8");
-		const occurrences = (updated.match(/CLAUDE\.md: HARD RULES/g) ?? []).length;
-		expect(occurrences).toBe(1);
+		const { notes } = SessionStateManager.load(sessionDir as ValidatedPath);
+		const [note] = ClaudeMdNotes.build(claudeMd);
+		expect(notes.filter((n) => n === note)).toHaveLength(1);
 	});
 
 	it("does not write anything in dry-run mode", async () => {

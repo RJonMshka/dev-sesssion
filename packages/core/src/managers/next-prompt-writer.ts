@@ -26,7 +26,12 @@ import type {
 	SessionState,
 	ValidationResult,
 } from "../schemas/index.js";
-import { countPromptLines, MAX_PROMPT_LINES } from "../schemas/index.js";
+import {
+	countPromptChars,
+	countPromptLines,
+	MAX_PROMPT_CHARS,
+	MAX_PROMPT_LINES,
+} from "../schemas/index.js";
 
 /** Maximum number of file paths to include in the "Files to load" line. */
 const MAX_FILES_TO_SHOW = 5;
@@ -215,11 +220,16 @@ export const NextPromptWriter = {
 
 		const validation = this.validate(content, maxLines);
 		if (!validation.valid) {
+			// Name the cause the developer can act on (REQ-PROV-6): an over-long
+			// note is fixed in SESSION_STATE.md, not in the formatter.
+			const suggestion =
+				validation.charCount > MAX_PROMPT_CHARS
+					? `Shorten long notes or task text in SESSION_STATE.md — the prompt may hold at most ${String(MAX_PROMPT_CHARS)} characters.`
+					: "The bootstrap formatter produced invalid output. If this is a custom adapter, " +
+						"ensure generatePrompt() emits the required fields and stays within the line cap.";
 			throw new CliError({
 				message: `Refusing to write a malformed NEXT_PROMPT.md: ${validation.errors.join("; ")}`,
-				suggestion:
-					"The bootstrap formatter produced invalid output. If this is a custom adapter, " +
-					"ensure generatePrompt() emits the required fields and stays within the line cap.",
+				suggestion,
 			});
 		}
 
@@ -230,10 +240,10 @@ export const NextPromptWriter = {
 	/**
 	 * Validates a NEXT_PROMPT.md content string.
 	 *
-	 * Checks that the content is non-empty, within the line limit, and contains
-	 * all required field prefixes. Accepts every prefix in
-	 * {@link FILE_LOAD_PREFIXES}, which covers the legacy field name, the flat
-	 * `Load:` line, and both layered lines.
+	 * Checks that the content is non-empty, within the line limit and
+	 * {@link MAX_PROMPT_CHARS}, and contains all required field prefixes.
+	 * Accepts every prefix in {@link FILE_LOAD_PREFIXES}, which covers the
+	 * legacy field name, the flat `Load:` line, and both layered lines.
 	 *
 	 * @param content - The prompt content string to validate.
 	 * @param maxLines - Line cap to enforce. Defaults to {@link MAX_PROMPT_LINES}.
@@ -250,6 +260,14 @@ export const NextPromptWriter = {
 
 		if (lineCount > maxLines) {
 			errors.push(`Line count ${String(lineCount)} exceeds maximum of ${String(maxLines)}`);
+		}
+
+		// The line cap does not bound size: one long note is one line (REQ-PROV-5).
+		const charCount = countPromptChars(content);
+		if (charCount > MAX_PROMPT_CHARS) {
+			errors.push(
+				`Character count ${String(charCount)} exceeds maximum of ${String(MAX_PROMPT_CHARS)} characters`,
+			);
 		}
 
 		for (const field of REQUIRED_FIELDS) {
@@ -272,6 +290,7 @@ export const NextPromptWriter = {
 		return {
 			valid: errors.length === 0,
 			lineCount,
+			charCount,
 			errors,
 		};
 	},

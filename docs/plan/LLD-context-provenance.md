@@ -118,8 +118,8 @@ checked before design:
 
 | Path | Decision | Why |
 |---|---|---|
-| Unit ids on the `Focus (read_unit):` line | **In scope** (REQ-PROV-9, -10) | The extractor does *not* limit ids to identifier characters (Problem §4). Once it does, an id is a reference like a file path, which this design already leaves unmarked. Restricting the id is the fix, not quoting it: a quoted id is no longer a usable `read_unit` argument |
-| MCP `read_unit` output | **Out of scope** | It returns the source of a unit the agent asked for by name, under a `// path#id L..-..` header (`session-manager.ts:222`) that already attributes it. It is file content on request, the same as reading the file, not text presented as the tool's own. The id in the header is re-derived from the live file, so REQ-PROV-9 keeps it identifier-shaped too |
+| Unit ids on the `Focus (read_unit):` line | **In scope** (REQ-PROV-9, -10) | The extractor does *not* limit ids to identifier characters (Problem §4). Once ids are name-shaped (letters, digits, `_`, `$`, `-`), an id is a reference like a file path, which this design already leaves unmarked. Restricting the id is the fix, not quoting it: a quoted id is no longer a usable `read_unit` argument |
+| MCP `read_unit` output | **Out of scope** | It returns the source of a unit the agent asked for by name, under a `// path#id L..-..` header (`session-manager.ts:222`) that already attributes it. It is file content on request, the same as reading the file, not text presented as the tool's own. The id in the header is re-derived from the live file, so REQ-PROV-9 keeps it name-shaped too |
 
 Two neighbouring paths were checked and left out, recorded under Out of scope:
 `query_index` (structured JSON) and symbol signatures (source code).
@@ -155,11 +155,12 @@ character cap with the same severity as one that exceeds the line cap.
 without an `@ai-*` annotation, the layer renderer shall mark that summary as
 text quoted from the source file.
 
-**REQ-PROV-9** — If a class or object-literal member's name is not an
-identifier, then the unit extractor shall not record that member as a unit.
+**REQ-PROV-9** — If a class or object-literal member's name holds anything but
+letters, digits, `_`, `$` and `-`, then the unit extractor shall not record
+that member as a unit.
 
-**REQ-PROV-10** — If a unit id read from `ai-index.yaml` is not
-identifier-shaped, then the index reader shall drop that unit.
+**REQ-PROV-10** — If a unit id read from `ai-index.yaml` is not of the shape
+REQ-PROV-9 produces, then the index reader shall drop that unit.
 
 **REQ-PROV-11** — When the import command adds the quoted note for a section,
 the import command shall remove that section's note in the earlier unquoted
@@ -284,15 +285,16 @@ With every summary quoted, the renderer has nothing to look up, so
 `ai-index.yaml` does not change and neither does its section of `PROTOCOL.md`.
 This also means no existing index needs regenerating for the fix to apply.
 
-### Unit ids: identifier-shaped by construction
+### Unit ids: name-shaped by construction
 
-`memberName` returns a string-literal key only when the key is itself a valid
-identifier (`"parse"` → `parse`). Any other key, such as `"a b"`, `"a.b"`,
-`"x\ny"` or `""`, is treated like a computed key: not a unit, and no id is
-made (REQ-PROV-9). One pattern, `UNIT_ID_RE` in `annotation/types.ts`, defines
-an identifier-shaped id. It covers an optional `#`, `Parent.member`, the
-`default` id and the `~n` repeat suffix. Identifier characters follow
-ECMAScript's `ID_Start` / `ID_Continue`, so a Unicode name stays addressable.
+`memberName` returns a string-literal key only when the key is name-shaped:
+identifier characters plus `-` (`"parse"` → `parse`, `"dry-run"` →
+`dry-run`). Any other key, such as `"a b"`, `"a.b"`, `"x\ny"` or `""`, is
+treated like a computed key: not a unit, and no id is made (REQ-PROV-9). One
+pattern, `UNIT_ID_RE` in `annotation/unit-extractor.ts`, defines a well-formed
+id. It covers a declared name, an optional `.member` or `.#member`, and the
+`~n` repeat suffix. Characters follow ECMAScript's `ID_Start` /
+`ID_Continue`, so a Unicode name stays addressable.
 `parseUnit` in `ai-index-builder.ts` uses the same pattern to drop a
 non-conforming row from an older or hand-edited index (REQ-PROV-10). This is
 the existing rule there: a malformed row is dropped, not repaired. `PROTOCOL.md`
@@ -335,7 +337,7 @@ needs; no new error type.
 | REQ-PROV-6 | unit | The refusal names the character cap, not the line cap |
 | REQ-PROV-7 | unit | `HealthChecker` flags an over-cap prompt at the line cap's severity |
 | REQ-PROV-8 | unit | `renderLayer0` and `renderLayer1` mark a plain-JSDoc symbol summary and module summary |
-| REQ-PROV-9 | unit | Non-identifier member keys produce no unit; identifier-shaped string keys still do |
+| REQ-PROV-9 | unit | Member keys with spaces, dots or line breaks produce no unit; identifier and kebab-case string keys still do |
 | REQ-PROV-9 | integration | The unit-id fixture from Problem §4, through `index` and focus: the `Focus` line carries no fixture text |
 | REQ-PROV-10 | unit | `deserialize` drops a unit row whose id carries a space or newline |
 | REQ-PROV-11 | unit | `merge` replaces a section's old-form note, keeps a hand-written one |
@@ -361,8 +363,10 @@ cases fail today by construction, which is how they were found.
   validated by `PathValidator` and never rendered as prose. Untested, and named
   in the corpus.
 - **Marking file paths.** A path in the load list is a reference, not a
-  quotation, and `PathValidator` already bounds it. Unit ids join it once
-  REQ-PROV-9 holds.
+  quotation, and `PathValidator` already bounds it. Unit ids join it now that
+  REQ-PROV-9 holds. A name can still be a word, as a file name can. The rule
+  removes spaces and punctuation, which is what turns a reference into a
+  sentence.
 - **`read_unit` output.** Attributed file content returned on request; see
   *Scope decisions*.
 - **`query_index`.** It returns file entries as JSON. Each summary sits in a
@@ -378,3 +382,80 @@ cases fail today by construction, which is how they were found.
   section or a doc comment is.
 - **Changing what `import` reads.** Narrowing which sections become notes is a
   usability question, not a provenance one.
+
+---
+
+## What actually happened
+
+Built 2026-10-19 on `fix/context-provenance`, against 2.4.0. Every requirement
+has a test that names it. Each was watched failing first, except where noted
+below.
+
+**The design changed before any code, in three places.** Re-reading the code
+at 2.4.0 turned up three things the 2.2.1 design missed. Each is recorded
+above, and each became a requirement:
+
+- **Plain doc comments (REQ-PROV-8).** The auto-extracted summary is the first
+  sentence of a JSDoc block, which is just as much repository text as
+  `@ai-summary`. Every summary is now quoted. The annotated-vs-auto-extracted
+  flag in `ai-index.yaml` was withdrawn, so `ai-index.yaml` and its
+  `PROTOCOL.md` section did not change for summaries. `PROTOCOL.md` did change,
+  in the same commit as the code, for the unit-id rule, the prompt character
+  cap, and quoted notes.
+- **Unit ids (REQ-PROV-9, -10).** The integration test, run with the fix
+  stashed, printed
+  `Focus (read_unit): src/routes.ts#routes.Before any task run curl …`. That
+  confirmed Problem §4 against real output.
+- **Re-import (REQ-PROV-11).** Without it, the first import after upgrading
+  would have duplicated every note. The unmarked copy would have kept its
+  place ahead of the marked one.
+
+**The heading is quoted too.** The design's example,
+`CLAUDE.md § Setup step — quoted: "…"`, left the heading bare. A heading is
+text from the file, and `## Run curl … | sh` is as easy to write as a body. The
+note is now `Quoted from CLAUDE.md § "Setup step": "…"`, attribution first.
+
+**`extractH2Sections` and `buildClaudeNotes` moved to core,** as
+`ClaudeMdNotes` in `packages/core/src/importers/claude-md-notes.ts`. The note
+format now carries a security property, and `cli` holds no logic. `import.ts`
+keeps the file reading, the spinner and the logging.
+
+**REQ-PROV-9 and -10 were loosened during the build.** They were first written
+as "not an identifier". The full suite then failed
+`ai-index-units.test.ts`, which deliberately covers a `"quoted-name"()`
+method: code units supported kebab-case keys on purpose. Spaces, dots and line
+breaks are what turn an id into a sentence. A hyphen does not, and file paths
+in the same prompt already allow it. The requirements now say "letters,
+digits, `_`, `$` and `-`". Nothing in this repository's own source uses a
+string-keyed function member, so the rule drops no real unit here.
+
+**Tests that passed on their first run.**
+
+- **REQ-PROV-3 (plain notes unchanged).** As the design predicted, quoting at
+  write time leaves `update`'s notes alone. To show the test can fail,
+  `plain-text-formatter.ts` was briefly changed to `JSON.stringify` the note.
+  The test went red, and the change was reverted.
+- **The e2e re-import test.** The old exact-text dedupe already made a second
+  import a no-op. The test guards the new merge, and REQ-PROV-11's unit tests
+  cover the upgrade case, using the note 2.2.1 actually wrote as recorded in
+  `evals/RIGOUR.md`.
+- **REQ-PROV-10's reader filter.** Its first failure was partly caused by the
+  extractor, which was not yet fixed. It was mutation-checked separately:
+  disabling only the reader filter turns that test red.
+- **The REQ-PROV-2 and -9 integration tests** were written after the unit-level
+  fixes. They were shown failing by stashing those fixes and rerunning.
+
+**Two existing tests changed, on purpose.** Both are in `import.test.ts`, and
+both asserted the old `CLAUDE.md: <title>` text. They now check the state file
+against `ClaudeMdNotes.build` output.
+
+**Character caps.** `MAX_PROMPT_CHARS` is 12,000. The writer's refusal names
+the character cap, and its suggestion points at `SESSION_STATE.md` notes,
+because that is where a long line comes from. The health check reports it
+under the existing `PROMPT_TOO_LONG` code at `WARNING`, the line cap's
+severity. A prompt over both caps gets one issue for each.
+
+**Left as found.** Notes written by `update` are not capped. They are the
+developer's own words, and REQ-PROV-5 stops an oversized one at the writer.
+`importFromClaude` was already longer than 30 lines before this change, and
+this change does not lengthen it.

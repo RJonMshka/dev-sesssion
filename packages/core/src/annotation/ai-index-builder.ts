@@ -20,6 +20,7 @@ import type {
 	UnitEntry,
 	UnitKind,
 } from "./types.js";
+import { isUnitId } from "./unit-extractor.js";
 import { deserializeFromYaml, serializeToYaml } from "./yaml-utils.js";
 
 // ---------------------------------------------------------------------------
@@ -412,6 +413,9 @@ function parseUnits(raw: unknown): Record<string, UnitEntry> | undefined {
 	if (typeof raw !== "object" || raw === null) return undefined;
 	const units: Record<string, UnitEntry> = Object.create(null) as Record<string, UnitEntry>;
 	for (const [id, row] of Object.entries(raw as Record<string, unknown>)) {
+		// An id is printed on the prompt's Focus line, so one that is not
+		// name-shaped is dropped like any other malformed row (REQ-PROV-10).
+		if (!isUnitId(id)) continue;
 		const unit = parseUnit(row);
 		if (unit !== null) units[id] = unit;
 	}

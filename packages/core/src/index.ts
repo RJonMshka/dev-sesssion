@@ -91,13 +91,17 @@ export {
 	formatChunkProgress,
 	formatCompletedChunksSummary,
 	formatLayeredContextLines,
+	formatQuotedNote,
 	formatUnitRef,
 	getPendingTasks,
 	LAYER_SUFFIX_RE,
 	LEGACY_LOAD_PREFIX,
 	LOAD_FULL_PREFIX,
 	LOAD_PREFIX,
+	MAX_NOTE_CHARS,
 	mergeContextFiles,
+	QUOTED_LABEL,
+	quoteText,
 	SUMMARIES_PREFIX,
 	trimToMaxLines,
 } from "./formatters/formatter-utils.js";
@@ -106,6 +110,9 @@ export { PlainTextFormatter } from "./formatters/plain-text-formatter.js";
 // Git-backed verification and replay scoring
 export type { GitCommit } from "./git/git-reader.js";
 export { GitReader } from "./git/git-reader.js";
+// Importers
+export type { MergedNotes } from "./importers/claude-md-notes.js";
+export { ClaudeMdNotes } from "./importers/claude-md-notes.js";
 export type { LintResult } from "./linters/context-linter.js";
 // Linters
 export { ContextLinter } from "./linters/context-linter.js";
@@ -191,11 +198,13 @@ export {
 	ContextLogEntrySchema,
 	ContextLogSchema,
 	ContextManifestSchema,
+	countPromptChars,
 	countPromptLines,
 	DEFAULT_CONTEXT_BUDGET,
 	DetectedTool,
 	FileIndexEntrySchema,
 	MAX_CONFIGURABLE_PROMPT_LINES,
+	MAX_PROMPT_CHARS,
 	MAX_PROMPT_LINES,
 	ManifestEntrySchema,
 	MIN_CONFIGURABLE_PROMPT_LINES,

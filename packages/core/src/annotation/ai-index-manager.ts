@@ -11,6 +11,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { ValidatedPath } from "@dev-session/security";
 import { AtomicWriter, ParseError, PathValidator } from "@dev-session/security";
+import { QUOTED_LABEL, quoteText } from "../formatters/formatter-utils.js";
 import type { FileIndexEntry } from "../schemas/index.js";
 import { AI_INDEX_FILENAME, AiIndexBuilder } from "./ai-index-builder.js";
 import type { AiIndex, FileEntry } from "./types.js";
@@ -18,6 +19,16 @@ import type { AiIndex, FileEntry } from "./types.js";
 // ---------------------------------------------------------------------------
 // AiIndexManager
 // ---------------------------------------------------------------------------
+
+/**
+ * Renders a summary taken from a doc comment as a labelled quotation.
+ *
+ * @param summary - The stored summary.
+ * @returns `quoted: "<summary>"`, escaped onto one line.
+ */
+function quoteSummary(summary: string): string {
+	return `${QUOTED_LABEL} ${quoteText(summary)}`;
+}
 
 /**
  * Manages the lifecycle of the ai-index on disk and provides query/render APIs.
@@ -146,6 +157,8 @@ export const AiIndexManager = {
 	 * Render a file entry at Layer 0: module summary + public symbol names only.
 	 *
 	 * This is the most compact representation, suitable for always-loaded context.
+	 * The module summary is quoted: a doc comment in the file wrote it, not the
+	 * tool (REQ-PROV-8). The `## <path>` header names that file.
 	 *
 	 * @param relPath - Relative file path (used as a header).
 	 * @param entry - The file entry to render.
@@ -155,7 +168,7 @@ export const AiIndexManager = {
 		const lines: string[] = [`## ${relPath}`];
 
 		if (entry.module_summary) {
-			lines.push(entry.module_summary);
+			lines.push(quoteSummary(entry.module_summary));
 		}
 
 		const publicSymbols = Object.entries(entry.exports)
@@ -174,6 +187,9 @@ export const AiIndexManager = {
 	 * Render a file entry at Layer 1: signatures only (no implementation).
 	 *
 	 * Includes module summary and the declaration header of each public symbol.
+	 * Every summary is quoted, whether it came from `@ai-summary` or from the
+	 * first sentence of a plain doc comment (REQ-PROV-2, -8). Both were written
+	 * by the file named in the `## <path>` header, not by the tool.
 	 *
 	 * @param relPath - Relative file path (used as a header).
 	 * @param entry - The file entry to render.
@@ -183,7 +199,7 @@ export const AiIndexManager = {
 		const lines: string[] = [`## ${relPath}`];
 
 		if (entry.module_summary) {
-			lines.push(entry.module_summary);
+			lines.push(quoteSummary(entry.module_summary));
 		}
 
 		const publicSymbols = Object.entries(entry.exports)
@@ -191,7 +207,7 @@ export const AiIndexManager = {
 			.sort(([a], [b]) => a.localeCompare(b));
 
 		for (const [, sym] of publicSymbols) {
-			const summaryPart = sym.summary ? ` — ${sym.summary}` : "";
+			const summaryPart = sym.summary ? ` — ${quoteSummary(sym.summary)}` : "";
 			lines.push(`  ${sym.signature}${summaryPart}`);
 		}
 

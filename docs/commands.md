@@ -282,6 +282,14 @@ dev-sesssion import --from claude
 
 Reads `CLAUDE.md` and imports each H2 section as a note in `SESSION_STATE.md`. Useful for migrating an existing CLAUDE.md-based workflow.
 
+Each note is a quotation attributed to the file, capped at 240 characters:
+
+```
+Quoted from CLAUDE.md § "Conventions": "Use tabs, not spaces."
+```
+
+The prompt shows it as quoted text from `CLAUDE.md`, not as your own note, so an agent can tell the two apart. Running the import again adds nothing new. A note left by an older version in the unquoted `CLAUDE.md: <title> — …` form is replaced with the quoted one.
+
 ### Import from Cursor
 
 ```bash

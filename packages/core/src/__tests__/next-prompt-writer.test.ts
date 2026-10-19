@@ -8,7 +8,7 @@ import { PlainTextFormatter } from "../formatters/plain-text-formatter.js";
 import { NextPromptWriter } from "../managers/next-prompt-writer.js";
 import type { ContextBudget, ContextBudgetBreakdown } from "../schemas/context-budget.js";
 import type { FileIndexEntry, PlanChunk, SessionState } from "../schemas/index.js";
-import { countPromptLines, MAX_PROMPT_LINES } from "../schemas/index.js";
+import { countPromptLines, MAX_PROMPT_CHARS, MAX_PROMPT_LINES } from "../schemas/index.js";
 
 function makeTmpDir(): string {
 	return fs.mkdtempSync(path.join(import.meta.dirname ?? __dirname, ".tmp-"));
@@ -290,5 +290,47 @@ describe("NextPromptWriter", () => {
 
 			expect(result.valid).toBe(true);
 		});
+	});
+});
+
+describe("NextPromptWriter character cap", () => {
+	let tmpDir: string;
+
+	beforeEach(() => {
+		tmpDir = makeTmpDir();
+	});
+
+	afterEach(() => {
+		fs.rmSync(tmpDir, { recursive: true, force: true });
+	});
+
+	/** Real generator output carrying one note longer than the whole cap. */
+	function overCapPrompt(): string {
+		const note = "x".repeat(MAX_PROMPT_CHARS);
+		return NextPromptWriter.generate(makeState({ notes: [note] }), makeChunk(), makeFiles());
+	}
+
+	it("refuses to persist a prompt over the character cap (REQ-PROV-5)", () => {
+		const content = overCapPrompt();
+		expect(countPromptLines(content)).toBeLessThanOrEqual(MAX_PROMPT_LINES);
+
+		expect(NextPromptWriter.validate(content).valid).toBe(false);
+		expect(() => NextPromptWriter.write(tmpDir as ValidatedPath, content)).toThrow(CliError);
+		expect(fs.existsSync(path.join(tmpDir, "NEXT_PROMPT.md"))).toBe(false);
+	});
+
+	it("names the character cap, not the line cap, when it refuses (REQ-PROV-6)", () => {
+		let caught: unknown;
+		try {
+			NextPromptWriter.write(tmpDir as ValidatedPath, overCapPrompt());
+		} catch (error: unknown) {
+			caught = error;
+		}
+
+		expect(caught).toBeInstanceOf(CliError);
+		const err = caught as CliError;
+		expect(err.message).toContain(`${String(MAX_PROMPT_CHARS)} characters`);
+		expect(err.message).not.toContain("Line count");
+		expect(err.suggestion ?? "").toMatch(/note/i);
 	});
 });
