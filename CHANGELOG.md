@@ -1,3 +1,13 @@
+## [2.4.2](https://github.com/RJonMshka/dev-sesssion/compare/v2.4.1...v2.4.2) (2026-10-20)
+
+### Bug Fixes
+
+* **init:** make the first prompt usable without extra commands ([5658c13](https://github.com/RJonMshka/dev-sesssion/commit/5658c139f4d94a18161f3f8a7908073e9e95160d))
+
+### Documentation
+
+* **plan:** design the first run (LLD-first-run, area RUN) ([5403a41](https://github.com/RJonMshka/dev-sesssion/commit/5403a4191195e3335a870e4527c121b709347302))
+
 ## [2.4.1](https://github.com/RJonMshka/dev-sesssion/compare/v2.4.0...v2.4.1) (2026-10-19)
 
 ### Bug Fixes
