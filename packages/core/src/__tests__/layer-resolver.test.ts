@@ -121,6 +121,24 @@ describe("LayerResolver.resolve", () => {
 		expect(resolved[0]?.layer).toBe(2);
 	});
 
+	it("does not escalate a file whose basename is only the tail of the one named (REQ-RUN-5)", () => {
+		const tasks: Task[] = [{ text: "Split formatter-utils.ts into two modules", status: "todo" }];
+
+		const resolved = LayerResolver.resolve({
+			chunkFiles: [
+				makeEntry("packages/core/src/formatters/formatter-utils.ts", [4]),
+				makeEntry("src/utils.ts", [4]),
+			],
+			alwaysIncludeFiles: [],
+			tasks,
+			index: null,
+		});
+
+		const byPath = new Map(resolved.map((r) => [r.filepath, r]));
+		expect(byPath.get("packages/core/src/formatters/formatter-utils.ts")?.escalated).toBe(true);
+		expect(byPath.get("src/utils.ts")?.escalated).toBe(false);
+	});
+
 	it("does not escalate for a done task that references the file", () => {
 		const tasks: Task[] = [
 			{ text: "Refactor src/a.ts", status: "done", completed_at: "2026-06-17T00:00:00Z" },

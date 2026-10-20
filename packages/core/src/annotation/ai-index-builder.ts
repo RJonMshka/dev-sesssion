@@ -10,7 +10,9 @@
  * @packageDocumentation
  */
 
+import type { ValidatedPath } from "@dev-session/security";
 import { ParseError } from "@dev-session/security";
+import { AutoExtractor } from "./auto-extractor.js";
 import type {
 	AiIndex,
 	FileEntry,
@@ -99,6 +101,26 @@ export const AiIndexBuilder = {
 			project_root: projectRoot,
 			files: fileEntries,
 		};
+	},
+
+	/**
+	 * Extract every TypeScript/JS file under `root` and build a full index.
+	 *
+	 * Shared by `init` and `index`, so the two cannot build different indexes
+	 * for the same tree (LLD-first-run.md, REQ-RUN-10). `maxFiles` caps
+	 * extraction the way `init --max-files` caps the file index (REQ-RUN-12).
+	 *
+	 * @param root - Validated absolute path to the project root.
+	 * @param opts - Optional extraction cap.
+	 * @returns A freshly built `AiIndex`.
+	 * @throws {ParseError} If the directory cannot be walked.
+	 */
+	async fromDirectory(root: ValidatedPath, opts?: { maxFiles?: number }): Promise<AiIndex> {
+		const files = await new AutoExtractor().extractDirectory(
+			root,
+			opts?.maxFiles !== undefined ? { maxFiles: opts.maxFiles } : undefined,
+		);
+		return AiIndexBuilder.build(files, root);
 	},
 
 	/**

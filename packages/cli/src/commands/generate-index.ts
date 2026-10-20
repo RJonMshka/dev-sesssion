@@ -3,15 +3,16 @@
  *
  * Uses {@link GitignoreAwareWalker} to discover files, groups them by
  * directory, and in interactive mode prompts to tag each group to a chunk.
- * In `--yes` mode, all files are tagged to chunk 1 (the active chunk).
+ * In `--yes` mode, a file is tagged to the chunks whose unfinished tasks name
+ * it, and files no task names are left out (LLD-first-run.md).
  *
  * @module
  */
 
 import * as path from "node:path";
 import { cancel, isCancel, log, select, spinner } from "@clack/prompts";
-import type { FileIndexEntry, PlanChunk } from "@dev-session/core";
-import { FileIndexManager, GitignoreAwareWalker } from "@dev-session/core";
+import type { FileIndexEntry, PlanChunk, WalkedFile } from "@dev-session/core";
+import { FileIndexManager, GitignoreAwareWalker, referencedFiles } from "@dev-session/core";
 import type { ValidatedPath } from "@dev-session/security";
 import { CliError } from "@dev-session/security";
 import { dryRunWrite } from "../utils/dry-run.js";
@@ -111,18 +112,15 @@ export async function generateIndex(
 	}
 
 	if (options.yes) {
-		// Auto mode: tag all files to chunk 1
-		const firstChunk = chunks[0];
-		const activeChunkId = firstChunk !== undefined ? firstChunk.chunk_id : 1;
-		for (const file of files) {
-			const tokenCost = GitignoreAwareWalker.estimateTokenCost(file);
-			entries.push({
-				filepath: file.relativePath,
-				chunk_tags: [activeChunkId],
-				purpose: inferPurpose(file.relativePath),
-				token_cost: tokenCost,
-			});
-		}
+		// Tag only what a task names; the ai-index covers the rest (REQ-RUN-1, -4, -6).
+		const always = new Set(entries.map((e) => e.filepath));
+		const tagged = tagFromTasks(files, chunks, always);
+		entries.push(...tagged);
+		const left =
+			files.length - tagged.length - files.filter((f) => always.has(f.relativePath)).length;
+		log.info(
+			`Tagged ${String(tagged.length)} file${tagged.length === 1 ? "" : "s"} to chunks from task text; ${String(left)} left to the ai-index.`,
+		);
 	} else {
 		// Interactive mode: prompt per directory group
 		const displayGroups =
@@ -220,6 +218,40 @@ export async function generateIndex(
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/**
+ * Builds one entry per walked file an unfinished task names, tagged to every
+ * chunk that names it (REQ-RUN-1). Files no task names get no entry
+ * (REQ-RUN-4): `chunk_tags` must be non-empty, and the ai-index still reaches
+ * them.
+ *
+ * @param files - Walked files.
+ * @param chunks - The plan's chunks.
+ * @param alwaysInclude - Paths already present as always-include entries.
+ * @returns The tagged entries, in walk order.
+ */
+function tagFromTasks(
+	files: readonly WalkedFile[],
+	chunks: readonly PlanChunk[],
+	alwaysInclude: ReadonlySet<string>,
+): FileIndexEntry[] {
+	const refs = referencedFiles(
+		chunks,
+		files.map((f) => f.relativePath),
+	);
+	const tagged: FileIndexEntry[] = [];
+	for (const file of files) {
+		const chunkTags = refs.get(file.relativePath);
+		if (chunkTags === undefined || alwaysInclude.has(file.relativePath)) continue;
+		tagged.push({
+			filepath: file.relativePath,
+			chunk_tags: chunkTags,
+			purpose: inferPurpose(file.relativePath),
+			token_cost: GitignoreAwareWalker.estimateTokenCost(file),
+		});
+	}
+	return tagged;
+}
 
 /**
  * Infer a short purpose description from a file path.

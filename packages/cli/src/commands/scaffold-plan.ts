@@ -11,7 +11,7 @@
 import * as path from "node:path";
 import { cancel, isCancel, log, text } from "@clack/prompts";
 import type { PlanChunk } from "@dev-session/core";
-import { PlanParser } from "@dev-session/core";
+import { MAX_PROJECT_NAME_CHARS, PlanParser } from "@dev-session/core";
 import type { ValidatedPath } from "@dev-session/security";
 import { AtomicWriter, CliError, PathValidator } from "@dev-session/security";
 import { dryRunWrite } from "../utils/dry-run.js";
@@ -87,7 +87,13 @@ export async function scaffoldPlan(
 		const nameResult = await text({
 			message: "Project name:",
 			initialValue: defaultProjectName ?? path.basename(options.cwd),
-			validate: (v) => (!v || v.trim().length === 0 ? "Project name is required" : undefined),
+			validate: (v) => {
+				if (!v || v.trim().length === 0) return "Project name is required";
+				if (v.length > MAX_PROJECT_NAME_CHARS) {
+					return `Keep it to ${String(MAX_PROJECT_NAME_CHARS)} characters`;
+				}
+				return undefined;
+			},
 		});
 
 		if (isCancel(nameResult)) {

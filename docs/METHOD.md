@@ -135,6 +135,7 @@ LLD, `n` counts from 1 within that area.
 | `PROV` | Provenance of text lifted from repository files | `LLD-context-provenance.md` |
 | `EVAL` | The eval harness's own correctness and its corpus | `LLD-eval-harness.md` |
 | `UNIT` | Code units — extraction, focused loading, the context manifest | `LLD-code-units.md` |
+| `RUN` | First run — init tagging, import of `CLAUDE.md`, prompt freshness | `LLD-first-run.md` |
 
 Add a row when you add an area. Ids are global once written down: they appear in
 test names, in code comments above the block that satisfies them, and in commit

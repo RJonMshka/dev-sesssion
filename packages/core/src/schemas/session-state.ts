@@ -7,6 +7,9 @@ import {
 } from "./next-prompt.js";
 import { TaskSchema } from "./task.js";
 
+/** Longest `project_name` accepted — npm's limit for a package name. */
+export const MAX_PROJECT_NAME_CHARS = 214;
+
 /**
  * Zod schema for SESSION_STATE.md frontmatter.
  *
@@ -46,6 +49,17 @@ export const SessionStateSchema = z
 			.min(MIN_CONFIGURABLE_PROMPT_LINES)
 			.max(MAX_CONFIGURABLE_PROMPT_LINES)
 			.default(MAX_PROMPT_LINES),
+		/**
+		 * Project name shown in the prompt, when it differs from the one detected
+		 * from `package.json` or the directory (LLD-first-run.md, REQ-RUN-21).
+		 * Omitted otherwise, so a later rename in `package.json` is still picked up.
+		 */
+		project_name: z
+			.string()
+			.min(1)
+			.max(MAX_PROJECT_NAME_CHARS)
+			.regex(/^[^\r\n]*$/, "project_name must be a single line")
+			.optional(),
 	})
 	.strict();
 

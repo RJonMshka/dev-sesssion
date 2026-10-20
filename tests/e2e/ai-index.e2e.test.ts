@@ -115,7 +115,9 @@ describe("dev-sesssion index --dry-run", () => {
 	it("writes nothing to disk", async () => {
 		const projectDir = await initFixture();
 
+		// init builds an ai-index (REQ-RUN-10); remove it to see whether index writes one.
 		const indexPath = path.join(projectDir, ".session", "ai-index.yaml");
+		fs.rmSync(indexPath);
 
 		const result = await runCli(["index", "--dry-run", "--cwd", projectDir]);
 
@@ -170,7 +172,8 @@ describe("dev-sesssion index stats", () => {
 
 	it("exits with non-zero code if no index exists", async () => {
 		const projectDir = await initFixture();
-		// Don't run index first
+		// init builds an ai-index (REQ-RUN-10); remove it to get a session without one.
+		fs.rmSync(path.join(projectDir, ".session", "ai-index.yaml"));
 
 		const result = await runCli(["index", "stats", "--cwd", projectDir]);
 		expect(result.exitCode).not.toBe(0);

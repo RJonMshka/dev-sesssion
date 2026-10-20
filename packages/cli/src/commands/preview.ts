@@ -19,24 +19,15 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { log } from "@clack/prompts";
 import {
-	AiIndexManager,
-	type BootstrapContext,
-	ContextBudgetCalculator,
 	DEFAULT_CONTEXT_BUDGET,
-	FileIndexManager,
-	LayerResolver,
-	NextPromptWriter,
-	PlanChunkManager,
+	PromptAssembler,
 	type ResolvedFileLayer,
-	SessionStateManager,
 	TokenCounter,
-	TrimOverridesManager,
 } from "@dev-session/core";
 import { CliError, PathValidator, type ValidatedPath } from "@dev-session/security";
 import type { Command } from "commander";
-import { createAdapterReadFile } from "../utils/adapter-io.js";
 import { handleError } from "../utils/error-handler.js";
-import { resolveAdapter } from "../utils/resolve-adapter.js";
+import { loadAssembleInput } from "./regenerate-prompt.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -107,31 +98,6 @@ export interface PreviewJson {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-/**
- * Detect project name from package.json.
- *
- * @param cwd - Working directory
- * @returns Project name or directory basename
- */
-function detectProjectName(cwd: string): string {
-	try {
-		const pkgPath = path.join(cwd, "package.json");
-		const raw = fs.readFileSync(pkgPath, "utf-8");
-		const pkg: unknown = JSON.parse(raw);
-		if (
-			typeof pkg === "object" &&
-			pkg !== null &&
-			"name" in pkg &&
-			typeof (pkg as Record<string, unknown>).name === "string"
-		) {
-			return (pkg as Record<string, unknown>).name as string;
-		}
-	} catch {
-		// No package.json or invalid JSON
-	}
-	return path.basename(cwd);
-}
 
 /**
  * Reads a file's content for token counting.
@@ -220,59 +186,28 @@ export function renderBreakdownTable(
 export async function runPreview(options: PreviewOptions): Promise<void> {
 	const sessionDir = resolveSessionDir(options.cwd);
 
-	const state = SessionStateManager.load(sessionDir);
-	const chunk = PlanChunkManager.loadActive(sessionDir, state);
-	const allEntries = FileIndexManager.load(sessionDir);
-	const alwaysInclude = FileIndexManager.alwaysInclude(allEntries);
-	let chunkFiles = FileIndexManager.queryByChunk(allEntries, state.active_chunk);
+	// The same input and assembly every command writes the prompt from, so
+	// preview shows exactly what they write (REQ-RUN-19), trim exclusions
+	// included (REQ-RUN-20).
+	const input = loadAssembleInput(sessionDir, options);
+	const { state } = input;
+	const excludedPaths = input.excluded ?? [];
+	const { prompt: promptText, plan } = PromptAssembler.assemble(input);
+	const aiIndex = input.index;
 
-	const trimOverrides = TrimOverridesManager.load(sessionDir);
-	const excludedPaths = TrimOverridesManager.getExcludedPaths(trimOverrides);
-	if (excludedPaths.length > 0) {
-		chunkFiles = chunkFiles.filter(
-			(f) => !TrimOverridesManager.isExcluded(trimOverrides, f.filepath),
-		);
-	}
-
-	const allChunks = PlanChunkManager.loadAll(sessionDir);
-	const excludePatterns = [
-		"**/__tests__/**",
-		"**/dist/**",
-		"**/node_modules/**",
-		...allChunks
-			.filter((c) => c.chunk_id !== state.active_chunk)
-			.map((c) => `.session/PLAN_${String(c.chunk_id)}.md`),
-		...excludedPaths,
-	];
-
-	// Count tokens per component
+	// Count tokens per component, from the raw files: the breakdown describes
+	// what is on disk, not the budget's estimate.
 	const counter = TokenCounter.create();
 	const sessionStatePath = path.join(sessionDir, "SESSION_STATE.md");
 	const planChunkPath = path.join(sessionDir, `PLAN_${String(state.active_chunk)}.md`);
-
-	const sessionStateContent = safeReadFile(sessionStatePath);
-	const planChunkContent = safeReadFile(planChunkPath);
-
-	const sessionStateTokens = (await counter.countString(sessionStateContent)).tokens;
-	const planChunkTokens = (await counter.countString(planChunkContent)).tokens;
-
-	// Resolve the effective layer for every bootstrap file. Files default to
-	// layer 0 (chunk) / layer 1 (always-include) and escalate to full source
-	// (layer 2) when an active task references them. Layered costs require an
-	// ai-index; without one every file is charged at its whole-file cost.
-	const aiIndex = AiIndexManager.load(sessionDir);
-	const plan = LayerResolver.plan({
-		chunkFiles,
-		alwaysIncludeFiles: alwaysInclude,
-		tasks: chunk.tasks,
-		index: aiIndex,
-	});
-	const resolved = plan.layers;
+	const sessionStateTokens = (await counter.countString(safeReadFile(sessionStatePath))).tokens;
+	const planChunkTokens = (await counter.countString(safeReadFile(planChunkPath))).tokens;
 
 	// Read each file once to derive its whole-file ("full") cost, then charge
-	// the effective layered cost from the resolver.
+	// the effective layered cost the resolver chose. Without an ai-index every
+	// file is charged at its whole-file cost.
 	const allCosts = await Promise.all(
-		resolved.map(async (r): Promise<FileTokenInfo & { role: ResolvedFileLayer["role"] }> => {
+		plan.layers.map(async (r): Promise<FileTokenInfo & { role: ResolvedFileLayer["role"] }> => {
 			const content = safeReadFile(path.join(options.cwd, r.filepath));
 			const fullTokens = (await counter.countString(content)).tokens;
 			const hasLayer = aiIndex !== null;
@@ -302,45 +237,6 @@ export async function runPreview(options: PreviewOptions): Promise<void> {
 	const budgetCap = DEFAULT_CONTEXT_BUDGET;
 	const overBudget = totalTokens > budgetCap;
 	const accurate = false; // heuristic only
-
-	// Build bootstrap context for prompt generation (layered cost).
-	const budget = ContextBudgetCalculator.estimateLayered(
-		state,
-		chunk,
-		resolved,
-		undefined,
-		plan.focus,
-	);
-	const projectName = detectProjectName(options.cwd);
-
-	const {
-		adapter,
-		tool: _detectedTool,
-		source: _source,
-	} = resolveAdapter(options.cwd, options.adapter);
-
-	let transformedState = state;
-	if (adapter.transformState) {
-		const readFile = createAdapterReadFile(options.cwd);
-		transformedState = adapter.transformState(state, {
-			projectRoot: options.cwd,
-			sessionDir,
-			readFile,
-		});
-	}
-
-	const bootstrapContext: BootstrapContext = {
-		state: transformedState,
-		chunk,
-		chunkFiles,
-		alwaysIncludeFiles: alwaysInclude,
-		budget,
-		excludePatterns,
-		projectName,
-		...(aiIndex !== null ? { resolvedLayers: resolved, focusUnits: plan.focus } : {}),
-	};
-
-	const promptText = NextPromptWriter.generateWithFormatter(adapter.formatter, bootstrapContext);
 
 	const breakdown: TokenBreakdownEntry[] = [
 		{

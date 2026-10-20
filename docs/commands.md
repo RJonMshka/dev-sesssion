@@ -26,15 +26,22 @@ dev-sesssion init [options]
 | Flag | Description |
 |---|---|
 | `--team` | Enable team mode (auto-patches `.gitignore` + `.gitattributes`) |
-| `--max-files <n>` | Cap the number of files indexed (useful for large repos) |
+| `--max-files <n>` | Cap the number of files indexed, in `FILE_INDEX.md` and the ai-index (useful for large repos) |
 
 **What it does:**
 
 1. Detects existing `PLAN.md`, `CLAUDE.md`, `AGENTS.md`, `.cursor/`, `.windsurfrules`
 2. Splits an existing plan or scaffolds a new one interactively
-3. Walks the codebase to generate `FILE_INDEX.md`
-4. Writes `SESSION_STATE.md`, `ROUTINES.md`, `NEXT_PROMPT.md`
-5. Optionally patches `.gitignore` (and `.gitattributes` in team mode)
+3. Walks the codebase to generate `FILE_INDEX.md`. With `--yes`, a file is tagged
+   to a chunk only when one of that chunk's unfinished tasks names it — by path
+   (`src/utils.ts`) or by a basename no other file shares (`utils.ts`). Files no
+   task names are left out of `FILE_INDEX.md`; the ai-index still reaches them.
+   Without `--yes`, it asks per directory
+4. Builds `ai-index.yaml`, so the first prompt can focus the units your tasks
+   name. If that fails (for example `--strict` refusing a secret), init warns and
+   carries on without it
+5. Writes `SESSION_STATE.md`, `ROUTINES.md`, `NEXT_PROMPT.md`
+6. Optionally patches `.gitignore` (and `.gitattributes` in team mode)
 
 ---
 
@@ -142,7 +149,12 @@ dev-sesssion prompt | pbcopy
 
 ## dev-sesssion index
 
-Manage the `FILE_INDEX.md`.
+Run on its own, `dev-sesssion index` rebuilds `.session/ai-index.yaml`
+(`--update` merges into the existing index) and then regenerates
+`NEXT_PROMPT.md` and `context-manifest.json` from it, so the prompt focuses
+units added since the last run. `--dry-run` writes none of them.
+
+The subcommands below manage `FILE_INDEX.md`.
 
 ### Add a file
 
@@ -290,13 +302,15 @@ Quoted from CLAUDE.md § "Conventions": "Use tabs, not spaces."
 
 The prompt shows it as quoted text from `CLAUDE.md`, not as your own note, so an agent can tell the two apart. Running the import again adds nothing new. A note left by an older version in the unquoted `CLAUDE.md: <title> — …` form is replaced with the quoted one.
 
+The `<!-- dev-sesssion:start -->` … `<!-- dev-sesssion:end -->` block that `init` writes into `CLAUDE.md` is the tool's own text and is never imported; notes that 2.4.1 and earlier imported from it are removed. When the import changes `SESSION_STATE.md`, `NEXT_PROMPT.md` is regenerated (not under `--dry-run`).
+
 ### Import from Cursor
 
 ```bash
 dev-sesssion import --from cursor
 ```
 
-Reads `.cursor/rules/*.mdc` files and imports any file glob patterns into `FILE_INDEX.md`, tagged to the active chunk.
+Reads `.cursor/rules/*.mdc` files and imports any file glob patterns into `FILE_INDEX.md`, tagged to the active chunk. When that adds files, `NEXT_PROMPT.md` is regenerated.
 
 ---
 
@@ -356,7 +370,7 @@ dev-sesssion preview [--format json] [--no-content] [--copy]
 
 - Token counts per component: `SESSION_STATE`, `PLAN_CHUNK`, always-include files, context files
 - Whether the total is over the configured budget cap
-- The full assembled prompt text (unless `--no-content`)
+- The full assembled prompt text (unless `--no-content`) — the same prompt `update`, `index` and the other commands write to `NEXT_PROMPT.md` for the current `.session/`
 - A warning when token counts are heuristic (not exact)
 
 **JSON output shape:**
@@ -412,7 +426,7 @@ dev-sesssion trim [--budget <n>] [--dry-run] [--yes]
 - **Budget mode** (`--budget N`): Automatically selects the largest files to exclude until the total token count is under `N`. Shows which files would be (or are) excluded.
 - **Interactive mode** (no `--budget`): Presents a multi-select list of all context files so you can choose which to exclude manually.
 
-Exclusions are saved to `.session/trim-overrides.json`. They are applied to every subsequent `preview` and context assembly until cleared.
+Exclusions are saved to `.session/trim-overrides.json`. Every command that writes `NEXT_PROMPT.md` applies them, and so does `preview`: an excluded file is left out of the load lines, out of any `Focus (read_unit):` unit in it, and out of `context-manifest.json`. `trim` regenerates `NEXT_PROMPT.md` itself when one exists (not under `--dry-run`), so the change takes effect immediately.
 
 Run `dev-sesssion advance` to clear all trim overrides and start fresh for the next chunk.
 

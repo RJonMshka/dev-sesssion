@@ -163,6 +163,47 @@ active_chunk: 1
 			expect(SessionStateManager.load(tmpDir as ValidatedPath).max_prompt_lines).toBe(20);
 		});
 
+		it("round-trips a project_name, including quotes and backslashes (REQ-RUN-21)", () => {
+			SessionStateManager.save(tmpDir as ValidatedPath, {
+				active_chunk: 1,
+				session_id: "named",
+				last_updated: "2026-03-29",
+				tasks: [],
+				notes: [],
+				last_worked_files: [],
+				completed_chunks: {},
+				max_prompt_lines: 20,
+				project_name: 'Acme "Rocket" \\ Web',
+			});
+			expect(SessionStateManager.load(tmpDir as ValidatedPath).project_name).toBe(
+				'Acme "Rocket" \\ Web',
+			);
+		});
+
+		it("omits project_name from the file when it is absent (REQ-RUN-21)", () => {
+			SessionStateManager.save(tmpDir as ValidatedPath, {
+				active_chunk: 1,
+				session_id: "unnamed",
+				last_updated: "2026-03-29",
+				tasks: [],
+				notes: [],
+				last_worked_files: [],
+				completed_chunks: {},
+				max_prompt_lines: 20,
+			});
+			const content = fs.readFileSync(path.join(tmpDir, "SESSION_STATE.md"), "utf-8");
+			expect(content).not.toContain("project_name");
+			expect(SessionStateManager.load(tmpDir as ValidatedPath).project_name).toBeUndefined();
+		});
+
+		it("rejects a project_name with a line break (REQ-RUN-21)", () => {
+			writeState(
+				tmpDir,
+				VALID_STATE.replace('session_id: "chunk-3-core"', 'session_id: "x"\nproject_name: "a\\nb"'),
+			);
+			expect(() => SessionStateManager.load(tmpDir as ValidatedPath)).toThrow(ParseError);
+		});
+
 		it("round-trips: save then load returns equivalent state", () => {
 			const original: SessionState = {
 				active_chunk: 5,

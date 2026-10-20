@@ -147,6 +147,9 @@ describe("dev-sesssion trim", () => {
 	});
 
 	it("exits 0 when already within budget", async () => {
+		// init --yes tags only files a task names (REQ-RUN-1); give the chunk one.
+		await runCli(["--yes", "index", "add", "package.json", "--cwd", tmpDir]);
+
 		const result = await runCli([
 			"--dry-run",
 			"--yes",

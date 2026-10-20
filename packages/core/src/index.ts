@@ -47,6 +47,7 @@ export {
 } from "./annotation/index.js";
 // Calculators
 export { ContextBudgetCalculator } from "./calculators/context-budget-calculator.js";
+export { mentionsFile, referencedFiles } from "./calculators/file-reference.js";
 export type {
 	ContextPlan,
 	FileLayerRole,
@@ -113,6 +114,12 @@ export { GitReader } from "./git/git-reader.js";
 // Importers
 export type { MergedNotes } from "./importers/claude-md-notes.js";
 export { ClaudeMdNotes } from "./importers/claude-md-notes.js";
+export type { SplitContent } from "./importers/managed-block.js";
+export {
+	MANAGED_BLOCK_END,
+	MANAGED_BLOCK_START,
+	splitManagedBlock,
+} from "./importers/managed-block.js";
 export type { LintResult } from "./linters/context-linter.js";
 // Linters
 export { ContextLinter } from "./linters/context-linter.js";
@@ -121,6 +128,8 @@ export { ContextManifest } from "./managers/context-manifest.js";
 export { FILE_INDEX_PAGE_SIZE, FileIndexManager } from "./managers/file-index-manager.js";
 export { NextPromptWriter } from "./managers/next-prompt-writer.js";
 export { DONE_LOG_FILENAME, PlanChunkManager } from "./managers/plan-chunk-manager.js";
+export type { AssembledPrompt, AssembleInput } from "./managers/prompt-assembler.js";
+export { PromptAssembler } from "./managers/prompt-assembler.js";
 export { RoutinesWriter } from "./managers/routines-writer.js";
 export type {
 	ActiveChunkInfo,
@@ -204,6 +213,7 @@ export {
 	DetectedTool,
 	FileIndexEntrySchema,
 	MAX_CONFIGURABLE_PROMPT_LINES,
+	MAX_PROJECT_NAME_CHARS,
 	MAX_PROMPT_CHARS,
 	MAX_PROMPT_LINES,
 	ManifestEntrySchema,

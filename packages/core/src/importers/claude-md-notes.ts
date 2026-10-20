@@ -10,6 +10,7 @@
  */
 
 import { formatQuotedNote } from "../formatters/formatter-utils.js";
+import { splitManagedBlock } from "./managed-block.js";
 
 /** The file the notes are attributed to. */
 const SOURCE_FILE = "CLAUDE.md";
@@ -87,6 +88,32 @@ function quotedForm({ title, excerpt }: Section): string {
 }
 
 /**
+ * Notes an earlier import may have written that this one replaces: every
+ * section's pre-quotation form (REQ-PROV-11), and every note reading the file
+ * whole — managed block included — would give, less the notes this import
+ * writes (REQ-RUN-9).
+ *
+ * @param content - The whole `CLAUDE.md` content.
+ * @param sections - The sections of the owner's content alone.
+ * @param current - The quoted notes this import writes.
+ * @returns The notes to remove from an existing list.
+ */
+function staleForms(
+	content: string,
+	sections: readonly Section[],
+	current: ReadonlySet<string>,
+): Set<string> {
+	const whole = extractH2Sections(content);
+	const stale = new Set([
+		...sections.map(unquotedForm),
+		...whole.map(unquotedForm),
+		...whole.map(quotedForm),
+	]);
+	for (const note of current) stale.delete(note);
+	return stale;
+}
+
+/**
  * Builds and merges notes imported from `CLAUDE.md`.
  */
 export const ClaudeMdNotes = {
@@ -97,7 +124,8 @@ export const ClaudeMdNotes = {
 	 * @returns The notes, in section order.
 	 */
 	build(content: string): string[] {
-		return extractH2Sections(content).map(quotedForm);
+		// Only the owner's text becomes notes; the tool's own block does not (REQ-RUN-7, -18).
+		return extractH2Sections(splitManagedBlock(content).user).map(quotedForm);
 	},
 
 	/**
@@ -109,16 +137,22 @@ export const ClaudeMdNotes = {
 	 * including a hand-written note that merely starts with `CLAUDE.md:`, is
 	 * kept. A quoted note already present is not added twice.
 	 *
+	 * A note an import would have written by reading the managed block as
+	 * ordinary content — the block's own section, or the section before it with
+	 * the start marker in its excerpt — is removed too, unless the current
+	 * import writes the same note (REQ-RUN-9).
+	 *
 	 * @param content - The `CLAUDE.md` content.
 	 * @param existing - The notes currently in `SESSION_STATE.md`.
 	 * @returns The merged list, what was added, and how many old notes were removed.
 	 */
 	merge(content: string, existing: readonly string[]): MergedNotes {
-		const sections = extractH2Sections(content);
-		const stale = new Set(sections.map(unquotedForm));
+		const sections = extractH2Sections(splitManagedBlock(content).user);
+		const current = new Set(sections.map(quotedForm));
+		const stale = staleForms(content, sections, current);
 		const kept = existing.filter((note) => !stale.has(note));
 		const present = new Set(kept);
-		const added = [...new Set(sections.map(quotedForm))].filter((note) => !present.has(note));
+		const added = [...current].filter((note) => !present.has(note));
 		return {
 			notes: [...kept, ...added],
 			added,

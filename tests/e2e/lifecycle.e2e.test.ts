@@ -41,7 +41,8 @@ function writePlan(dir: string): void {
 			"## Chunk 1 — Setup",
 			"",
 			"- [ ] Initialize project",
-			"- [ ] Configure tooling",
+			// Names a file, so init --yes tags it to chunk 1 (REQ-RUN-1).
+			"- [ ] Configure tooling in package.json",
 			"",
 			"## Chunk 2 — Core",
 			"",

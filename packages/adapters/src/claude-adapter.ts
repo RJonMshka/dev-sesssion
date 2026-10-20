@@ -18,7 +18,11 @@ import type {
 	SessionState,
 	TransformStateContext,
 } from "@dev-session/core";
-import { DEFAULT_MAX_PROMPT_LINES } from "@dev-session/core";
+import {
+	DEFAULT_MAX_PROMPT_LINES,
+	MANAGED_BLOCK_END,
+	MANAGED_BLOCK_START,
+} from "@dev-session/core";
 import { ClaudeBootstrapFormatter } from "./claude-bootstrap-formatter.js";
 
 // ---------------------------------------------------------------------------
@@ -27,10 +31,6 @@ import { ClaudeBootstrapFormatter } from "./claude-bootstrap-formatter.js";
 
 /** Maximum lines to read from .claude/MEMORY.md. */
 const MAX_MEMORY_LINES = 200;
-
-/** Marker comments that delimit the dev-sesssion section in CLAUDE.md. */
-const SECTION_START = "<!-- dev-sesssion:start -->";
-const SECTION_END = "<!-- dev-sesssion:end -->";
 
 /** Path to Claude Code's memory index file. */
 const MEMORY_PATH = ".claude/MEMORY.md";
@@ -87,15 +87,15 @@ function generateSessionSection(_projectName: string, sessionDir: string): strin
  * @returns The updated CLAUDE.md content.
  */
 function upsertSection(existing: string, sectionContent: string): string {
-	const startIdx = existing.indexOf(SECTION_START);
-	const endIdx = existing.indexOf(SECTION_END);
+	const startIdx = existing.indexOf(MANAGED_BLOCK_START);
+	const endIdx = existing.indexOf(MANAGED_BLOCK_END);
 
-	const wrapped = `${SECTION_START}\n${sectionContent}\n${SECTION_END}`;
+	const wrapped = `${MANAGED_BLOCK_START}\n${sectionContent}\n${MANAGED_BLOCK_END}`;
 
 	if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
 		// Replace existing section
 		const before = existing.slice(0, startIdx);
-		const after = existing.slice(endIdx + SECTION_END.length);
+		const after = existing.slice(endIdx + MANAGED_BLOCK_END.length);
 		return `${before}${wrapped}${after}`;
 	}
 
@@ -238,8 +238,8 @@ export const ClaudeAdapter: Adapter = {
 export {
 	extractMemorySummaries,
 	generateSessionSection,
+	MANAGED_BLOCK_END as SECTION_END,
+	MANAGED_BLOCK_START as SECTION_START,
 	MEMORY_PATH,
-	SECTION_END,
-	SECTION_START,
 	upsertSection,
 };

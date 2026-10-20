@@ -27,6 +27,7 @@ import { CliError, PathValidator, type ValidatedPath } from "@dev-session/securi
 import type { Command } from "commander";
 
 import { handleError } from "../utils/error-handler.js";
+import { refreshExistingPrompt } from "./regenerate-prompt.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -47,6 +48,10 @@ export interface ImportOptions {
 	readonly verbose: boolean;
 	/** Log writes without touching the filesystem. */
 	readonly dryRun: boolean;
+	/** Block on secret detection in the regenerated prompt. */
+	readonly strict: boolean;
+	/** Explicit adapter override (from --adapter), for the regenerated prompt. */
+	readonly adapter?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -135,17 +140,38 @@ async function importFromClaude(sessionDir: ValidatedPath, options: ImportOption
 
 	if (!options.dryRun) {
 		SessionStateManager.save(sessionDir, { ...state, notes: [...merged.notes] });
+		refreshPrompt(sessionDir, options);
 	}
 
 	if (merged.replaced > 0) {
 		log.info(
-			`Replaced ${String(merged.replaced)} unquoted note${merged.replaced === 1 ? "" : "s"} from an earlier import.`,
+			`Removed ${String(merged.replaced)} outdated note${merged.replaced === 1 ? "" : "s"} from an earlier import.`,
 		);
 	}
 	log.success(
 		`Added ${String(merged.added.length)} note${merged.added.length === 1 ? "" : "s"} to SESSION_STATE.md${options.dryRun ? " (dry run)" : ""}.`,
 	);
 	outro("Import from CLAUDE.md complete.");
+}
+
+/**
+ * Regenerates the prompt after an import changed `SESSION_STATE.md` or
+ * `FILE_INDEX.md`, when a prompt exists to keep current (REQ-RUN-14). Callers
+ * skip it under dry-run (REQ-RUN-15).
+ *
+ * @param sessionDir - Validated path to .session/
+ * @param options - CLI options
+ * @throws {CliError} Under `--strict`, if the new prompt contains a secret.
+ */
+function refreshPrompt(sessionDir: ValidatedPath, options: ImportOptions): void {
+	const refreshed = refreshExistingPrompt(sessionDir, {
+		cwd: options.cwd,
+		dryRun: false,
+		verbose: options.verbose,
+		blockOnSecrets: options.strict,
+		...(options.adapter !== undefined ? { adapter: options.adapter } : {}),
+	});
+	if (refreshed) log.info("Regenerated NEXT_PROMPT.md.");
 }
 
 // ---------------------------------------------------------------------------
@@ -216,6 +242,7 @@ async function importFromCursor(sessionDir: ValidatedPath, options: ImportOption
 
 	if (!options.dryRun) {
 		FileIndexManager.save(sessionDir, updatedEntries);
+		refreshPrompt(sessionDir, options);
 	}
 
 	log.success(
@@ -445,6 +472,8 @@ export function registerImportCommand(program: Command): void {
 					yes: boolean;
 					verbose: boolean;
 					dryRun: boolean;
+					strict: boolean;
+					adapter?: string;
 				}>();
 
 				const source = cmdOptions.from;
@@ -461,6 +490,8 @@ export function registerImportCommand(program: Command): void {
 					yes: opts.yes,
 					verbose: opts.verbose,
 					dryRun: opts.dryRun,
+					strict: opts.strict,
+					...(opts.adapter !== undefined ? { adapter: opts.adapter } : {}),
 				};
 
 				await runImport(importOptions);

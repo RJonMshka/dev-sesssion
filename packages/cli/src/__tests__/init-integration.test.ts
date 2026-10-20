@@ -61,7 +61,7 @@ describe("init integration — with PLAN.md (migration path A)", () => {
 ## Phase 1 -- Setup
 
 - [ ] Initialize project
-- [ ] Configure tooling
+- [ ] Configure tooling in package.json
 
 ## Phase 2 -- Core
 
@@ -113,7 +113,10 @@ describe("init integration — with PLAN.md (migration path A)", () => {
 			cwd: tmpDir,
 		});
 
-		expect(indexResult.entries.length).toBeGreaterThan(0);
+		// The one file a task names is tagged (REQ-RUN-1).
+		expect(indexResult.entries.map((e) => [e.filepath, e.chunk_tags])).toEqual([
+			["package.json", [1]],
+		]);
 
 		// Final writes
 		const finalResult = await runFinalWrites(
@@ -194,6 +197,54 @@ describe("init integration — without PLAN.md (migration path B)", () => {
 		expect(fs.existsSync(path.join(sessionPath, "SESSION_STATE.md"))).toBe(true);
 		expect(fs.existsSync(path.join(sessionPath, "ROUTINES.md"))).toBe(true);
 		expect(fs.existsSync(path.join(sessionPath, "NEXT_PROMPT.md"))).toBe(true);
+	});
+});
+
+describe("init integration — project name typed while scaffolding (REQ-RUN-21)", () => {
+	/** Scaffolds with --yes, then runs the final writes with `projectName`. */
+	async function initWithName(projectName: string) {
+		const { scaffoldPlan } = await import("../commands/scaffold-plan.js");
+		const { generateIndex } = await import("../commands/generate-index.js");
+		const { runFinalWrites } = await import("../commands/final-writes.js");
+		const { PathValidator } = await import("@dev-session/security");
+
+		fs.mkdirSync(path.join(tmpDir, ".session"), { recursive: true });
+		const sessionDir = PathValidator.safeResolvePath(".session", tmpDir);
+		const opts = { yes: true, dryRun: false, verbose: false, cwd: tmpDir };
+		const { chunks } = await scaffoldPlan(sessionDir, opts, "test-project");
+		const { entries } = await generateIndex(sessionDir, chunks, opts);
+		await runFinalWrites(sessionDir, chunks, entries, projectName, { ...opts, strict: false });
+		return sessionDir;
+	}
+
+	function read(name: string): string {
+		return fs.readFileSync(path.join(tmpDir, ".session", name), "utf-8");
+	}
+
+	it("records a name that differs from package.json, and later prompts keep it", async () => {
+		const sessionDir = await initWithName("Rocket Shop");
+		const { SessionStateManager } = await import("@dev-session/core");
+
+		expect(SessionStateManager.load(sessionDir).project_name).toBe("Rocket Shop");
+		expect(read("NEXT_PROMPT.md")).toContain("Rocket Shop");
+
+		// What update, index, import and trim do: regenerate from disk alone.
+		const { regeneratePrompt } = await import("../commands/regenerate-prompt.js");
+		fs.rmSync(path.join(tmpDir, ".session", "NEXT_PROMPT.md"));
+		regeneratePrompt(sessionDir, {
+			cwd: tmpDir,
+			dryRun: false,
+			verbose: false,
+			blockOnSecrets: false,
+		});
+		expect(read("NEXT_PROMPT.md")).toContain("Rocket Shop");
+		expect(read("NEXT_PROMPT.md")).not.toContain("test-project");
+	});
+
+	it("records nothing when the name is the detected one", async () => {
+		await initWithName("test-project");
+		expect(read("SESSION_STATE.md")).not.toContain("project_name");
+		expect(read("NEXT_PROMPT.md")).toContain("test-project");
 	});
 });
 

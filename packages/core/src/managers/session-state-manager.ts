@@ -300,6 +300,9 @@ function serializeYaml(state: SessionState): string {
 	if (typeof state.max_prompt_lines === "number" && state.max_prompt_lines !== MAX_PROMPT_LINES) {
 		lines.push(`max_prompt_lines: ${String(state.max_prompt_lines)}`);
 	}
+	if (state.project_name !== undefined) {
+		lines.push(`project_name: ${yamlString(state.project_name)}`);
+	}
 
 	return `${lines.join("\n")}\n`;
 }
