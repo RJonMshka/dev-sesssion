@@ -155,7 +155,7 @@ describe("the first prompt", () => {
 	it("is still written when the ai-index cannot be saved (REQ-RUN-11)", async () => {
 		fs.writeFileSync(
 			path.join(tmpDir, "src", "upload.ts"),
-			"/**\n * Uses key AKIAZ7QW3RT5YU8IO2PA for the bucket.\n */\nexport function upload(): void {}\n",
+			"/**\n * Uses key AKIAIOSFODNN7EXAMPLE for the bucket.\n */\nexport function upload(): void {}\n",
 		);
 
 		const r = await runCli(["init", "--yes", "--strict", "--cwd", tmpDir]);

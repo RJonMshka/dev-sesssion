@@ -1,0 +1,6 @@
+# Fingerprints of accepted gitleaks findings. Each must be a fake credential.
+#
+# 5658c13 planted a made-up AWS-shaped key in the REQ-RUN-11 e2e test, to make
+# WriteGuard refuse ai-index.yaml under --strict. Later commits use AWS's
+# documented example key (AKIAIOSFODNN7EXAMPLE), which gitleaks already allows.
+5658c139f4d94a18161f3f8a7908073e9e95160d:tests/e2e/first-run.e2e.test.ts:aws-access-token:158
