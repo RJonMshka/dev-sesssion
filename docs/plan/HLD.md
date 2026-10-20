@@ -43,8 +43,10 @@ measures (feature 6).
 | 5 | Context provenance | `LLD-context-provenance.md` | Text lifted from repo files reaches the agent indistinguishable from the tool's own instructions |
 | 6 | Eval harness integrity | `LLD-eval-harness.md` | The harness that produces our published numbers has no tests and no CI |
 | 7 | Code units | `LLD-code-units.md` | The smallest thing a prompt can load beyond signatures is a whole file, and nothing records what a prompt loaded |
+| 8 | First run | `LLD-first-run.md` | `init -y` tags every file to chunk 1, `import` quotes the tool's own block back, and the prompt ignores `index` and `import` until `update` runs |
 
-1–4 are independent except that 4 depends on notes decay landing first. 5 and 6
+1–4 are independent except that 4 depends on notes decay landing first. 8 takes over
+the `--yes` half of 3; the interactive half and tagging-on-touch stay with 3. 5 and 6
 are coupled in one direction: 6 supplies the adversarial corpus that locks 5's
 fix, so 5's regression tests live in 6's tier. Neither blocks the others.
 
