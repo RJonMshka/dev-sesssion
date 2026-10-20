@@ -74,6 +74,7 @@ last_worked_files:            # files touched most recently
 completed_chunks:             # map of chunk id -> completion date
   "1": "2026-01-01"
 max_prompt_lines: 20          # optional; NEXT_PROMPT.md line cap (5-50)
+project_name: "Rocket Shop"   # optional; overrides the detected project name
 ---
 
 # Session State
@@ -92,6 +93,7 @@ max_prompt_lines: 20          # optional; NEXT_PROMPT.md line cap (5-50)
 | `last_worked_files[]` | list of string | Repo-relative paths. |
 | `completed_chunks` | map | chunk id → ISO date. |
 | `max_prompt_lines` | number | Optional. `NEXT_PROMPT.md` line cap, 5–50. Defaults to 20; omitted from the file when default. |
+| `project_name` | string | Optional. The project name the prompt shows, 1–214 characters on one line. When absent, a tool uses the `name` in `package.json`, or else the directory name. Written only when it differs from that. |
 
 ### `NEXT_PROMPT.md` (required)
 
@@ -237,7 +239,8 @@ compacted without losing the record.
 
 ### `trim-overrides.json`
 Per-file context exclusions chosen by the user (or auto-selected to fit a
-budget). Cleared on `advance`.
+budget). An excluded file is left out of `NEXT_PROMPT.md`, including any unit
+focused in it, and out of `context-manifest.json`. Cleared on `advance`.
 
 ---
 

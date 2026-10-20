@@ -30,6 +30,7 @@ import {
 import { CliError, PathValidator, type ValidatedPath } from "@dev-session/security";
 import type { Command } from "commander";
 import { handleError } from "../utils/error-handler.js";
+import { refreshExistingPrompt } from "./regenerate-prompt.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -47,6 +48,10 @@ export interface TrimOptions {
 	readonly yes: boolean;
 	/** Show verbose output. */
 	readonly verbose: boolean;
+	/** Block the regenerated prompt if it contains a secret. */
+	readonly strict?: boolean;
+	/** Explicit adapter override (from --adapter). */
+	readonly adapter?: string;
 }
 
 /** File candidate for trimming. */
@@ -216,6 +221,7 @@ export async function runTrim(options: TrimOptions): Promise<TrimResult> {
 			for (const filepath of newExclusions) {
 				TrimOverridesManager.addExclusion(sessionDir, state.session_id, filepath, "auto-trim");
 			}
+			refreshAfterTrim(sessionDir, options);
 			log.success(
 				`Excluded ${String(newExclusions.length)} file(s). Run \`dev-sesssion preview\` to verify.`,
 			);
@@ -284,6 +290,7 @@ export async function runTrim(options: TrimOptions): Promise<TrimResult> {
 	for (const filepath of restored) {
 		TrimOverridesManager.removeExclusion(sessionDir, filepath);
 	}
+	refreshAfterTrim(sessionDir, options);
 
 	if (newExclusions.length > 0) {
 		log.success(`Excluded ${String(newExclusions.length)} file(s) from context.`);
@@ -298,6 +305,25 @@ export async function runTrim(options: TrimOptions): Promise<TrimResult> {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/**
+ * Regenerates the prompt so it reflects the new exclusions, when one exists
+ * (REQ-RUN-22). Only called after a write, so never under dry-run.
+ *
+ * @param sessionDir - Validated path to .session/
+ * @param options - Trim options.
+ * @throws {CliError} Under `--strict`, if the new prompt contains a secret.
+ */
+function refreshAfterTrim(sessionDir: ValidatedPath, options: TrimOptions): void {
+	const refreshed = refreshExistingPrompt(sessionDir, {
+		cwd: options.cwd,
+		dryRun: false,
+		verbose: options.verbose,
+		blockOnSecrets: options.strict === true,
+		...(options.adapter !== undefined ? { adapter: options.adapter } : {}),
+	});
+	if (refreshed) log.info("Regenerated NEXT_PROMPT.md without the excluded files.");
+}
 
 /**
  * Resolve and validate the .session/ directory path.
@@ -339,6 +365,8 @@ export function registerTrimCommand(program: Command): void {
 				yes: boolean;
 				verbose: boolean;
 				dryRun: boolean;
+				strict?: boolean;
+				adapter?: string;
 			}>();
 
 			const budget =
@@ -355,6 +383,8 @@ export function registerTrimCommand(program: Command): void {
 				dryRun: opts.dryRun,
 				yes: opts.yes,
 				verbose: opts.verbose,
+				strict: opts.strict === true,
+				...(opts.adapter !== undefined ? { adapter: opts.adapter } : {}),
 				...(budget !== undefined ? { budget } : {}),
 			};
 

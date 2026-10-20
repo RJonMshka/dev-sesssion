@@ -20,6 +20,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { cancel, isCancel, log, multiselect, spinner, text } from "@clack/prompts";
 import {
+	type AiIndex,
 	AiIndexBuilder,
 	AiIndexManager,
 	type AuditResult,
@@ -32,6 +33,7 @@ import {
 import { CliError, PathValidator, type ValidatedPath } from "@dev-session/security";
 import type { Command } from "commander";
 import { handleError } from "../utils/error-handler.js";
+import { refreshExistingPrompt } from "./regenerate-prompt.js";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -60,6 +62,8 @@ export interface IndexRegenOptions {
 	readonly file?: string;
 	/** Print the existing index entry for a path (no extraction). */
 	readonly show?: string;
+	/** Explicit adapter override (from --adapter), for the regenerated prompt. */
+	readonly adapter?: string;
 }
 
 /** Options for the index add subcommand. */
@@ -120,12 +124,10 @@ export async function runIndex(options: IndexRegenOptions): Promise<void> {
 	const s = spinner();
 	s.start("Scanning TypeScript/JS files…");
 
-	const extractor = new AutoExtractor();
-	let parsedFiles: Awaited<ReturnType<AutoExtractor["extractDirectory"]>>;
-
+	let scanned: AiIndex;
 	try {
-		const rootPath = PathValidator.safeResolvePath(".", options.cwd);
-		parsedFiles = await extractor.extractDirectory(rootPath);
+		// Same builder as init, so the two cannot drift (REQ-RUN-10).
+		scanned = await AiIndexBuilder.fromDirectory(PathValidator.safeResolvePath(".", options.cwd));
 	} catch (cause: unknown) {
 		s.stop("Scan failed.");
 		throw new CliError({
@@ -134,22 +136,11 @@ export async function runIndex(options: IndexRegenOptions): Promise<void> {
 		});
 	}
 
-	s.stop(`Scanned ${String(parsedFiles.length)} files.`);
+	s.stop(`Scanned ${String(Object.keys(scanned.files).length)} files.`);
 
 	const existingIndex = AiIndexManager.load(sessionDir);
-
-	let builtIndex: import("@dev-session/core").AiIndex;
-	const projectRoot = PathValidator.safeResolvePath(".", options.cwd) as string;
-	if (options.update && existingIndex) {
-		// Incremental: build a fresh index for scanned files,
-		// then merge (existing unchanged entries are kept by caller logic).
-		builtIndex = AiIndexBuilder.merge(
-			existingIndex,
-			AiIndexBuilder.build(parsedFiles, projectRoot),
-		);
-	} else {
-		builtIndex = AiIndexBuilder.build(parsedFiles, projectRoot);
-	}
+	const builtIndex =
+		options.update && existingIndex ? AiIndexBuilder.merge(existingIndex, scanned) : scanned;
 
 	const stats = AiIndexManager.stats(builtIndex);
 	const tokenStr = stats.totalTokenCost.toLocaleString();
@@ -162,6 +153,17 @@ export async function runIndex(options: IndexRegenOptions): Promise<void> {
 	}
 
 	AiIndexManager.save(sessionDir, builtIndex, options.strict);
+
+	// Keep the prompt in step with the index it was built from (REQ-RUN-13).
+	const refreshed = refreshExistingPrompt(sessionDir, {
+		cwd: options.cwd,
+		dryRun: false,
+		verbose: options.verbose,
+		blockOnSecrets: options.strict,
+		...(options.adapter !== undefined ? { adapter: options.adapter } : {}),
+		index: builtIndex,
+	});
+	if (refreshed) log.info("Regenerated NEXT_PROMPT.md from the new ai-index.");
 
 	log.success(
 		`Indexed ${String(stats.fileCount)} files, ${String(stats.symbolCount)} public symbols. Estimated context surface: ${tokenStr} tokens`,
@@ -512,10 +514,12 @@ export function registerIndexCommand(program: Command): void {
 				dryRun: boolean;
 				verbose: boolean;
 				strict: boolean;
+				adapter?: string;
 			}>();
 
 			try {
 				await runIndex({
+					...(opts.adapter !== undefined ? { adapter: opts.adapter } : {}),
 					cwd: opts.cwd,
 					dryRun: opts.dryRun ?? false,
 					verbose: opts.verbose ?? false,

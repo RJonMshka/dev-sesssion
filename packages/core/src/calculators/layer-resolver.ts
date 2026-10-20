@@ -21,6 +21,7 @@ import { AiIndexManager } from "../annotation/ai-index-manager.js";
 import type { AiIndex, FileEntry } from "../annotation/types.js";
 import type { FileIndexEntry, Task } from "../schemas/index.js";
 import { ContextBudgetCalculator } from "./context-budget-calculator.js";
+import { mentionsFile } from "./file-reference.js";
 import type { FocusedUnit } from "./unit-focus.js";
 import { UnitFocusResolver } from "./unit-focus.js";
 
@@ -98,25 +99,6 @@ function maxLayer(a: 0 | 1 | 2, b: 0 | 1 | 2): 0 | 1 | 2 {
 }
 
 /**
- * Determines whether a task's text references a file by path or basename.
- *
- * A reference is a plain substring match on either the full relative path or
- * the file's basename (e.g. `"session-manager.ts"`), which is how authors
- * naturally name files in task descriptions.
- *
- * @param taskText - The task description.
- * @param filepath - The relative file path to look for.
- * @returns `true` if the task text mentions the file.
- */
-function taskReferencesFile(taskText: string, filepath: string): boolean {
-	if (taskText.includes(filepath)) {
-		return true;
-	}
-	const basename = filepath.split("/").pop();
-	return basename !== undefined && basename.length > 0 && taskText.includes(basename);
-}
-
-/**
  * Finds the first active (non-done) task that references the given file.
  *
  * A task that focuses a unit inside the file is skipped: it named something
@@ -139,7 +121,8 @@ function findEscalatingTask(
 		if (focus.some((u) => u.task === task.text && u.filepath === filepath)) {
 			continue;
 		}
-		if (taskReferencesFile(task.text, filepath)) {
+		// Same matcher as init's tagging, so both agree on what a task names (REQ-RUN-5).
+		if (mentionsFile(task.text, filepath)) {
 			return task.text;
 		}
 	}

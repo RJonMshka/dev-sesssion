@@ -27,7 +27,7 @@
             "unitTokens": 94,
             "unitFileTokens": 144,
             "unitRatio": 0.6527777777777778,
-            "manifestRatio": 0.4370771312584574
+            "manifestRatio": 0.7422680412371134
           }
         },
         {
@@ -50,7 +50,7 @@
             "unitTokens": 121,
             "unitFileTokens": 141,
             "unitRatio": 0.8581560283687943,
-            "manifestRatio": 0.4553450608930988
+            "manifestRatio": 0.8952879581151832
           }
         },
         {
@@ -71,7 +71,7 @@
             "unitTokens": 15,
             "unitFileTokens": 157,
             "unitRatio": 0.09554140127388536,
-            "manifestRatio": 0.3836265223274696
+            "manifestRatio": 0.3140096618357488
           }
         },
         {
@@ -88,7 +88,7 @@
             "unitTokens": 0,
             "unitFileTokens": 0,
             "unitRatio": null,
-            "manifestRatio": 0.37347767253044656
+            "manifestRatio": 1
           }
         }
       ],
@@ -97,10 +97,10 @@
     },
     {
       "target": "core-src",
-      "files": 56,
-      "units": 610,
-      "exportedUnits": 313,
-      "fidelityChecked": 610,
+      "files": 60,
+      "units": 656,
+      "exportedUnits": 338,
+      "fidelityChecked": 656,
       "fidelityMismatches": [],
       "scenarios": [
         {
@@ -121,7 +121,7 @@
             "unitTokens": 159,
             "unitFileTokens": 2247,
             "unitRatio": 0.07076101468624833,
-            "manifestRatio": 0.0644221242204651
+            "manifestRatio": 0.07076101468624833
           }
         },
         {
@@ -144,9 +144,9 @@
           "missingEvidence": [],
           "reduction": {
             "unitTokens": 478,
-            "unitFileTokens": 6966,
-            "unitRatio": 0.06861900660350273,
-            "manifestRatio": 0.06752083616653391
+            "unitFileTokens": 7835,
+            "unitRatio": 0.06100829610721123,
+            "manifestRatio": 0.06100829610721123
           }
         },
         {
@@ -167,9 +167,9 @@
           "missingEvidence": [],
           "reduction": {
             "unitTokens": 51,
-            "unitFileTokens": 3833,
-            "unitRatio": 0.013305504826506652,
-            "manifestRatio": 0.06337303052085559
+            "unitFileTokens": 4012,
+            "unitRatio": 0.012711864406779662,
+            "manifestRatio": 0.012711864406779662
           }
         },
         {
@@ -186,7 +186,7 @@
             "unitTokens": 0,
             "unitFileTokens": 0,
             "unitRatio": null,
-            "manifestRatio": 0.06287762516270666
+            "manifestRatio": null
           }
         },
         {
@@ -205,9 +205,9 @@
           "missingEvidence": [],
           "reduction": {
             "unitTokens": 77,
-            "unitFileTokens": 2954,
-            "unitRatio": 0.026066350710900472,
-            "manifestRatio": 0.06362559011520603
+            "unitFileTokens": 3312,
+            "unitRatio": 0.0232487922705314,
+            "manifestRatio": 0.0232487922705314
           }
         }
       ],

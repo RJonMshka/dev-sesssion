@@ -10,17 +10,10 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { confirm, isCancel, log } from "@clack/prompts";
-import type { BootstrapContext, FileIndexEntry, PlanChunk, SessionState } from "@dev-session/core";
+import type { AiIndex, FileIndexEntry, PlanChunk, SessionState } from "@dev-session/core";
 import {
-	AiIndexManager,
-	CONTEXT_MANIFEST_FILENAME,
 	ContextBudgetCalculator,
-	ContextManifest,
-	DEFAULT_CONTEXT_BUDGET,
-	FileIndexManager,
-	LayerResolver,
 	MAX_PROMPT_LINES,
-	NextPromptWriter,
 	RoutinesWriter,
 	SessionStateManager,
 } from "@dev-session/core";
@@ -29,6 +22,7 @@ import { AtomicWriter, CliError, PathValidator, SecretScanner } from "@dev-sessi
 import { createAdapterReadFile, createAdapterWriteFile } from "../utils/adapter-io.js";
 import { dryRunGitignorePatch, dryRunWrite } from "../utils/dry-run.js";
 import { resolveAdapter } from "../utils/resolve-adapter.js";
+import { detectProjectName, regeneratePrompt } from "./regenerate-prompt.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -45,6 +39,11 @@ export interface FinalWriteOptions {
 	readonly adapter?: string;
 	/** Team mode — auto-applies .gitignore and .gitattributes patches. */
 	readonly teamMode?: boolean;
+	/**
+	 * The ai-index init built this run (`null` if building it failed). When
+	 * absent, whatever `ai-index.yaml` is on disk is used.
+	 */
+	readonly index?: AiIndex | null;
 }
 
 /** Result from the final writes phase. */
@@ -128,7 +127,7 @@ export async function runFinalWrites(
 	}
 
 	// --- 1. Write SESSION_STATE.md ---
-	const sessionState = buildInitialState(activeChunk);
+	const sessionState = buildInitialState(activeChunk, projectName, options.cwd);
 	const stateContent = serializeSessionState(sessionState);
 
 	secretWarnings += scanContent(stateContent, "SESSION_STATE.md", options.verbose);
@@ -148,46 +147,8 @@ export async function runFinalWrites(
 		filesWritten++;
 	}
 
-	// --- 3. Write NEXT_PROMPT.md ---
-	const chunkFiles = FileIndexManager.queryByChunk(entries, activeChunk.chunk_id);
-	const alwaysIncludeFiles = FileIndexManager.alwaysInclude(entries);
-
-	// Resolve per-file context layers (Chunk 15). Files default to layer 0/1 and
-	// escalate to full source when referenced by an active task. The budget is
-	// charged at the layered cost when an ai-index is available.
-	const aiIndex = AiIndexManager.load(sessionDir);
-	const plan = LayerResolver.plan({
-		chunkFiles,
-		alwaysIncludeFiles,
-		tasks: activeChunk.tasks,
-		index: aiIndex,
-	});
-	const resolvedLayers = plan.layers;
-
-	const budget =
-		aiIndex !== null
-			? ContextBudgetCalculator.estimateLayered(
-					sessionState,
-					activeChunk,
-					resolvedLayers,
-					DEFAULT_CONTEXT_BUDGET,
-					plan.focus,
-				)
-			: ContextBudgetCalculator.estimate(
-					sessionState,
-					activeChunk,
-					chunkFiles,
-					alwaysIncludeFiles,
-					DEFAULT_CONTEXT_BUDGET,
-				);
-
-	const excludePatterns = buildExcludePatterns(activeChunk.chunk_id, chunks);
-
-	const { adapter, tool: detectedTool, source } = resolveAdapter(options.cwd, options.adapter);
-
-	if (options.verbose) {
-		log.info(`Using ${adapter.config.display_name} adapter (${source}: ${detectedTool})`);
-	}
+	// --- 3. Resolve the adapter ---
+	const { adapter, tool: detectedTool } = resolveAdapter(options.cwd, options.adapter);
 
 	// --- 3a. Run adapter setup (generates tool-specific files like CLAUDE.md) ---
 	if (!options.dryRun && adapter.setup) {
@@ -214,40 +175,21 @@ export async function runFinalWrites(
 		}
 	}
 
-	const bootstrapContext: BootstrapContext = {
+	// --- 3b. Write NEXT_PROMPT.md + manifest, from the ai-index init just built (REQ-RUN-10) ---
+	const { budget, secretWarnings: promptWarnings } = regeneratePrompt(sessionDir, {
+		cwd: options.cwd,
+		dryRun: options.dryRun,
+		verbose: options.verbose,
+		blockOnSecrets: false,
+		...(options.adapter !== undefined ? { adapter: options.adapter } : {}),
 		state: sessionState,
 		chunk: activeChunk,
-		chunkFiles,
-		alwaysIncludeFiles,
-		budget,
-		excludePatterns,
-		projectName,
-		maxPromptLines: sessionState.max_prompt_lines,
-		...(aiIndex !== null ? { resolvedLayers, focusUnits: plan.focus } : {}),
-	};
-
-	const promptContent = NextPromptWriter.generateWithFormatter(adapter.formatter, bootstrapContext);
-
-	secretWarnings += scanContent(promptContent, "NEXT_PROMPT.md", options.verbose);
-
-	const manifest = ContextManifest.build({
-		plan,
-		index: aiIndex,
-		prompt: promptContent,
-		activeChunk: activeChunk.chunk_id,
+		allChunks: chunks,
+		entries,
+		...(options.index !== undefined ? { index: options.index } : {}),
 	});
-	if (options.dryRun) {
-		dryRunWrite(path.join(sessionDir, "NEXT_PROMPT.md"), promptContent, options.cwd);
-		dryRunWrite(
-			path.join(sessionDir, CONTEXT_MANIFEST_FILENAME),
-			ContextManifest.serialize(manifest),
-			options.cwd,
-		);
-	} else {
-		NextPromptWriter.write(sessionDir, promptContent, sessionState.max_prompt_lines);
-		ContextManifest.write(sessionDir, manifest);
-		filesWritten += 2;
-	}
+	secretWarnings += promptWarnings;
+	if (!options.dryRun) filesWritten += 2;
 
 	// --- 4. Offer to patch .gitignore ---
 	const gitignorePatched = await patchGitignore(options);
@@ -256,7 +198,7 @@ export async function runFinalWrites(
 	const gitattributesPatched = options.teamMode === true ? patchGitattributes(options) : false;
 
 	if (!options.dryRun) {
-		log.info(`Context budget: ${ContextBudgetCalculator.formatSummary(budget)}`);
+		log.info(ContextBudgetCalculator.formatSummary(budget)); // carries its own label (REQ-RUN-17)
 	}
 
 	return {
@@ -274,10 +216,17 @@ export async function runFinalWrites(
 /**
  * Build the initial session state for chunk 1.
  *
+ * The project name is recorded only when it differs from the detected one —
+ * that is, when it was typed while scaffolding — so every later command shows
+ * the same name (REQ-RUN-21).
+ *
  * @param activeChunk - The first plan chunk.
+ * @param projectName - The project name init settled on.
+ * @param cwd - Project root, for detecting the default name.
  * @returns A fresh SessionState.
  */
-function buildInitialState(activeChunk: PlanChunk): SessionState {
+function buildInitialState(activeChunk: PlanChunk, projectName: string, cwd: string): SessionState {
+	const typedName = projectName.trim();
 	const sessionId = generateSessionId();
 	const nowDate = new Date().toISOString().slice(0, 10);
 	const nowIso = new Date().toISOString();
@@ -295,6 +244,9 @@ function buildInitialState(activeChunk: PlanChunk): SessionState {
 		max_prompt_lines: MAX_PROMPT_LINES,
 		notes: [`Session initialized on ${nowDate}`],
 		completed_chunks: {},
+		...(typedName.length > 0 && typedName !== detectProjectName(cwd)
+			? { project_name: typedName }
+			: {}),
 	};
 }
 
@@ -351,31 +303,6 @@ function serializeSessionState(state: SessionState): string {
 	}
 
 	return lines.join("\n");
-}
-
-/**
- * Build exclude patterns for NEXT_PROMPT.
- *
- * Excludes test files, dist, and other chunk files.
- *
- * @param activeChunkId - The currently active chunk ID.
- * @param chunks - All available chunks.
- * @returns Array of exclude pattern strings.
- */
-function buildExcludePatterns(
-	activeChunkId: number,
-	chunks: readonly PlanChunk[],
-): readonly string[] {
-	const patterns: string[] = ["**/__tests__/**", "**/dist/**", "**/node_modules/**"];
-
-	// Exclude other chunk plan files
-	for (const chunk of chunks) {
-		if (chunk.chunk_id !== activeChunkId) {
-			patterns.push(`.session/PLAN_${chunk.chunk_id}.md`);
-		}
-	}
-
-	return patterns;
 }
 
 /**

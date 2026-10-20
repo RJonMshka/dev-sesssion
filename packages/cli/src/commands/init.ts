@@ -23,10 +23,10 @@ import {
 	select,
 	spinner,
 } from "@clack/prompts";
-import type { PlanChunk } from "@dev-session/core";
-import { ProjectDetector } from "@dev-session/core";
+import type { AiIndex, PlanChunk } from "@dev-session/core";
+import { AiIndexBuilder, AiIndexManager, ProjectDetector } from "@dev-session/core";
 import type { ValidatedPath } from "@dev-session/security";
-import { CliError, PathValidator } from "@dev-session/security";
+import { CliError, ParseError, PathValidator, SecurityError } from "@dev-session/security";
 import type { Command } from "commander";
 import { dryRunMkdir } from "../utils/dry-run.js";
 import { handleError } from "../utils/error-handler.js";
@@ -182,10 +182,14 @@ export async function runInit(options: InitOptions): Promise<void> {
 	};
 	const indexResult = await generateIndex(sessionDir, chunks, generateOpts);
 
+	// Phase 4b: ai-index, so the first prompt can focus units (REQ-RUN-10)
+	const aiIndex = await buildInitIndex(sessionDir, options);
+
 	// Phase 5: Final writes (SESSION_STATE, ROUTINES, NEXT_PROMPT, .gitignore)
 	await runFinalWrites(sessionDir, chunks, indexResult.entries, projectName, {
 		...options,
 		teamMode,
+		index: aiIndex,
 	});
 
 	// Summary
@@ -205,6 +209,60 @@ export async function runInit(options: InitOptions): Promise<void> {
 			`Init complete. ${chunks.length} chunk${chunks.length === 1 ? "" : "s"}, ${indexResult.fileCount} indexed file${indexResult.fileCount === 1 ? "" : "s"}.`,
 		);
 	}
+}
+
+/**
+ * Build and save the ai-index during init.
+ *
+ * A failure — extraction, or `WriteGuard` refusing the save under `--strict` —
+ * is a warning, not an error: init still writes a prompt, without an ai-index
+ * (REQ-RUN-11). `--max-files` caps extraction as it caps FILE_INDEX (REQ-RUN-12).
+ *
+ * @param sessionDir - Validated path to `.session/`.
+ * @param options - CLI options.
+ * @returns The index, or `null` if it could not be built or saved.
+ */
+async function buildInitIndex(
+	sessionDir: ValidatedPath,
+	options: InitOptions,
+): Promise<AiIndex | null> {
+	const s = spinner();
+	s.start("Building ai-index...");
+	try {
+		const root = PathValidator.safeResolvePath(".", options.cwd);
+		const index = await AiIndexBuilder.fromDirectory(
+			root,
+			options.maxFiles !== undefined ? { maxFiles: options.maxFiles } : undefined,
+		);
+		const { fileCount } = AiIndexManager.stats(index);
+		if (options.dryRun) {
+			s.stop(`[dry-run] Would write ai-index.yaml: ${String(fileCount)} files.`);
+		} else {
+			AiIndexManager.save(sessionDir, index, options.strict);
+			s.stop(`Built ai-index: ${String(fileCount)} file${fileCount === 1 ? "" : "s"}.`);
+		}
+		return index;
+	} catch (cause: unknown) {
+		s.stop("ai-index not written.");
+		log.warn(
+			`Could not build ai-index (${safeReason(cause)}). The first prompt is written without it; run \`dev-sesssion index\` once the cause is fixed.`,
+		);
+		return null;
+	}
+}
+
+/**
+ * A failure's message, when it is safe to show. Only the repo's own error
+ * types promise messages free of absolute paths; anything else, such as a raw
+ * fs error, gets a generic reason.
+ *
+ * @param cause - The caught value.
+ * @returns A message fit for the terminal.
+ */
+function safeReason(cause: unknown): string {
+	const ours =
+		cause instanceof SecurityError || cause instanceof ParseError || cause instanceof CliError;
+	return ours ? cause.message : "extraction failed";
 }
 
 /**

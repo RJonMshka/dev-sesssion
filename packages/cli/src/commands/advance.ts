@@ -15,18 +15,11 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { cancel, confirm, isCancel, log } from "@clack/prompts";
 import {
-	AiIndexManager,
-	type BootstrapContext,
 	CONTEXT_LOG_FILENAME,
-	CONTEXT_MANIFEST_FILENAME,
 	ContextBudgetCalculator,
 	type ContextLogEntry,
-	ContextManifest,
 	DONE_LOG_FILENAME,
 	FileIndexManager,
-	LayerResolver,
-	NextPromptWriter,
-	type PlanChunk,
 	PlanChunkManager,
 	SessionMemoryManager,
 	SessionStateManager,
@@ -35,10 +28,9 @@ import {
 } from "@dev-session/core";
 import { CliError, PathValidator, type ValidatedPath } from "@dev-session/security";
 import type { Command } from "commander";
-import { createAdapterReadFile } from "../utils/adapter-io.js";
-import { dryRunSkipWrite, dryRunWrite } from "../utils/dry-run.js";
+import { dryRunSkipWrite } from "../utils/dry-run.js";
 import { handleError } from "../utils/error-handler.js";
-import { resolveAdapter } from "../utils/resolve-adapter.js";
+import { regeneratePrompt } from "./regenerate-prompt.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -190,84 +182,8 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 		SessionStateManager.save(sessionDir, state);
 	}
 
-	// Step 6: Load the new chunk and regenerate NEXT_PROMPT.md
-	const newChunk = PlanChunkManager.loadActive(sessionDir, state);
-	const alwaysInclude = FileIndexManager.alwaysInclude(allEntries);
-	const chunkFiles = FileIndexManager.queryByChunk(allEntries, state.active_chunk);
-
-	// Resolve per-file context layers (Chunk 15); charge layered budget when an
-	// ai-index is present.
-	const aiIndex = AiIndexManager.load(sessionDir);
-	const plan = LayerResolver.plan({
-		chunkFiles,
-		alwaysIncludeFiles: alwaysInclude,
-		tasks: newChunk.tasks,
-		index: aiIndex,
-	});
-	const resolvedLayers = plan.layers;
-
-	const budget =
-		aiIndex !== null
-			? ContextBudgetCalculator.estimateLayered(
-					state,
-					newChunk,
-					resolvedLayers,
-					undefined,
-					plan.focus,
-				)
-			: ContextBudgetCalculator.estimate(state, newChunk, chunkFiles, alwaysInclude);
-
-	const excludePatterns = buildExcludePatterns(state.active_chunk, allChunks);
-	const projectName = detectProjectName(options.cwd);
-
-	const { adapter, tool: detectedTool, source } = resolveAdapter(options.cwd, options.adapter);
-
-	if (options.verbose) {
-		log.info(`Using ${adapter.config.display_name} adapter (${source}: ${detectedTool})`);
-	}
-
-	if (adapter.transformState) {
-		const readFile = createAdapterReadFile(options.cwd);
-		state = adapter.transformState(state, {
-			projectRoot: options.cwd,
-			sessionDir,
-			readFile,
-		});
-	}
-
-	const bootstrapContext: BootstrapContext = {
-		state,
-		chunk: newChunk,
-		chunkFiles,
-		alwaysIncludeFiles: alwaysInclude,
-		budget,
-		excludePatterns,
-		projectName,
-		maxPromptLines: state.max_prompt_lines,
-		...(aiIndex !== null ? { resolvedLayers, focusUnits: plan.focus } : {}),
-	};
-
-	const promptContent = NextPromptWriter.generateWithFormatter(adapter.formatter, bootstrapContext);
-
-	const manifest = ContextManifest.build({
-		plan,
-		index: aiIndex,
-		prompt: promptContent,
-		activeChunk: state.active_chunk,
-	});
-	if (dryRun) {
-		dryRunWrite(path.join(sessionDir, "NEXT_PROMPT.md"), promptContent, options.cwd);
-		dryRunWrite(
-			path.join(sessionDir, CONTEXT_MANIFEST_FILENAME),
-			ContextManifest.serialize(manifest),
-			options.cwd,
-		);
-	} else {
-		NextPromptWriter.write(sessionDir, promptContent, state.max_prompt_lines);
-		ContextManifest.write(sessionDir, manifest);
-	}
-
-	// Step 7: Clear trim overrides (session-scoped, reset on advance)
+	// Step 6: Clear trim overrides (session-scoped, reset on advance) before the
+	// new prompt is built, so the new chunk starts with none (REQ-RUN-20).
 	if (!dryRun) {
 		TrimOverridesManager.clear(sessionDir);
 	}
@@ -275,6 +191,25 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 	if (options.verbose) {
 		log.info("Cleared trim overrides for new chunk.");
 	}
+
+	// Step 7: Load the new chunk and regenerate NEXT_PROMPT.md
+	const newChunk = PlanChunkManager.loadActive(sessionDir, state);
+	const {
+		budget,
+		chunkFiles,
+		alwaysIncludeFiles: alwaysInclude,
+	} = regeneratePrompt(sessionDir, {
+		cwd: options.cwd,
+		dryRun,
+		verbose: options.verbose,
+		blockOnSecrets: false,
+		...(options.adapter !== undefined ? { adapter: options.adapter } : {}),
+		state,
+		chunk: newChunk,
+		allChunks,
+		entries: allEntries,
+		excluded: [],
+	});
 
 	// Step 7b: Append context log entry for the completed chunk
 	const logEntry: ContextLogEntry = {
@@ -313,53 +248,6 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-/**
- * Detect project name from package.json.
- *
- * @param cwd - Working directory
- * @returns Project name or directory basename
- */
-function detectProjectName(cwd: string): string {
-	try {
-		const pkgPath = path.join(cwd, "package.json");
-		const raw = fs.readFileSync(pkgPath, "utf-8");
-		const pkg: unknown = JSON.parse(raw);
-		if (
-			typeof pkg === "object" &&
-			pkg !== null &&
-			"name" in pkg &&
-			typeof (pkg as Record<string, unknown>).name === "string"
-		) {
-			return (pkg as Record<string, unknown>).name as string;
-		}
-	} catch {
-		// No package.json or invalid JSON
-	}
-	return path.basename(cwd);
-}
-
-/**
- * Build exclude patterns for NEXT_PROMPT generation.
- *
- * @param activeChunkId - The currently active chunk ID
- * @param chunks - All available chunks
- * @returns Array of exclude pattern strings
- */
-function buildExcludePatterns(
-	activeChunkId: number,
-	chunks: readonly PlanChunk[],
-): readonly string[] {
-	const patterns: string[] = ["**/__tests__/**", "**/dist/**", "**/node_modules/**"];
-
-	for (const chunk of chunks) {
-		if (chunk.chunk_id !== activeChunkId) {
-			patterns.push(`.session/PLAN_${String(chunk.chunk_id)}.md`);
-		}
-	}
-
-	return patterns;
-}
 
 /**
  * Resolve and validate the .session/ directory path.

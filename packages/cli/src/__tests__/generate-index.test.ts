@@ -32,13 +32,13 @@ const SAMPLE_CHUNKS: PlanChunk[] = [
 		chunk_id: 1,
 		title: "Foundation",
 		depends_on: [],
-		tasks: [{ text: "Setup", status: "todo" }],
+		tasks: [{ text: "Setup src/index.ts and package.json", status: "todo" }],
 	},
 	{
 		chunk_id: 2,
 		title: "Core",
 		depends_on: [1],
-		tasks: [{ text: "Build", status: "todo" }],
+		tasks: [{ text: "Build app.ts", status: "todo" }],
 	},
 ];
 
@@ -60,7 +60,7 @@ afterEach(() => {
 });
 
 describe("generateIndex", () => {
-	it("generates index with --yes mode", async () => {
+	it("tags each file in --yes mode to the chunk whose task names it (REQ-RUN-1)", async () => {
 		const result = await generateIndex(sessionDir, SAMPLE_CHUNKS, {
 			yes: true,
 			dryRun: false,
@@ -68,14 +68,26 @@ describe("generateIndex", () => {
 			cwd: tmpDir,
 		});
 
-		expect(result.fileCount).toBeGreaterThan(0);
-		expect(result.entries.length).toBeGreaterThan(0);
+		const tags = Object.fromEntries(result.entries.map((e) => [e.filepath, e.chunk_tags]));
+		expect(tags).toEqual({
+			"package.json": [1],
+			"src/app.ts": [2],
+			"src/index.ts": [1],
+		});
+		expect(result.fileCount).toBe(3);
+	});
 
-		// All non-always-include entries should be tagged to chunk 1
-		const chunkEntries = result.entries.filter((e) => !e.chunk_tags.includes(0));
-		for (const entry of chunkEntries) {
-			expect(entry.chunk_tags).toContain(1);
-		}
+	it("leaves out files no task names in --yes mode (REQ-RUN-4)", async () => {
+		fs.writeFileSync(path.join(tmpDir, "src", "unused.ts"), "export {};\n");
+
+		const result = await generateIndex(sessionDir, SAMPLE_CHUNKS, {
+			yes: true,
+			dryRun: false,
+			verbose: false,
+			cwd: tmpDir,
+		});
+
+		expect(result.entries.map((e) => e.filepath)).not.toContain("src/unused.ts");
 	});
 
 	it("writes FILE_INDEX.md in non-dry-run mode", async () => {

@@ -17,29 +17,21 @@ import * as path from "node:path";
 import { promisify } from "node:util";
 import { cancel, isCancel, log, multiselect, text } from "@clack/prompts";
 import {
-	AiIndexManager,
-	type BootstrapContext,
 	CONTEXT_LOG_FILENAME,
-	CONTEXT_MANIFEST_FILENAME,
 	ContextBudgetCalculator,
 	type ContextLogEntry,
-	ContextManifest,
 	FileIndexManager,
-	LayerResolver,
-	NextPromptWriter,
-	type PlanChunk,
 	PlanChunkManager,
 	SessionMemoryManager,
 	SessionStateManager,
 	type Task,
 	TaskStatus,
 } from "@dev-session/core";
-import { CliError, PathValidator, SecretScanner, type ValidatedPath } from "@dev-session/security";
+import { CliError, PathValidator, type ValidatedPath } from "@dev-session/security";
 import type { Command } from "commander";
-import { createAdapterReadFile } from "../utils/adapter-io.js";
-import { dryRunSkipWrite, dryRunWrite } from "../utils/dry-run.js";
+import { dryRunSkipWrite } from "../utils/dry-run.js";
 import { handleError } from "../utils/error-handler.js";
-import { resolveAdapter } from "../utils/resolve-adapter.js";
+import { regeneratePrompt } from "./regenerate-prompt.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -159,89 +151,22 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 		log.info(`Last-worked files updated: ${lastWorkedUpdated ? "yes" : "no"}`);
 	}
 
-	// Step 5: Regenerate NEXT_PROMPT.md
-	const alwaysInclude = FileIndexManager.alwaysInclude(allEntries);
-	const chunkFiles = FileIndexManager.queryByChunk(allEntries, state.active_chunk);
-	const allChunks = PlanChunkManager.loadAll(sessionDir);
-
-	// Resolve per-file context layers (Chunk 15); charge layered budget when an
-	// ai-index is present.
-	const aiIndex = AiIndexManager.load(sessionDir);
-	const plan = LayerResolver.plan({
+	// Steps 5–7: Regenerate, scan and write NEXT_PROMPT.md + manifest
+	const {
+		budget,
 		chunkFiles,
 		alwaysIncludeFiles: alwaysInclude,
-		tasks: chunk.tasks,
-		index: aiIndex,
-	});
-	const resolvedLayers = plan.layers;
-
-	const budget =
-		aiIndex !== null
-			? ContextBudgetCalculator.estimateLayered(state, chunk, resolvedLayers, undefined, plan.focus)
-			: ContextBudgetCalculator.estimate(state, chunk, chunkFiles, alwaysInclude);
-
-	const excludePatterns = buildExcludePatterns(state.active_chunk, allChunks);
-
-	const projectName = detectProjectName(options.cwd);
-
-	const { adapter, tool: detectedTool, source } = resolveAdapter(options.cwd, options.adapter);
-
-	if (options.verbose) {
-		log.info(`Using ${adapter.config.display_name} adapter (${source}: ${detectedTool})`);
-	}
-
-	if (adapter.transformState) {
-		const readFile = createAdapterReadFile(options.cwd);
-		state = adapter.transformState(state, {
-			projectRoot: options.cwd,
-			sessionDir,
-			readFile,
-		});
-	}
-
-	const bootstrapContext: BootstrapContext = {
+		secretWarnings,
+	} = regeneratePrompt(sessionDir, {
+		cwd: options.cwd,
+		dryRun,
+		verbose: options.verbose,
+		blockOnSecrets: options.strict,
+		...(options.adapter !== undefined ? { adapter: options.adapter } : {}),
 		state,
 		chunk,
-		chunkFiles,
-		alwaysIncludeFiles: alwaysInclude,
-		budget,
-		excludePatterns,
-		projectName,
-		maxPromptLines: state.max_prompt_lines,
-		...(aiIndex !== null ? { resolvedLayers, focusUnits: plan.focus } : {}),
-	};
-
-	const promptContent = NextPromptWriter.generateWithFormatter(adapter.formatter, bootstrapContext);
-
-	// Step 6: Secret scan before writing
-	let secretWarnings = 0;
-	secretWarnings += scanContent(promptContent, "NEXT_PROMPT.md", options.verbose);
-
-	if (secretWarnings > 0 && options.strict) {
-		throw new CliError({
-			message: `Secret scan found ${String(secretWarnings)} issue${secretWarnings === 1 ? "" : "s"} — blocking write in strict mode`,
-			suggestion: "Remove secrets from session state or notes, then retry.",
-		});
-	}
-
-	// Step 7: Write regenerated prompt
-	const manifest = ContextManifest.build({
-		plan,
-		index: aiIndex,
-		prompt: promptContent,
-		activeChunk: state.active_chunk,
+		entries: allEntries,
 	});
-	if (dryRun) {
-		dryRunWrite(path.join(sessionDir, "NEXT_PROMPT.md"), promptContent, options.cwd);
-		dryRunWrite(
-			path.join(sessionDir, CONTEXT_MANIFEST_FILENAME),
-			ContextManifest.serialize(manifest),
-			options.cwd,
-		);
-	} else {
-		NextPromptWriter.write(sessionDir, promptContent, state.max_prompt_lines);
-		ContextManifest.write(sessionDir, manifest);
-	}
 
 	log.info(ContextBudgetCalculator.formatSummary(budget));
 
@@ -428,76 +353,6 @@ export async function getGitModifiedFiles(cwd: string): Promise<readonly string[
 		// Not a git repo or git not available — return empty
 		return [];
 	}
-}
-
-/**
- * Detect project name from package.json.
- *
- * @param cwd - Working directory
- * @returns Project name or directory basename
- */
-function detectProjectName(cwd: string): string {
-	try {
-		const pkgPath = path.join(cwd, "package.json");
-		const raw = fs.readFileSync(pkgPath, "utf-8");
-		const pkg: unknown = JSON.parse(raw);
-		if (
-			typeof pkg === "object" &&
-			pkg !== null &&
-			"name" in pkg &&
-			typeof (pkg as Record<string, unknown>).name === "string"
-		) {
-			return (pkg as Record<string, unknown>).name as string;
-		}
-	} catch {
-		// No package.json or invalid JSON
-	}
-	return path.basename(cwd);
-}
-
-/**
- * Build exclude patterns for NEXT_PROMPT generation.
- *
- * @param activeChunkId - The currently active chunk ID
- * @param chunks - All available chunks
- * @returns Array of exclude pattern strings
- */
-function buildExcludePatterns(
-	activeChunkId: number,
-	chunks: readonly PlanChunk[],
-): readonly string[] {
-	const patterns: string[] = ["**/__tests__/**", "**/dist/**", "**/node_modules/**"];
-
-	for (const chunk of chunks) {
-		if (chunk.chunk_id !== activeChunkId) {
-			patterns.push(`.session/PLAN_${String(chunk.chunk_id)}.md`);
-		}
-	}
-
-	return patterns;
-}
-
-/**
- * Scan content for secrets and log warnings.
- *
- * @param content - The content to scan
- * @param filename - The filename (for logging)
- * @param verbose - Whether to log individual findings
- * @returns Number of warnings found
- */
-function scanContent(content: string, filename: string, verbose: boolean): number {
-	const results = SecretScanner.scan(content);
-	if (results.length > 0) {
-		log.warn(
-			`Secret scan found ${String(results.length)} issue${results.length === 1 ? "" : "s"} in ${filename}`,
-		);
-		if (verbose) {
-			for (const r of results) {
-				log.message(`  Line ${String(r.line)}: ${r.pattern} (${r.redacted})`);
-			}
-		}
-	}
-	return results.length;
 }
 
 /**

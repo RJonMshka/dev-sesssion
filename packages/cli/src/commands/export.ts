@@ -19,7 +19,13 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 import { intro, log, outro, spinner } from "@clack/prompts";
-import { type FileIndexEntry, FileIndexManager, SessionStateManager } from "@dev-session/core";
+import {
+	type FileIndexEntry,
+	FileIndexManager,
+	MANAGED_BLOCK_END,
+	MANAGED_BLOCK_START,
+	SessionStateManager,
+} from "@dev-session/core";
 import { AtomicWriter, CliError, PathValidator, type ValidatedPath } from "@dev-session/security";
 import type { Command } from "commander";
 
@@ -28,10 +34,6 @@ import { handleError } from "../utils/error-handler.js";
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-
-/** Marker comments that delimit the dev-sesssion section in CLAUDE.md. */
-const CLAUDE_SECTION_START = "<!-- dev-sesssion:start -->";
-const CLAUDE_SECTION_END = "<!-- dev-sesssion:end -->";
 
 /** Path where the cursor rule is written (relative to project root). */
 const CURSOR_MDC_PATH = ".cursor/rules/dev-sesssion.mdc";
@@ -204,14 +206,14 @@ function buildClaudeSection(
  * @returns Updated CLAUDE.md content
  */
 function upsertClaudeSection(existing: string, sectionContent: string): string {
-	const startIdx = existing.indexOf(CLAUDE_SECTION_START);
-	const endIdx = existing.indexOf(CLAUDE_SECTION_END);
+	const startIdx = existing.indexOf(MANAGED_BLOCK_START);
+	const endIdx = existing.indexOf(MANAGED_BLOCK_END);
 
-	const wrapped = `${CLAUDE_SECTION_START}\n${sectionContent}\n${CLAUDE_SECTION_END}`;
+	const wrapped = `${MANAGED_BLOCK_START}\n${sectionContent}\n${MANAGED_BLOCK_END}`;
 
 	if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
 		const before = existing.slice(0, startIdx);
-		const after = existing.slice(endIdx + CLAUDE_SECTION_END.length);
+		const after = existing.slice(endIdx + MANAGED_BLOCK_END.length);
 		return `${before}${wrapped}${after}`;
 	}
 
