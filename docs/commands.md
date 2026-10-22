@@ -87,16 +87,27 @@ Output includes:
   "last_updated": "2026-04-07",
   "tasks": { "total": 11, "done": 6, "in_progress": 2, "todo": 3, "percent_complete": 55 },
   "files": { "always_include": 2, "indexed": 54, "context": 8 },
-  "budget": { "total_tokens": 3840, "budget_cap": 4000, "over_budget": false, "accurate": false },
+  "budget": {
+    "total_tokens": 3840,
+    "capped_tokens": 2890,
+    "always_include_tokens": 950,
+    "budget_cap": 4000,
+    "over_budget": false,
+    "accurate": false
+  },
   "warnings": [],
   "days_since_last_session": 0
 }
 ```
 
-`budget_cap` is the *bootstrap* budget (default 4,000 estimated tokens) — the
-cost of the generated context, not of the source files the AI loads afterwards.
-`total_tokens` is the figure on the prompt's `Budget:` line; `preview` and
-`health` report the same one. `SESSION_STATE.md` and the plan chunk (brief
+`budget_cap` (default 4,000 estimated tokens) caps what the active chunk brings
+into context: `SESSION_STATE.md`, the plan chunk, and the chunk's files at the
+layer they load. That figure is `capped_tokens`, the number on the prompt's
+`Budget:` line, and `over_budget` compares it with the cap; `preview` and
+`health` judge the same one. Always-include files such as `CLAUDE.md` load in
+every chunk, so no trim or split can reduce them — they are reported as
+`always_include_tokens`, beside the cap rather than against it, and
+`total_tokens` is the two together. `SESSION_STATE.md` and the plan chunk (brief
 included) are counted from the text written for them, and a file without an
 ai-index entry at its measured size.
 A `memory` object with session-log aggregates is included when
@@ -394,6 +405,8 @@ dev-sesssion preview [--format json] [--no-content] [--copy]
 ```json
 {
   "total_tokens": 3210,
+  "capped_tokens": 2260,
+  "always_include_tokens": 950,
   "budget_cap": 4000,
   "over_budget": false,
   "accurate": false,
@@ -414,8 +427,8 @@ dev-sesssion preview [--format json] [--no-content] [--copy]
 character-based heuristic rather than a real tokenizer (the inverse of
 `accurate`). `layered_savings` is the token count saved by layered loading versus
 loading every file in full. `budget_cap` defaults to 4,000 estimated tokens and
-covers the *generated bootstrap context*, not the source files the AI loads
-afterwards.
+is judged against `capped_tokens` — everything but the always-include files,
+which the table shows on their own row and leaves out of the capped line.
 
 Exits non-zero if no `.session/` directory exists.
 

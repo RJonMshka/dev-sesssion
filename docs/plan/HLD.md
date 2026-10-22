@@ -63,6 +63,7 @@ whose plan names each phase's files:
 | 3 — files the plan names (REQ-IDX-12..18) | `a630e4a` | Tag recall 0/47 → 47/47, no wrong tags |
 | 9 (SFC-1..5) | `84e646a` | Indexed files 95 → 111; 66 component units, hash fidelity 66/66 |
 | 10 (BUD-1..5) | `48e4722`, `3e2595f` | One figure everywhere (~4,500, honestly over the 4,000 default) |
+| 10 (BUD-6..8) | `fix(budget): judge the chunk` | Always-include (`CLAUDE.md`, ~1,960) reported beside the cap, not against it: chunks 1–8 `[OK]` at ~950–2,550; chunk 9 still `[OVER]` at ~6,120 for a 17 KB doc |
 | 8 — import notes, `init --chunk` (REQ-RUN-23..31) | `1c73bec`, `b74010f` | Readable notes; start at phase 8 in one command |
 | 11 (PCX-1..7) | `4908221` | Prompt recall 5/11 → 11/11; `PLAN_1.md` holds the goal and all eight steps |
 
@@ -72,8 +73,6 @@ target names files from DevNexus's own plan).
 
 Still open, in rough priority:
 
-- **The 4,000-token default budget.** DevNexus is over it on chunk 1 with an
-  ordinary `CLAUDE.md`. Revisit the default, or what counts against it.
 - **Files a chunk will create.** A phase whose files do not exist yet (DevNexus
   phase 8) loads nothing for them; the brief says what they are.
 - **Feature 3's remaining half** — interactive tagging (up to 30 prompts) and

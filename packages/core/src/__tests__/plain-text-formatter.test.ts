@@ -57,13 +57,18 @@ function makeBudget(overrides?: Partial<ContextBudget>): ContextBudget {
 		alwaysInclude: 100,
 	};
 
-	return {
+	const budget = {
 		totalTokens: 750,
 		breakdown,
 		overBudget: false,
 		budgetCap: 4000,
 		accurate: false,
 		...overrides,
+	};
+	// Derived as the calculator derives it, unless a test sets it (REQ-BUD-6).
+	return {
+		...budget,
+		cappedTokens: overrides?.cappedTokens ?? budget.totalTokens - budget.breakdown.alwaysInclude,
 	};
 }
 

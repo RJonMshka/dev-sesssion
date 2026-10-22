@@ -92,6 +92,7 @@ export {
 	formatChunkProgress,
 	formatCompletedChunksSummary,
 	formatLayeredContextLines,
+	formatOverBudgetMessage,
 	formatPlanLine,
 	formatQuotedNote,
 	formatRefList,

@@ -55,7 +55,7 @@ function makeChunk(overrides: Partial<PlanChunk> = {}): PlanChunk {
 
 /** Build a minimal ContextBudget for testing. */
 function makeBudget(overrides: Partial<ContextBudget> = {}): ContextBudget {
-	return {
+	const budget = {
 		totalTokens: 2000,
 		budgetCap: 4000,
 		overBudget: false,
@@ -67,6 +67,11 @@ function makeBudget(overrides: Partial<ContextBudget> = {}): ContextBudget {
 			files: new Map<string, number>(),
 		},
 		...overrides,
+	};
+	// Derived as the calculator derives it, unless a test sets it (REQ-BUD-6).
+	return {
+		...budget,
+		cappedTokens: overrides.cappedTokens ?? budget.totalTokens - budget.breakdown.alwaysInclude,
 	};
 }
 

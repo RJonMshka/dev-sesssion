@@ -115,3 +115,37 @@ describe("health", () => {
 		expect(out).toContain(`~${String(promptBudget())} /`);
 	});
 });
+
+describe("always-loaded files", () => {
+	it("are reported apart and not judged against the cap (REQ-BUD-8)", async () => {
+		// ~5,000 tokens of instructions: over the cap alone, as no chunk can help.
+		fs.writeFileSync(
+			path.join(tmpDir, "CLAUDE.md"),
+			"# Project\n\nUse tabs. Prefer small functions.\n".repeat(450),
+		);
+		await cli("init", "--yes");
+
+		const prompt = fs.readFileSync(path.join(tmpDir, ".session", "NEXT_PROMPT.md"), "utf-8");
+		expect(prompt).toMatch(/Budget: ~\d+\/4000 tokens \[OK\] \+ ~\d+ always loaded/);
+
+		const status = (
+			JSON.parse(await cli("status", "--json")) as {
+				budget: { total_tokens: number; capped_tokens: number; always_include_tokens: number };
+			}
+		).budget;
+		expect(status.capped_tokens).toBe(promptBudget());
+		expect(status.always_include_tokens).toBeGreaterThan(4000);
+		expect(status.capped_tokens + status.always_include_tokens).toBe(status.total_tokens);
+
+		const preview = JSON.parse(await cli("preview", "--format", "json")) as {
+			total_tokens: number;
+			capped_tokens: number;
+			always_include_tokens: number;
+		};
+		expect(preview.capped_tokens).toBe(promptBudget());
+		expect(preview.capped_tokens + preview.always_include_tokens).toBe(preview.total_tokens);
+
+		const r = await runCli(["health", "--cwd", tmpDir]);
+		expect(r.stdout + r.stderr).not.toContain("BUDGET_EXCEEDED");
+	});
+});

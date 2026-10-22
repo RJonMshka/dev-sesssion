@@ -68,6 +68,10 @@ export interface TokenBreakdownEntry {
 /** Full JSON output for --format json. */
 export interface PreviewJson {
 	readonly total_tokens: number;
+	/** Tokens judged against the cap: all but always-include (REQ-BUD-8). */
+	readonly capped_tokens: number;
+	/** Always-include files' cost, loaded every chunk and not capped. */
+	readonly always_include_tokens: number;
 	readonly budget_cap: number;
 	readonly over_budget: boolean;
 	readonly accurate: boolean;
@@ -116,6 +120,8 @@ function safeReadFile(filePath: string): string {
  * @param budgetCap - Budget cap.
  * @param overBudget - Whether total exceeds cap.
  * @param accurate - Whether counts are accurate (vs heuristic).
+ * @param cappedTokens - Tokens judged against the cap, when always-include
+ *   files are left out of them (REQ-BUD-8); defaults to the total.
  * @returns Multi-line table string.
  */
 export function renderBreakdownTable(
@@ -124,6 +130,7 @@ export function renderBreakdownTable(
 	budgetCap: number,
 	overBudget: boolean,
 	accurate: boolean,
+	cappedTokens: number = totalTokens,
 ): string {
 	const LABEL_WIDTH = 38;
 	const TOKEN_WIDTH = 8;
@@ -162,9 +169,20 @@ export function renderBreakdownTable(
 	}
 
 	lines.push(SEP);
-	lines.push(
-		`${"TOTAL".padEnd(LABEL_WIDTH)} ${(prefix + String(totalTokens)).padStart(TOKEN_WIDTH)}   / ${String(budgetCap)} [${status}]`,
-	);
+	const verdict = `   / ${String(budgetCap)} [${status}]`;
+	if (cappedTokens === totalTokens) {
+		lines.push(
+			`${"TOTAL".padEnd(LABEL_WIDTH)} ${(prefix + String(totalTokens)).padStart(TOKEN_WIDTH)}${verdict}`,
+		);
+	} else {
+		// Always-include files load every chunk; the cap judges the rest.
+		lines.push(
+			`${"TOTAL".padEnd(LABEL_WIDTH)} ${(prefix + String(totalTokens)).padStart(TOKEN_WIDTH)}`,
+		);
+		lines.push(
+			`${"Capped (all but always-include)".padEnd(LABEL_WIDTH)} ${(prefix + String(cappedTokens)).padStart(TOKEN_WIDTH)}${verdict}`,
+		);
+	}
 
 	return lines.join("\n");
 }
@@ -260,6 +278,8 @@ export async function runPreview(options: PreviewOptions): Promise<void> {
 	if (options.format === "json") {
 		const output: PreviewJson = {
 			total_tokens: totalTokens,
+			capped_tokens: budget.cappedTokens,
+			always_include_tokens: alwaysIncludeTotal,
 			budget_cap: budgetCap,
 			over_budget: overBudget,
 			accurate,
@@ -292,7 +312,14 @@ export async function runPreview(options: PreviewOptions): Promise<void> {
 		);
 	}
 
-	const table = renderBreakdownTable(breakdown, totalTokens, budgetCap, overBudget, accurate);
+	const table = renderBreakdownTable(
+		breakdown,
+		totalTokens,
+		budgetCap,
+		overBudget,
+		accurate,
+		budget.cappedTokens,
+	);
 	process.stdout.write(`\n${table}\n`);
 
 	if (aiIndex === null) {

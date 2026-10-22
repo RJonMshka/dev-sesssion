@@ -19,6 +19,7 @@ import {
 	ContextBudgetCalculator,
 	type FileIndexEntry,
 	FileIndexManager,
+	formatOverBudgetMessage,
 	MAX_PROMPT_LINES,
 	NextPromptWriter,
 	type PlanChunk,
@@ -65,6 +66,10 @@ export interface StatusJson {
 	};
 	readonly budget: {
 		readonly total_tokens: number;
+		/** Tokens judged against the cap: all but always-include (REQ-BUD-8). */
+		readonly capped_tokens: number;
+		/** Always-include files' cost, loaded every chunk and not capped. */
+		readonly always_include_tokens: number;
 		readonly budget_cap: number;
 		readonly over_budget: boolean;
 		readonly accurate: boolean;
@@ -116,9 +121,7 @@ export function computeWarnings(
 	}
 
 	if (budget.overBudget) {
-		warnings.push(
-			`Context budget exceeded: ~${String(budget.totalTokens)} / ${String(budget.budgetCap)} tokens — remove large files or split the chunk`,
-		);
+		warnings.push(formatOverBudgetMessage(budget));
 	}
 
 	// Warn if all tasks are done but chunk hasn't been advanced
@@ -250,6 +253,8 @@ export function buildStatusJson(
 		},
 		budget: {
 			total_tokens: budget.totalTokens,
+			capped_tokens: budget.cappedTokens,
+			always_include_tokens: budget.breakdown.alwaysInclude,
 			budget_cap: budget.budgetCap,
 			over_budget: budget.overBudget,
 			accurate: budget.accurate,

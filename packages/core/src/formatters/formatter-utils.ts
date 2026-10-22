@@ -74,14 +74,40 @@ export function formatChunkProgress(chunk: PlanChunk): string {
 }
 
 /**
- * Formats the budget status line.
+ * Formats the budget status line: the tokens judged against the cap, and the
+ * always-loaded cost beside them (LLD-budget.md, REQ-BUD-7).
  *
  * @param budget - The calculated context budget.
- * @returns A compact budget status string like "Budget: ~750/4000 tokens [OK]".
+ * @returns A compact status string like
+ *   "Budget: ~750/4000 tokens [OK] + ~1960 always loaded"; the suffix is
+ *   omitted when always-include files cost nothing.
  */
 export function formatBudgetLine(budget: ContextBudget): string {
 	const status = budget.overBudget ? "OVER" : "OK";
-	return `Budget: ~${String(budget.totalTokens)}/${String(budget.budgetCap)} tokens [${status}]`;
+	return `Budget: ~${String(budget.cappedTokens)}/${String(budget.budgetCap)} tokens [${status}]${alwaysLoadedSuffix(budget, " + ")}`;
+}
+
+/**
+ * Formats the over-budget warning `status` and `health` print — one sentence,
+ * so the two cannot drift (REQ-BUD-8).
+ *
+ * @param budget - An over-budget context budget.
+ * @returns The warning text.
+ */
+export function formatOverBudgetMessage(budget: ContextBudget): string {
+	return `Context budget exceeded: ~${String(budget.cappedTokens)} / ${String(budget.budgetCap)} tokens${alwaysLoadedSuffix(budget, ", plus ")} — remove large files or split the chunk`;
+}
+
+/**
+ * The always-loaded cost as a suffix, or nothing when it is zero.
+ *
+ * @param budget - The context budget.
+ * @param joiner - Text placed before the figure.
+ * @returns E.g. " + ~1960 always loaded", or "".
+ */
+function alwaysLoadedSuffix(budget: ContextBudget, joiner: string): string {
+	const always = budget.breakdown.alwaysInclude;
+	return always > 0 ? `${joiner}~${String(always)} always loaded` : "";
 }
 
 /**

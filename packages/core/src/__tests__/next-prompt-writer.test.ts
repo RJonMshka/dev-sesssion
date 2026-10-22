@@ -235,6 +235,7 @@ describe("NextPromptWriter", () => {
 
 			return {
 				totalTokens: 400,
+				cappedTokens: 350,
 				breakdown,
 				overBudget: false,
 				budgetCap: 4000,

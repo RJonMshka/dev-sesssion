@@ -14,6 +14,7 @@ import * as path from "node:path";
 import type { ValidatedPath } from "@dev-session/security";
 
 import { AiIndexManager } from "../annotation/ai-index-manager.js";
+import { formatOverBudgetMessage } from "../formatters/formatter-utils.js";
 import { FILE_INDEX_PAGE_SIZE, FileIndexManager } from "../managers/file-index-manager.js";
 import { PlanChunkManager } from "../managers/plan-chunk-manager.js";
 import { PromptAssembler } from "../managers/prompt-assembler.js";
@@ -301,12 +302,7 @@ function checkBudget(
 	});
 	if (!budget.overBudget) return [];
 	return [
-		makeIssue(
-			HealthSeverity.WARNING,
-			"BUDGET_EXCEEDED",
-			`Context budget exceeded: ~${String(budget.totalTokens)} / ${String(budget.budgetCap)} tokens — remove large files or split the chunk`,
-			false,
-		),
+		makeIssue(HealthSeverity.WARNING, "BUDGET_EXCEEDED", formatOverBudgetMessage(budget), false),
 	];
 }
 

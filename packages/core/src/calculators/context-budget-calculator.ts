@@ -83,6 +83,28 @@ function buildFileBreakdown(
 }
 
 /**
+ * Judges a budget against its cap. Always-include files are charged in the
+ * total but not against the cap: they load in every chunk, so they cannot make
+ * a chunk too heavy, and no trim or split can earn them back (REQ-BUD-6).
+ *
+ * @param totalTokens - Everything the session loads.
+ * @param breakdown - The per-category costs summing to `totalTokens`.
+ * @param cap - The budget cap.
+ * @returns The budget, with `cappedTokens` and `overBudget` set.
+ */
+function judge(totalTokens: number, breakdown: ContextBudgetBreakdown, cap: number): ContextBudget {
+	const cappedTokens = totalTokens - breakdown.alwaysInclude;
+	return {
+		totalTokens,
+		cappedTokens,
+		breakdown,
+		overBudget: cappedTokens > cap,
+		budgetCap: cap,
+		accurate: false,
+	};
+}
+
+/**
  * Calculates the context budget for a session.
  *
  * Produces a full breakdown of estimated token costs and determines
@@ -136,13 +158,7 @@ export const ContextBudgetCalculator = {
 			alwaysInclude: alwaysIncludeTotal,
 		};
 
-		return {
-			totalTokens,
-			breakdown,
-			overBudget: totalTokens > cap,
-			budgetCap: cap,
-			accurate: false,
-		};
+		return judge(totalTokens, breakdown, cap);
 	},
 
 	/**
@@ -200,13 +216,7 @@ export const ContextBudgetCalculator = {
 			alwaysInclude: alwaysIncludeTotal,
 		};
 
-		return {
-			totalTokens,
-			breakdown,
-			overBudget: totalTokens > cap,
-			budgetCap: cap,
-			accurate: false,
-		};
+		return judge(totalTokens, breakdown, cap);
 	},
 
 	/**
@@ -231,7 +241,7 @@ export const ContextBudgetCalculator = {
 		const status = budget.overBudget ? "OVER BUDGET" : "within budget";
 		const prefix = budget.accurate ? "" : "~";
 		const lines: string[] = [
-			`Context budget: ${prefix}${String(budget.totalTokens)} / ${String(budget.budgetCap)} tokens (${status})`,
+			`Context budget: ${prefix}${String(budget.cappedTokens)} / ${String(budget.budgetCap)} tokens (${status})`,
 		];
 
 		if (!budget.accurate) {
@@ -240,7 +250,9 @@ export const ContextBudgetCalculator = {
 
 		lines.push(`  SESSION_STATE  ${prefix}${String(budget.breakdown.sessionState)} tokens`);
 		lines.push(`  Plan chunk     ${prefix}${String(budget.breakdown.planChunk)} tokens`);
-		lines.push(`  Always-include ${prefix}${String(budget.breakdown.alwaysInclude)} tokens`);
+		lines.push(
+			`  Always-include ${prefix}${String(budget.breakdown.alwaysInclude)} tokens (loaded every chunk, not capped)`,
+		);
 
 		let filesTotal = 0;
 		for (const cost of budget.breakdown.files.values()) {

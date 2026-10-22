@@ -152,7 +152,7 @@ This is a short (≤20 lines by default), self-contained prompt that you paste a
 ```
 Project: my-saas-app
 Active chunk: 3 — Billing integration
-Budget: ~2180/4000 tokens [OK]
+Budget: ~2180/4000 tokens [OK] + ~950 always loaded
 Plan: .session/PLAN_3.md
 Load: CLAUDE.md, src/billing/stripe.ts, src/users/subscription.ts
 Do NOT read: src/auth/**, dist/

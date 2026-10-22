@@ -394,6 +394,7 @@ describe("HealthChecker prompt character cap", () => {
 			alwaysIncludeFiles: [],
 			budget: {
 				totalTokens: 0,
+				cappedTokens: 0,
 				budgetCap: 4000,
 				overBudget: false,
 				breakdown: { sessionState: 0, planChunk: 0, files: new Map(), alwaysInclude: 0 },

@@ -364,6 +364,7 @@ describe("ContextBudgetCalculator", () => {
 
 			const accurateBudget = {
 				totalTokens: 500,
+				cappedTokens: 350,
 				breakdown: {
 					sessionState: 100,
 					planChunk: 100,
@@ -399,5 +400,47 @@ describe("ContextBudgetCalculator — measured components (LLD-budget.md)", () =
 			expect(budget.breakdown.sessionState).toBe(bytes(SessionStateManager.toMarkdown(state)));
 			expect(budget.breakdown.planChunk).toBe(bytes(PlanParser.toMarkdown(chunk)));
 		}
+	});
+});
+
+describe("always-include files and the cap (LLD-budget.md)", () => {
+	// A CLAUDE.md larger than the whole cap, as an ordinary one is on a real
+	// repo: it is loaded every session whatever the chunk, so it cannot make a
+	// chunk too heavy.
+	const bigAlways: FileIndexEntry[] = [
+		{ filepath: "CLAUDE.md", chunk_tags: [0], purpose: "AI instructions", token_cost: 5000 },
+	];
+
+	it("does not count always-include tokens toward the cap (REQ-BUD-6)", () => {
+		const budget = ContextBudgetCalculator.estimate(makeState(), makeChunk(), [], bigAlways);
+
+		expect(budget.totalTokens).toBeGreaterThan(budget.budgetCap);
+		expect(budget.cappedTokens).toBe(budget.totalTokens - budget.breakdown.alwaysInclude);
+		expect(budget.overBudget).toBe(false);
+	});
+
+	it("still counts the same tokens when the chunk carries them (REQ-BUD-6)", () => {
+		const asChunkFile: FileIndexEntry[] = bigAlways.map((e) => ({ ...e, chunk_tags: [4] }));
+		const budget = ContextBudgetCalculator.estimate(makeState(), makeChunk(), asChunkFile, []);
+
+		expect(budget.cappedTokens).toBe(budget.totalTokens);
+		expect(budget.overBudget).toBe(true);
+	});
+
+	it("judges layered budgets the same way (REQ-BUD-6)", () => {
+		const budget = ContextBudgetCalculator.estimateLayered(makeState(), makeChunk(), [
+			{
+				filepath: "CLAUDE.md",
+				role: "always-include",
+				baseLayer: 0,
+				layer: 0,
+				escalated: false,
+				layeredTokenCost: 5000,
+				fullTokenCost: 5000,
+			},
+		]);
+
+		expect(budget.cappedTokens).toBe(budget.totalTokens - 5000);
+		expect(budget.overBudget).toBe(false);
 	});
 });
