@@ -178,6 +178,37 @@ export const PlanChunkManager = {
 	 * @param state - The current session state.
 	 * @returns A new session state with the chunk advanced.
 	 */
+	/**
+	 * Chooses where a new session starts (LLD-first-run.md, REQ-RUN-27, -28, -30).
+	 *
+	 * "Earlier" means a lower id, not an earlier position in the document.
+	 *
+	 * @param chunks - The plan's chunks.
+	 * @param chunkId - The chunk to start at; the lowest-numbered when omitted.
+	 * @returns The active chunk, and the ids of every chunk below it.
+	 * @throws {CliError} If the plan has no chunks, or none with `chunkId`.
+	 */
+	startAt(
+		chunks: readonly PlanChunk[],
+		chunkId?: number,
+	): { readonly active: PlanChunk; readonly completedIds: readonly number[] } {
+		const ordered = [...chunks].sort((a, b) => a.chunk_id - b.chunk_id);
+		const first = ordered[0];
+		if (first === undefined) {
+			throw new CliError({ message: "The plan has no chunks to start at." });
+		}
+		const active = chunkId === undefined ? first : ordered.find((c) => c.chunk_id === chunkId);
+		if (active === undefined) {
+			const ids = ordered.map((c) => String(c.chunk_id)).join(", ");
+			throw new CliError({
+				message: `The plan has no chunk ${String(chunkId)}. Its chunks are: ${ids}.`,
+				suggestion: "Pass one of those ids to --chunk.",
+			});
+		}
+		const completedIds = ordered.filter((c) => c.chunk_id < active.chunk_id).map((c) => c.chunk_id);
+		return { active, completedIds };
+	},
+
 	advance(state: SessionState): SessionState {
 		const today = new Date().toISOString().slice(0, 10);
 		const currentChunkKey = String(state.active_chunk);

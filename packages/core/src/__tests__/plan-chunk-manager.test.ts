@@ -263,3 +263,30 @@ describe("PlanChunkManager — plan-named files (LLD-file-index.md)", () => {
 		expect(loaded !== undefined && "files" in loaded).toBe(false);
 	});
 });
+
+describe("PlanChunkManager.startAt (LLD-first-run.md)", () => {
+	const chunk = (id: number): PlanChunk => ({
+		chunk_id: id,
+		title: `C${String(id)}`,
+		depends_on: [],
+		tasks: [],
+	});
+	// Document order need not be id order; "earlier" means a lower id.
+	const chunks = [chunk(2), chunk(1), chunk(3.5), chunk(9)];
+
+	it("starts at the lowest-numbered chunk by default (REQ-RUN-27)", () => {
+		const start = PlanChunkManager.startAt(chunks);
+		expect(start.active.chunk_id).toBe(1);
+		expect(start.completedIds).toEqual([]);
+	});
+
+	it("starts at the named chunk and completes every lower id (REQ-RUN-27, REQ-RUN-28)", () => {
+		const start = PlanChunkManager.startAt(chunks, 3.5);
+		expect(start.active.chunk_id).toBe(3.5);
+		expect(start.completedIds).toEqual([1, 2]);
+	});
+
+	it("rejects an id the plan does not define, naming the ones it does (REQ-RUN-30)", () => {
+		expect(() => PlanChunkManager.startAt(chunks, 7)).toThrow(/1, 2, 3\.5, 9/);
+	});
+});

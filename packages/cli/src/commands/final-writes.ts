@@ -14,6 +14,7 @@ import type { AiIndex, FileIndexEntry, PlanChunk, SessionState } from "@dev-sess
 import {
 	ContextBudgetCalculator,
 	MAX_PROMPT_LINES,
+	PlanChunkManager,
 	RoutinesWriter,
 	SessionStateManager,
 } from "@dev-session/core";
@@ -44,6 +45,8 @@ export interface FinalWriteOptions {
 	 * absent, whatever `ai-index.yaml` is on disk is used.
 	 */
 	readonly index?: AiIndex | null;
+	/** The chunk to start at; the lowest-numbered when absent (REQ-RUN-27). */
+	readonly startChunk?: number;
 }
 
 /** Result from the final writes phase. */
@@ -118,16 +121,24 @@ export async function runFinalWrites(
 	let filesWritten = 0;
 	let secretWarnings = 0;
 
-	const activeChunk = chunks[0];
-	if (!activeChunk) {
+	if (chunks.length === 0) {
 		throw new CliError({
 			message: "No plan chunks available. Cannot create session state.",
 			suggestion: "Ensure plan splitting or scaffolding produced at least one chunk.",
 		});
 	}
+	const { active: activeChunk, completedIds } = PlanChunkManager.startAt(
+		chunks,
+		options.startChunk,
+	);
 
 	// --- 1. Write SESSION_STATE.md ---
-	const sessionState = buildInitialState(activeChunk, projectName, options.cwd);
+	// Chunks below the starting one are recorded as advance would (REQ-RUN-28).
+	const today = new Date().toISOString().slice(0, 10);
+	const sessionState: SessionState = {
+		...buildInitialState(activeChunk, projectName, options.cwd),
+		completed_chunks: Object.fromEntries(completedIds.map((id) => [String(id), today])),
+	};
 	const stateContent = serializeSessionState(sessionState);
 
 	secretWarnings += scanContent(stateContent, "SESSION_STATE.md", options.verbose);

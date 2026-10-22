@@ -24,7 +24,12 @@ import {
 	spinner,
 } from "@clack/prompts";
 import type { AiIndex, PlanChunk } from "@dev-session/core";
-import { AiIndexBuilder, AiIndexManager, ProjectDetector } from "@dev-session/core";
+import {
+	AiIndexBuilder,
+	AiIndexManager,
+	PlanChunkManager,
+	ProjectDetector,
+} from "@dev-session/core";
 import type { ValidatedPath } from "@dev-session/security";
 import { CliError, ParseError, PathValidator, SecurityError } from "@dev-session/security";
 import type { Command } from "commander";
@@ -60,6 +65,8 @@ export interface InitOptions {
 	 * When undefined, all discovered files are indexed.
 	 */
 	readonly maxFiles?: number;
+	/** The chunk to start at (`--chunk`); asked for interactively when absent (REQ-RUN-27, -31). */
+	readonly chunk?: number;
 }
 
 /**
@@ -172,6 +179,13 @@ export async function runInit(options: InitOptions): Promise<void> {
 		});
 	}
 
+	// Phase 3b: where the session starts. Checked before anything else is
+	// written, so a bad --chunk leaves no SESSION_STATE.md (REQ-RUN-30).
+	const startChunk = options.chunk ?? (await askStartChunk(chunks, options.yes));
+	const { completedIds } = PlanChunkManager.startAt(chunks, startChunk);
+	// Chunks behind the user tag nothing (REQ-RUN-29).
+	const openChunks = chunks.filter((c) => !completedIds.includes(c.chunk_id));
+
 	// Phase 4: FILE_INDEX generation (migration path C)
 	const generateOpts: Parameters<typeof generateIndex>[2] = {
 		yes: options.yes,
@@ -180,7 +194,7 @@ export async function runInit(options: InitOptions): Promise<void> {
 		cwd: options.cwd,
 		...(options.maxFiles !== undefined ? { maxFiles: options.maxFiles } : {}),
 	};
-	const indexResult = await generateIndex(sessionDir, chunks, generateOpts);
+	const indexResult = await generateIndex(sessionDir, openChunks, generateOpts);
 
 	// Phase 4b: ai-index, so the first prompt can focus units (REQ-RUN-10)
 	const aiIndex = await buildInitIndex(sessionDir, options);
@@ -190,6 +204,7 @@ export async function runInit(options: InitOptions): Promise<void> {
 		...options,
 		teamMode,
 		index: aiIndex,
+		...(startChunk !== undefined ? { startChunk } : {}),
 	});
 
 	// Summary
@@ -328,6 +343,35 @@ function ensureSessionDir(options: InitOptions): ValidatedPath {
 }
 
 /**
+ * Asks which chunk to start at, when there is a choice to make (REQ-RUN-31).
+ *
+ * @param chunks - The plan's chunks.
+ * @param yes - Whether prompts are skipped.
+ * @returns The chosen id, or `undefined` for the default (lowest-numbered).
+ * @throws {CliError} If the user cancels.
+ */
+async function askStartChunk(
+	chunks: readonly PlanChunk[],
+	yes: boolean,
+): Promise<number | undefined> {
+	if (yes || chunks.length < 2) return undefined;
+	const ordered = [...chunks].sort((a, b) => a.chunk_id - b.chunk_id);
+	const choice = await select({
+		message: "Which chunk are you starting at? Earlier chunks are recorded as completed.",
+		options: ordered.map((c) => ({
+			value: c.chunk_id,
+			label: `${String(c.chunk_id)}. ${c.title}`,
+		})),
+		initialValue: ordered[0]?.chunk_id,
+	});
+	if (isCancel(choice)) {
+		cancel("Init cancelled.");
+		throw new CliError({ message: "Init cancelled." });
+	}
+	return choice;
+}
+
+/**
  * Register the `init` command on a Commander program.
  *
  * @param program - The root Commander program
@@ -341,7 +385,8 @@ export function registerInitCommand(program: Command): void {
 			"--max-files <n>",
 			"Cap the number of files indexed (useful for large repos)",
 			undefined,
-		);
+		)
+		.option("--chunk <id>", "Start at this chunk; lower-numbered chunks are recorded as completed");
 
 	cmd.action(async () => {
 		const globalOpts = program.opts<{
@@ -353,7 +398,14 @@ export function registerInitCommand(program: Command): void {
 			adapter?: string;
 		}>();
 
-		const cmdOpts = cmd.opts<{ team: boolean; maxFiles?: string }>();
+		const cmdOpts = cmd.opts<{ team: boolean; maxFiles?: string; chunk?: string }>();
+		const chunk = cmdOpts.chunk !== undefined ? Number.parseFloat(cmdOpts.chunk) : undefined;
+		if (chunk !== undefined && Number.isNaN(chunk)) {
+			handleError(
+				new CliError({ message: `--chunk expects a chunk id, got "${cmdOpts.chunk ?? ""}"` }),
+			);
+			return;
+		}
 		const maxFiles =
 			cmdOpts.maxFiles !== undefined ? Number.parseInt(cmdOpts.maxFiles, 10) : undefined;
 
@@ -366,6 +418,7 @@ export function registerInitCommand(program: Command): void {
 			...(globalOpts.adapter !== undefined ? { adapter: globalOpts.adapter } : {}),
 			teamMode: cmdOpts.team,
 			...(maxFiles !== undefined && !Number.isNaN(maxFiles) ? { maxFiles } : {}),
+			...(chunk !== undefined ? { chunk } : {}),
 		};
 
 		try {

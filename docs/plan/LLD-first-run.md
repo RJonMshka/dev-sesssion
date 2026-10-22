@@ -230,6 +230,45 @@ notes, kept the one whose text was identical in both forms, and added 8; the
 three sections that are only a table or a code block (`MFE registry`,
 `Layout`, `Key risks`) now make no note.
 
+### Starting mid-plan (added 2026-10-21)
+
+DevNexus's plan has ten phases and the code for most of the first seven exists,
+but `init` always makes the first chunk active with every task `todo`
+(`final-writes.ts:121`, `chunks[0]`). The only way forward is `advance`,
+once per chunk, force-confirming each one. `init` takes no option that names a
+starting chunk.
+
+Nothing is inferred: a phase whose files exist is not thereby done (DevNexus's
+phase 5 exists and is described as "not fully functional"). The user says
+where they are.
+
+**REQ-RUN-27** — Where `--chunk <id>` is given, `init` shall make the chunk with
+that id active.
+
+**REQ-RUN-28** — When `init` makes a chunk active that is not the
+lowest-numbered, it shall record every chunk with a lower id in
+`completed_chunks`, dated the day of `init`, as `advance` would, and shall leave
+those chunks' task statuses as the plan wrote them.
+
+**REQ-RUN-29** — When `init` records a chunk as completed, the file index
+generator shall tag no files to it.
+
+**REQ-RUN-30** — If `--chunk` names an id the plan does not define, then `init`
+shall exit with an error naming the ids the plan does define, and shall not
+write `SESSION_STATE.md`.
+
+**REQ-RUN-31** — Where `init` runs without `--yes` and the plan has more than
+one chunk, `init` shall ask which chunk to start at, defaulting to the
+lowest-numbered.
+
+**What actually happened.** REQ-RUN-27..30 **failed first** — `startAt` did not
+exist and `init` rejected `--chunk` as an unknown option. REQ-RUN-31 is an
+interactive prompt and has no automated test; e2e runs have no TTY. On
+DevNexus, `init --yes --chunk 8` recorded chunks 1–7 as completed, and
+`health`, `verify` and a dry-run `advance` to chunk 9 all accepted the state.
+The prompt for chunk 8 still names only `CLAUDE.md`: every file phase 8 lists
+is one it is meant to *create*, and nothing tags a file that does not exist yet.
+
 ## Design
 
 ### File references — new `core/src/calculators/file-reference.ts`
