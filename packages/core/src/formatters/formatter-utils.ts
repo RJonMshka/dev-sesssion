@@ -216,6 +216,10 @@ function fitText(text: string, render: (t: string) => string, max: number): stri
 		if (render(cut(mid)).length <= max) lo = mid;
 		else hi = mid - 1;
 	}
+	// End on a word where the last 40% of the kept text has a break, so a note
+	// does not stop at "on a mul…" (REQ-RUN-25). A shorter cut still fits.
+	const space = text.slice(0, lo + 1).search(/\s\S*$/);
+	if (space >= Math.ceil(lo * 0.6)) return `${text.slice(0, space).trimEnd()}${ELLIPSIS}`;
 	return cut(lo);
 }
 

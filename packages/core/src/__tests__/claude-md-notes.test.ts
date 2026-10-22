@@ -151,3 +151,66 @@ describe("ClaudeMdNotes and the managed block", () => {
 		expect(second.notes).toEqual(first.notes);
 	});
 });
+
+/** A CLAUDE.md shaped like DevNexus's: a table, a fenced block, a bullet list. */
+const SHAPED = `# Demo
+
+## Registry
+
+| Route | Framework | Why |
+|-------|-----------|-----|
+| /metrics | Svelte 5 | Compiled reactivity |
+
+## Runtime contract
+
+\`\`\`ts
+shared: { react: { singleton: true } }
+\`\`\`
+
+On route enter the shell loads the remote lifecycle and calls mount; on exit it calls unmount on the same container element.
+
+## Decisions
+
+- **Module Federation runtime, no single-spa.** The runtime covers dynamic mounting, and stacking single-spa creates two routing layers.
+`;
+
+/** What 2.4.2 wrote for SHAPED, captured from a real `import --from claude` run. */
+const CAPTURED_2_4_2_NOTES = [
+	'Quoted from CLAUDE.md § "Registry": "| Route | Framework | Why | |-------|-----------|-----| | /metrics | Svelte 5 | Compiled reactivity |"',
+	'Quoted from CLAUDE.md § "Runtime contract": "```ts shared: { react: { singleton: true } } ``` On route enter the shell loads the remote lifecycle and calls mount; on"',
+	'Quoted from CLAUDE.md § "Decisions": "- **Module Federation runtime, no single-spa.** The runtime covers dynamic mounting, and stacking single-spa creates two"',
+];
+
+describe("ClaudeMdNotes — prose only (LLD-first-run.md)", () => {
+	it("leaves out fences and tables and strips list markers (REQ-RUN-23)", () => {
+		const notes = ClaudeMdNotes.build(SHAPED);
+
+		expect(notes).toEqual([
+			'Quoted from CLAUDE.md § "Runtime contract": "On route enter the shell loads the remote lifecycle and calls mount; on exit it calls unmount on the same container element."',
+			'Quoted from CLAUDE.md § "Decisions": "**Module Federation runtime, no single-spa.** The runtime covers dynamic mounting, and stacking single-spa creates two routing layers."',
+		]);
+	});
+
+	it("makes no note from a section with no prose (REQ-RUN-24)", () => {
+		expect(ClaudeMdNotes.build(SHAPED).some((n) => n.includes('"Registry"'))).toBe(false);
+	});
+
+	it("cuts a long section at a word, with an ellipsis (REQ-RUN-25)", () => {
+		const words = Array.from({ length: 80 }, (_, i) => `word${String(i)}`).join(" ");
+		const [note] = ClaudeMdNotes.build(`## Long\n\n${words}\n`);
+
+		expect(note?.length).toBeLessThanOrEqual(MAX_NOTE_CHARS);
+		const body = /: "(.*)"$/.exec(note ?? "")?.[1] ?? "";
+		expect(body.endsWith("…")).toBe(true);
+		// The text before the ellipsis is whole words of the original.
+		expect(words.startsWith(body.slice(0, -1))).toBe(true);
+		expect(words[body.length - 1]).toBe(" ");
+	});
+
+	it("replaces the notes 2.4.2 wrote rather than keeping both (REQ-RUN-26)", () => {
+		const merged = ClaudeMdNotes.merge(SHAPED, ["Hand-written note", ...CAPTURED_2_4_2_NOTES]);
+
+		expect(merged.notes).toEqual(["Hand-written note", ...ClaudeMdNotes.build(SHAPED)]);
+		expect(merged.replaced).toBe(3);
+	});
+});

@@ -187,6 +187,49 @@ writes the prompt shall use the recorded name.
 
 ---
 
+### Imported notes (added 2026-10-21)
+
+Listed under Out of scope below, then seen again on DevNexus. 2.4.2 builds each
+note from a section's first 120 characters with whitespace collapsed
+(`claude-md-notes.ts:18`, `:50`), whatever those characters are. Captured from
+2.4.2 on a three-section sample:
+
+```
+Quoted from CLAUDE.md § "Registry": "| Route | Framework | Why | |-------|-----------|-----| | /metrics | Svelte 5 | Compiled reactivity |"
+Quoted from CLAUDE.md § "Runtime contract": "```ts shared: { react: { singleton: true } } ``` On route enter the shell loads the remote lifecycle and calls mount; on"
+Quoted from CLAUDE.md § "Decisions": "- **Module Federation runtime, no single-spa.** The runtime covers dynamic mounting, and stacking single-spa creates two"
+```
+
+A table becomes pipes, a code block is spliced into prose, and every cut lands
+mid-sentence with no mark that anything was cut.
+
+**REQ-RUN-23** — When building a note from a `CLAUDE.md` section, the importer
+shall leave out fenced code blocks, table rows and horizontal rules, and shall
+strip list and blockquote markers from the lines it keeps.
+
+**REQ-RUN-24** — If a section has no text left after REQ-RUN-23, then the
+importer shall make no note from it.
+
+**REQ-RUN-25** — When a quotation is shortened to fit its cap, it shall end at a
+word boundary where one exists in the last 40% of the text that fits, and shall
+end with an ellipsis.
+
+**REQ-RUN-26** — When importing, the importer shall replace a note an earlier
+release wrote for the same section in the 120-character form, rather than keep
+both.
+
+Dropping the 120-character excerpt means a note uses the 240-character cap
+`formatQuotedNote` already enforces (REQ-PROV-4), so REQ-RUN-25 is where the cut
+now happens.
+
+**What actually happened.** All four **failed first** against notes captured
+from 2.4.2. The existing REQ-PROV-4 cap tests kept passing unchanged: their
+texts have no spaces, so the word-boundary cut never applies to them. On
+DevNexus's real `CLAUDE.md`, re-importing over a 2.4.2 state removed 11 old
+notes, kept the one whose text was identical in both forms, and added 8; the
+three sections that are only a table or a code block (`MFE registry`,
+`Layout`, `Key risks`) now make no note.
+
 ## Design
 
 ### File references — new `core/src/calculators/file-reference.ts`
@@ -435,8 +478,10 @@ Seen in the same run and deliberately left for later:
 - **Tagging on touch.** HLD feature 3 defers tagging to when a file is touched;
   `update` records `last_worked_files` but does not tag them. Not done here.
 - **Imported notes are cut at 120 characters**, mid-token
-  (`claude-md-notes.ts:18`), and the prompt shows at most two notes
-  (`DEFAULT_MAX_NOTES`). Most of `CLAUDE.md` never reaches the agent this way.
+  (`claude-md-notes.ts:18`). *Addressed by REQ-RUN-23..26.* The prompt still
+  shows at most two notes (`DEFAULT_MAX_NOTES`), and with the Claude adapter the
+  agent already loads `CLAUDE.md` itself, so the notes mostly matter to the
+  other adapters and to `export`.
 - **A quoted note whose `CLAUDE.md` section later changes** is kept alongside the
   new one; `merge` only recognises exact matches.
 - **`lint-context`** reported 1,483 errors and 12,539 warnings on this repo,
