@@ -1,8 +1,10 @@
 /**
  * Which files a task names (LLD-first-run.md, REQ-RUN-2, -3, -5).
  *
- * Plans carry no file list, so task text is the only signal of which files a
- * chunk needs. A task names a file when it contains a path-shaped token whose
+ * Two signals say which files a chunk needs: its unfinished tasks' text, and the
+ * paths its plan section names outside its tasks (`PlanChunk.files`,
+ * LLD-file-index.md). Both go through one matcher. A text names a file when it
+ * contains a path-shaped token whose
  * trailing segments agree with the file's: `formatter-utils.ts`,
  * `formatters/formatter-utils.ts` and the full path all name
  * `packages/core/src/formatters/formatter-utils.ts`; `utils.ts` names
@@ -128,8 +130,8 @@ export function mentionsFile(text: string, filepath: string): boolean {
 }
 
 /**
- * Maps each file an unfinished task names to the chunks whose tasks name it
- * (REQ-RUN-1, -2). A token that names several files equally well — a basename
+ * Maps each file an unfinished task or an unfinished chunk's `files` names to
+ * the chunks that name it (REQ-RUN-1, -2; REQ-IDX-17, -18). A token that names several files equally well — a basename
  * two files share — names none of them (REQ-RUN-3); a longer path that singles
  * one out still names it. Uniqueness is judged against `files`, the whole walk,
  * not one chunk.
@@ -144,19 +146,25 @@ export function referencedFiles(
 ): Map<string, number[]> {
 	const groups = byBasename(files);
 	const refs = new Map<string, number[]>();
+	const tag = (text: string, chunkId: number): void => {
+		for (const token of pathTokens(text)) {
+			const base = token[token.length - 1];
+			const candidates = base === undefined ? undefined : groups.get(base);
+			const file = candidates ? resolveToken(token, candidates) : undefined;
+			if (file === undefined) continue;
+			const ids = refs.get(file) ?? [];
+			if (!ids.includes(chunkId)) ids.push(chunkId);
+			refs.set(file, ids);
+		}
+	};
 	for (const chunk of chunks) {
 		for (const task of chunk.tasks) {
-			if (task.status === "done") continue;
-			for (const token of pathTokens(task.text)) {
-				const base = token[token.length - 1];
-				const candidates = base === undefined ? undefined : groups.get(base);
-				const file = candidates ? resolveToken(token, candidates) : undefined;
-				if (file === undefined) continue;
-				const ids = refs.get(file) ?? [];
-				if (!ids.includes(chunk.chunk_id)) ids.push(chunk.chunk_id);
-				refs.set(file, ids);
-			}
+			if (task.status !== "done") tag(task.text, chunk.chunk_id);
 		}
+		// Finished work loads nothing; a chunk with no tasks is not finished (REQ-IDX-18).
+		const finished = chunk.tasks.length > 0 && chunk.tasks.every((t) => t.status === "done");
+		if (finished) continue;
+		for (const file of chunk.files ?? []) tag(file, chunk.chunk_id);
 	}
 	for (const ids of refs.values()) ids.sort((a, b) => a - b);
 	return refs;

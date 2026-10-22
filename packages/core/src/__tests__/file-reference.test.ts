@@ -95,3 +95,52 @@ describe("referencedFiles", () => {
 		expect(refs.size).toBe(0);
 	});
 });
+
+describe("referencedFiles — files the plan names (LLD-file-index.md)", () => {
+	const files = ["apps/shell/src/App.tsx", "src/a/index.ts", "src/b/index.ts", "turbo.json"];
+
+	/** A chunk with the given task statuses and plan-named files. */
+	function withFiles(
+		chunkId: number,
+		paths: string[],
+		statuses: ("todo" | "done")[] = ["todo"],
+	): PlanChunk {
+		return {
+			...chunk(chunkId),
+			tasks: statuses.map((status, i) => ({ text: `DoD item ${String(i)}`, status })),
+			files: paths,
+		};
+	}
+
+	it("tags a file the chunk's files name (REQ-IDX-17)", () => {
+		const refs = referencedFiles([withFiles(1, ["apps/shell/src/App.tsx", "turbo.json"])], files);
+
+		expect(refs.get("apps/shell/src/App.tsx")).toEqual([1]);
+		expect(refs.get("turbo.json")).toEqual([1]);
+	});
+
+	it("applies the shared-basename rule to the chunk's files (REQ-IDX-17, REQ-RUN-3)", () => {
+		const refs = referencedFiles([withFiles(1, ["index.ts", "src/b/index.ts"])], files);
+
+		expect(refs.has("src/a/index.ts")).toBe(false);
+		expect(refs.get("src/b/index.ts")).toEqual([1]);
+	});
+
+	it("tags nothing from the files of a chunk whose tasks are all done (REQ-IDX-18)", () => {
+		const refs = referencedFiles([withFiles(1, ["turbo.json"], ["done", "done"])], files);
+
+		expect(refs.size).toBe(0);
+	});
+
+	it("tags from the files of a chunk that has no tasks (REQ-IDX-18)", () => {
+		const refs = referencedFiles([withFiles(1, ["turbo.json"], [])], files);
+
+		expect(refs.get("turbo.json")).toEqual([1]);
+	});
+
+	it("tags from the files of a partly done chunk (REQ-IDX-18)", () => {
+		const refs = referencedFiles([withFiles(2, ["turbo.json"], ["done", "todo"])], files);
+
+		expect(refs.get("turbo.json")).toEqual([2]);
+	});
+});

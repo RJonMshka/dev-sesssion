@@ -110,10 +110,15 @@ export async function splitPlan(
 	// otherwise lose without any diagnostic.
 	for (const excluded of result.excluded) {
 		if (excluded.taskCount > 0) {
+			// REQ-PS-20 — say which reason applies; "Phase 0" declares a number.
+			const why =
+				excluded.reason === "unrepresentable-id"
+					? "chunk ids start at 1, so a chunk numbered below 1 cannot be stored."
+					: "the heading declares no chunk number.";
 			log.warn(
 				`Skipped "${excluded.heading}" (line ${excluded.line}) and its ${excluded.taskCount} task${
 					excluded.taskCount === 1 ? "" : "s"
-				} — the heading declares no chunk number.`,
+				} — ${why}`,
 			);
 		}
 	}

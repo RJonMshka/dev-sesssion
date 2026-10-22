@@ -225,3 +225,41 @@ describe("PlanChunkManager", () => {
 		});
 	});
 });
+
+describe("PlanChunkManager — plan-named files (LLD-file-index.md)", () => {
+	let dir: string;
+	beforeEach(() => {
+		dir = makeTmpDir();
+	});
+	afterEach(() => {
+		fs.rmSync(dir, { recursive: true, force: true });
+	});
+
+	it("reads back the files toMarkdown wrote (REQ-IDX-16)", async () => {
+		const { PlanParser } = await import("../parsers/plan-parser.js");
+		const chunk: PlanChunk = {
+			chunk_id: 1,
+			title: "Shell",
+			depends_on: [],
+			tasks: [{ text: "Sidebar links navigate", status: "todo" }],
+			files: ["apps/shell/src/App.tsx", 'odd "quoted" name.ts'],
+		};
+		fs.writeFileSync(path.join(dir, "PLAN_1.md"), PlanParser.toMarkdown(chunk));
+
+		const [loaded] = PlanChunkManager.loadAll(dir as ValidatedPath);
+
+		expect(loaded?.files).toEqual(chunk.files);
+	});
+
+	it("round-trips a chunk without files, leaving the key absent (REQ-IDX-16)", async () => {
+		const { PlanParser } = await import("../parsers/plan-parser.js");
+		const chunk: PlanChunk = { chunk_id: 1, title: "Plain", depends_on: [], tasks: [] };
+		const md = PlanParser.toMarkdown(chunk);
+		fs.writeFileSync(path.join(dir, "PLAN_1.md"), md);
+
+		const [loaded] = PlanChunkManager.loadAll(dir as ValidatedPath);
+
+		expect(md).not.toContain("files:");
+		expect(loaded !== undefined && "files" in loaded).toBe(false);
+	});
+});

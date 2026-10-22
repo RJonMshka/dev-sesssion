@@ -122,7 +122,7 @@ describe("init --yes tags files from task text", () => {
 	it("says how many files were tagged and how many were left to the ai-index (REQ-RUN-6)", async () => {
 		const out = await cli("init", "--yes");
 
-		expect(out).toMatch(/Tagged 2 files to chunks from task text; 2 left to the ai-index\./);
+		expect(out).toMatch(/Tagged 2 files to chunks from the plan; 2 left to the ai-index\./);
 	});
 });
 

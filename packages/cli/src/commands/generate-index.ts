@@ -3,8 +3,9 @@
  *
  * Uses {@link GitignoreAwareWalker} to discover files, groups them by
  * directory, and in interactive mode prompts to tag each group to a chunk.
- * In `--yes` mode, a file is tagged to the chunks whose unfinished tasks name
- * it, and files no task names are left out (LLD-first-run.md).
+ * In `--yes` mode, a file is tagged to the chunks whose unfinished tasks or
+ * plan-named files name it, and files the plan never names are left out
+ * (LLD-first-run.md, LLD-file-index.md).
  *
  * @module
  */
@@ -119,7 +120,7 @@ export async function generateIndex(
 		const left =
 			files.length - tagged.length - files.filter((f) => always.has(f.relativePath)).length;
 		log.info(
-			`Tagged ${String(tagged.length)} file${tagged.length === 1 ? "" : "s"} to chunks from task text; ${String(left)} left to the ai-index.`,
+			`Tagged ${String(tagged.length)} file${tagged.length === 1 ? "" : "s"} to chunks from the plan; ${String(left)} left to the ai-index.`,
 		);
 	} else {
 		// Interactive mode: prompt per directory group
@@ -220,8 +221,9 @@ export async function generateIndex(
 // ---------------------------------------------------------------------------
 
 /**
- * Builds one entry per walked file an unfinished task names, tagged to every
- * chunk that names it (REQ-RUN-1). Files no task names get no entry
+ * Builds one entry per walked file the plan names — in an unfinished task, or in
+ * an unfinished chunk's `files` — tagged to every chunk that names it
+ * (REQ-RUN-1, REQ-IDX-17). Files the plan never names get no entry
  * (REQ-RUN-4): `chunk_tags` must be non-empty, and the ai-index still reaches
  * them.
  *

@@ -11,6 +11,7 @@
  */
 
 import type { PlanChunk, Task } from "../../schemas/index.js";
+import { extractFileRefs } from "./file-refs.js";
 import {
 	buildDependsPattern,
 	isRepresentableChunkId,
@@ -19,6 +20,7 @@ import {
 	parseEstSessions,
 	parseHeading,
 	parseTaskLine,
+	type ScannedLine,
 	scanLines,
 } from "./markdown-utils.js";
 import type { ExcludedSection, PlanParseResult, PlanSource, PlanSourceDetection } from "./types.js";
@@ -31,7 +33,8 @@ import type { ExcludedSection, PlanParseResult, PlanSource, PlanSourceDetection 
 interface Section {
 	readonly heading: string;
 	readonly line: number;
-	readonly bodyLines: readonly string[];
+	/** Body lines with fence state kept, so file references can be read (REQ-IDX-12). */
+	readonly bodyLines: readonly ScannedLine[];
 	readonly declaredValue: number | undefined;
 	readonly declaredTitle: string | undefined;
 	/**
@@ -147,7 +150,7 @@ function collectSections(content: string, splitDepth: number): Section[] {
 	let heading: string | undefined;
 	let headingLine = 0;
 	let atSplitDepth = false;
-	let body: string[] = [];
+	let body: ScannedLine[] = [];
 
 	const flush = (): void => {
 		if (heading === undefined) {
@@ -178,7 +181,7 @@ function collectSections(content: string, splitDepth: number): Section[] {
 		}
 
 		if (heading !== undefined) {
-			body.push(line.trimmed);
+			body.push(line);
 		}
 	}
 
@@ -201,7 +204,7 @@ function readBody(
 	let dependsOn: number[] = [];
 	let estSessions: number | undefined;
 
-	for (const line of section.bodyLines) {
+	for (const { trimmed: line } of section.bodyLines) {
 		const task = parseTaskLine(line);
 		if (task !== undefined) {
 			tasks.push(task);
@@ -228,7 +231,7 @@ function readBody(
  * @returns The number of task lines it contains.
  */
 function countTasks(section: Section): number {
-	return section.bodyLines.filter((line) => parseTaskLine(line) !== undefined).length;
+	return section.bodyLines.filter((line) => parseTaskLine(line.trimmed) !== undefined).length;
 }
 
 /**
@@ -320,11 +323,14 @@ function parse(content: string): PlanParseResult {
 
 		ordinal++;
 		const { tasks, dependsOn, estSessions } = readBody(section, dependsPattern);
+		const files = extractFileRefs(section.bodyLines);
 		const base: PlanChunk = {
 			chunk_id: section.declaredValue ?? ordinal,
 			title: section.declaredTitle ?? section.heading,
 			depends_on: dependsOn,
 			tasks,
+			// Absent rather than empty, so a plan naming no files writes no key.
+			...(files.length > 0 ? { files } : {}),
 		};
 		chunks.push(estSessions === undefined ? base : { ...base, est_sessions: estSessions });
 	}

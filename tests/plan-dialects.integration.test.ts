@@ -75,6 +75,42 @@ describe("plan dialects that previously yielded zero chunks", () => {
 		expect(result.warnings).toEqual([]);
 	});
 
+	it("records the files a Phase plan names under Key Files (REQ-IDX-12, REQ-IDX-13)", () => {
+		// DevNexus's shape: the checkboxes are a Definition of Done naming no
+		// file, and the file list sits in a fence. 2.4.2 kept only the checkboxes.
+		const content = [
+			"## Phase 1: Shell",
+			"### Tasks",
+			"1. Scaffold `apps/shell` with Vite",
+			"3. `tsconfig.base.json` with strict mode",
+			"### Definition of Done",
+			"- [ ] Lighthouse perf ≥ 90 on empty shell",
+			"### Key Files",
+			"```",
+			"apps/shell/src/layout/{Sidebar,Header}.tsx",
+			"turbo.json",
+			"```",
+			"",
+			"## Phase 2: Shared",
+			"- [ ] Coverage ≥ 90%",
+		].join("\n");
+
+		const { result } = parsePlan(content);
+
+		expect(result.chunks.map((c) => c.files)).toEqual([
+			[
+				"tsconfig.base.json",
+				"apps/shell/src/layout/Sidebar.tsx",
+				"apps/shell/src/layout/Header.tsx",
+				"turbo.json",
+			],
+			undefined,
+		]);
+		expect(result.chunks[0]?.tasks.map((t) => t.text)).toEqual([
+			"Lighthouse perf ≥ 90 on empty shell",
+		]);
+	});
+
 	it("surfaces work in sections it skips, rather than dropping it (REQ-PS-10)", () => {
 		const content = [
 			"## Chunk 1 — Auth",

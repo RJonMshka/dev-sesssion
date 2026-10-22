@@ -156,6 +156,13 @@ recognizes the noun "Chunk".
 - **REQ-PS-17** — If a caller registers a source under a name already
   registered, then the registry shall reject the registration.
 
+### Reporting (`PS`, added 2026-10-21)
+
+- **REQ-PS-20** — When the CLI warns that a section carrying tasks was skipped,
+  it shall state that section's exclusion reason. Designed in
+  [LLD-file-index.md](LLD-file-index.md): a `## Phase 0:` section was reported
+  as "the heading declares no chunk number" when it declared 0.
+
 ---
 
 ## Design
