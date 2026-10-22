@@ -3,7 +3,8 @@
  * using AST-based analysis (zero annotations required).
  *
  * Uses `@typescript-eslint/typescript-estree` for parsing. No regex. Supports
- * `.ts`, `.tsx`, `.js`, `.jsx`, `.mts`, `.mjs`. Skips `.vue`, `.svelte`.
+ * `.ts`, `.tsx`, `.js`, `.jsx`, `.mts`, `.mjs`, and the `<script>` blocks of
+ * `.vue` and `.svelte` components (LLD-sfc-index.md).
  *
  * Any existing `/** * /` JSDoc summary blocks are captured automatically.
  * Optional `@ai-*` override tags (Chunk 13) are parsed transparently via
@@ -21,6 +22,7 @@ import { parse } from "@typescript-eslint/typescript-estree";
 import { TokenCounter } from "../counters/token-counter.js";
 import { GitignoreAwareWalker } from "../walkers/gitignore-aware-walker.js";
 import { AnnotationParser } from "./annotation-parser.js";
+import { SFC_EXTENSIONS, scriptProgram } from "./sfc-script.js";
 import type { ParsedFile, ParsedSymbol, SymbolSurface } from "./types.js";
 import { contentHash, extractUnits, findLeadingJsdocComment } from "./unit-extractor.js";
 import { extractUsage } from "./usage-extractor.js";
@@ -33,7 +35,15 @@ const annotationParser = new AnnotationParser();
 // ---------------------------------------------------------------------------
 
 /** File extensions handled by the extractor. */
-const SUPPORTED_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx", ".mts", ".mjs"]);
+const SUPPORTED_EXTENSIONS = new Set([
+	".ts",
+	".tsx",
+	".js",
+	".jsx",
+	".mts",
+	".mjs",
+	...SFC_EXTENSIONS,
+]);
 
 /** Max chars to include in a signature (avoids huge generics). */
 const MAX_SIGNATURE_CHARS = 200;
@@ -80,9 +90,14 @@ export class AutoExtractor {
 			return emptyParsedFile(filePath, source);
 		}
 
+		// A component parses as its script bodies, blanked in place so every
+		// position is already a position in the file (REQ-SFC-1, REQ-SFC-2).
+		const sfc = SFC_EXTENSIONS.has(ext) ? scriptProgram(source) : undefined;
+		const program = sfc?.program ?? source;
+
 		try {
-			const isJsx = ext === ".jsx" || ext === ".tsx";
-			const ast = parse(source, {
+			const isJsx = sfc?.jsx ?? (ext === ".jsx" || ext === ".tsx");
+			const ast = parse(program, {
 				comment: true,
 				range: true,
 				loc: true,
