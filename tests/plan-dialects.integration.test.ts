@@ -111,6 +111,23 @@ describe("plan dialects that previously yielded zero chunks", () => {
 		]);
 	});
 
+	it("keeps a Phase plan's numbered steps in the chunk's brief (REQ-PCX-1)", () => {
+		const content = [
+			"## Phase 1: Shell",
+			"**Goal**: a React shell.",
+			"### Tasks",
+			"1. Scaffold `apps/shell` with Vite",
+			"### Definition of Done",
+			"- [ ] Lighthouse perf ≥ 90 on empty shell",
+		].join("\n");
+
+		const { result } = parsePlan(content);
+
+		expect(result.chunks[0]?.brief).toBe(
+			["**Goal**: a React shell.", "### Tasks", "1. Scaffold `apps/shell` with Vite"].join("\n"),
+		);
+	});
+
 	it("surfaces work in sections it skips, rather than dropping it (REQ-PS-10)", () => {
 		const content = [
 			"## Chunk 1 — Auth",

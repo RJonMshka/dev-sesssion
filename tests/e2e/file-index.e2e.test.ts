@@ -11,6 +11,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { FileIndexManager } from "../../packages/core/src/managers/file-index-manager.js";
+import { PlanChunkManager } from "../../packages/core/src/managers/plan-chunk-manager.js";
 import type { ValidatedPath } from "../../packages/security/src/validators/path-validator.js";
 import { runCli } from "../helpers/run-cli.js";
 
@@ -91,11 +92,10 @@ describe("init --yes tags the files a plan names", () => {
 	it("records them in PLAN_N.md, expanded, without the glob (REQ-IDX-13, REQ-IDX-14, REQ-IDX-16)", async () => {
 		await init();
 
-		const plan1 = fs.readFileSync(path.join(tmpDir, ".session", "PLAN_1.md"), "utf-8");
-		const front = plan1.split("---")[1] ?? "";
-		expect(front).toContain('"src/client.ts"');
-		expect(front).toContain('"src/utils.ts"');
-		expect(front).not.toContain("*.test.ts");
+		// Read back through core's loader: the brief quotes the Key Files block
+		// verbatim, glob included, so grepping the frontmatter would see it.
+		const [plan1] = PlanChunkManager.loadAll(path.join(tmpDir, ".session") as ValidatedPath);
+		expect(plan1?.files).toEqual(["src/client.ts", "src/utils.ts"]);
 	});
 
 	it("names the tagged files on the first prompt's load line (REQ-IDX-17)", async () => {
@@ -112,5 +112,18 @@ describe("init --yes tags the files a plan names", () => {
 		expect(out).toContain('Skipped "Phase 0: Decisions"');
 		expect(out).not.toContain("declares no chunk number");
 		expect(out).toMatch(/chunk ids start at 1/);
+	});
+
+	it("points the prompt at the plan file that holds the phase's goal and steps (REQ-PCX-5)", async () => {
+		await init();
+
+		const prompt = fs.readFileSync(path.join(tmpDir, ".session", "NEXT_PROMPT.md"), "utf-8");
+		// No CLAUDE.md in the fixture, so the plain formatter: no @-mention.
+		expect(prompt).toMatch(/^Plan: @?\.session\/PLAN_1\.md$/m);
+		const plan1 = fs.readFileSync(path.join(tmpDir, ".session", "PLAN_1.md"), "utf-8");
+		expect(plan1).toContain("**Goal**: A client that retries.");
+		expect(plan1).toContain("2. Add retries");
+		// The Definition of Done is tracked as tasks, not repeated in the brief.
+		expect(plan1).not.toContain("### Definition of Done");
 	});
 });

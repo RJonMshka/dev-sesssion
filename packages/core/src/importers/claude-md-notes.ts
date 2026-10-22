@@ -10,6 +10,7 @@
  */
 
 import { formatQuotedNote } from "../formatters/formatter-utils.js";
+import { FENCE_RE, RULE_RE } from "../parsers/plan-sources/markdown-utils.js";
 import { splitManagedBlock } from "./managed-block.js";
 
 /** The file the notes are attributed to. */
@@ -30,8 +31,6 @@ interface Section {
 /** How a section's body becomes an excerpt. */
 type ExcerptMode = "prose" | "legacy";
 
-const FENCE_RE = /^(```|~~~)/;
-const RULE_RE = /^(-{3,}|\*{3,}|_{3,})$/;
 const MARKER_RE = /^(?:[-*+]\s+|\d+[.)]\s+|>\s?)/;
 
 /**

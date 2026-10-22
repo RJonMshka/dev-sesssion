@@ -135,6 +135,7 @@ LLD, `n` counts from 1 within that area.
 | `PROV` | Provenance of text lifted from repository files | `LLD-context-provenance.md` |
 | `SFC` | Indexing single-file components (`.vue`, `.svelte`) | `LLD-sfc-index.md` |
 | `BUD` | The context budget — counting, and one figure across commands | `LLD-budget.md` |
+| `PCX` | What the prompt points at — the chunk brief and file-reference lines | `LLD-prompt-context.md` |
 | `EVAL` | The eval harness's own correctness and its corpus | `LLD-eval-harness.md` |
 | `UNIT` | Code units — extraction, focused loading, the context manifest | `LLD-code-units.md` |
 | `RUN` | First run — init tagging, import of `CLAUDE.md`, prompt freshness | `LLD-first-run.md` |

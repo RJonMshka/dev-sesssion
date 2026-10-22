@@ -290,3 +290,32 @@ describe("PlanChunkManager.startAt (LLD-first-run.md)", () => {
 		expect(() => PlanChunkManager.startAt(chunks, 7)).toThrow(/1, 2, 3\.5, 9/);
 	});
 });
+
+describe("PlanChunkManager — brief (LLD-prompt-context.md)", () => {
+	let dir: string;
+	beforeEach(() => {
+		dir = makeTmpDir();
+	});
+	afterEach(() => {
+		fs.rmSync(dir, { recursive: true, force: true });
+	});
+
+	it("reads back a brief that would break naive YAML (REQ-PCX-4)", async () => {
+		const { PlanParser } = await import("../parsers/plan-parser.js");
+		const brief = [
+			"   leading spaces on the first line",
+			"**Goal**: a key: value lookalike",
+			"",
+			"---",
+			"# not a heading in YAML",
+			"\"quoted\" and 'single' and a trailing space ",
+			"\ttabbed",
+		].join("\n");
+		const chunk: PlanChunk = { chunk_id: 1, title: "Shell", depends_on: [], tasks: [], brief };
+		fs.writeFileSync(path.join(dir, "PLAN_1.md"), PlanParser.toMarkdown(chunk));
+
+		const [loaded] = PlanChunkManager.loadAll(dir as ValidatedPath);
+
+		expect(loaded?.brief).toBe(brief);
+	});
+});

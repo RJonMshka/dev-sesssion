@@ -18,7 +18,10 @@ import { TaskStatus } from "../../schemas/index.js";
 export const HEADING_RE = /^(#{1,6})\s+(.+)$/;
 
 /** Matches the opening or closing line of a fenced code block. */
-const FENCE_RE = /^(?:```|~~~)/;
+export const FENCE_RE = /^(?:```|~~~)/;
+
+/** A markdown horizontal rule, on a trimmed line. */
+export const RULE_RE = /^(?:-{3,}|\*{3,}|_{3,})$/;
 
 /** Position nouns recognized in headings and dependency declarations. */
 export const POSITION_NOUNS = [
@@ -62,6 +65,8 @@ export const MIN_CHUNK_ID = 1;
 
 /** One scanned line of a document. */
 export interface ScannedLine {
+	/** The line as written, indentation kept (LLD-prompt-context.md). */
+	readonly raw: string;
 	/** The line with surrounding whitespace removed. */
 	readonly trimmed: string;
 	/** 1-indexed line number. */
@@ -86,17 +91,18 @@ export function scanLines(content: string): ScannedLine[] {
 
 	const rawLines = content.split("\n");
 	for (let i = 0; i < rawLines.length; i++) {
-		const trimmed = (rawLines[i] ?? "").trim();
+		const raw = rawLines[i] ?? "";
+		const trimmed = raw.trim();
 
 		if (FENCE_RE.test(trimmed)) {
 			// The fence delimiter itself is inside the block for our purposes:
 			// it is never a heading or a task either way.
-			scanned.push({ trimmed, lineNumber: i + 1, inFence: true });
+			scanned.push({ raw, trimmed, lineNumber: i + 1, inFence: true });
 			inFence = !inFence;
 			continue;
 		}
 
-		scanned.push({ trimmed, lineNumber: i + 1, inFence });
+		scanned.push({ raw, trimmed, lineNumber: i + 1, inFence });
 	}
 
 	return scanned;

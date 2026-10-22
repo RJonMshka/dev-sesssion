@@ -10,6 +10,7 @@
  */
 
 import type { PlanChunk, Task } from "../../schemas/index.js";
+import { extractBrief } from "./brief.js";
 import { extractFileRefs } from "./file-refs.js";
 import { parseHeading, parseTaskLine, scanLines } from "./markdown-utils.js";
 import type { PlanParseResult, PlanSource, PlanSourceDetection } from "./types.js";
@@ -61,13 +62,16 @@ function parse(content: string): PlanParseResult {
 		return { chunks: [], excluded: [], warnings: [] };
 	}
 
-	const files = extractFileRefs(scanLines(content));
+	const lines = scanLines(content);
+	const files = extractFileRefs(lines);
+	const brief = extractBrief(lines);
 	const chunk: PlanChunk = {
 		chunk_id: 1,
 		title: SINGLE_CHUNK_TITLE,
 		depends_on: [],
 		tasks,
 		...(files.length > 0 ? { files } : {}),
+		...(brief !== undefined ? { brief } : {}),
 	};
 
 	return { chunks: [chunk], excluded: [], warnings: [] };

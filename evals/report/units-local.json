@@ -27,7 +27,7 @@
             "unitTokens": 94,
             "unitFileTokens": 144,
             "unitRatio": 0.6527777777777778,
-            "manifestRatio": 0.7422680412371134
+            "manifestRatio": 0.8287671232876712
           }
         },
         {
@@ -50,7 +50,7 @@
             "unitTokens": 121,
             "unitFileTokens": 141,
             "unitRatio": 0.8581560283687943,
-            "manifestRatio": 0.8952879581151832
+            "manifestRatio": 0.9307958477508651
           }
         },
         {
@@ -71,7 +71,7 @@
             "unitTokens": 15,
             "unitFileTokens": 157,
             "unitRatio": 0.09554140127388536,
-            "manifestRatio": 0.3140096618357488
+            "manifestRatio": 0.5344262295081967
           }
         },
         {
@@ -97,10 +97,10 @@
     },
     {
       "target": "core-src",
-      "files": 60,
-      "units": 656,
-      "exportedUnits": 338,
-      "fidelityChecked": 656,
+      "files": 63,
+      "units": 686,
+      "exportedUnits": 353,
+      "fidelityChecked": 686,
       "fidelityMismatches": [],
       "scenarios": [
         {
@@ -144,21 +144,21 @@
           "missingEvidence": [],
           "reduction": {
             "unitTokens": 478,
-            "unitFileTokens": 7835,
-            "unitRatio": 0.06100829610721123,
-            "manifestRatio": 0.06100829610721123
+            "unitFileTokens": 8235,
+            "unitRatio": 0.058044930176077716,
+            "manifestRatio": 0.058044930176077716
           }
         },
         {
           "target": "core-src",
           "scenario": "proven-duplicates",
           "expected": [
-            "src/formatters/plain-text-formatter.ts#MAX_FILES_TO_SHOW",
-            "src/managers/next-prompt-writer.ts#MAX_FILES_TO_SHOW"
+            "src/calculators/context-budget-calculator.ts#BYTES_PER_TOKEN",
+            "src/counters/token-counter.ts#BYTES_PER_TOKEN"
           ],
           "focused": [
-            "src/formatters/plain-text-formatter.ts#MAX_FILES_TO_SHOW",
-            "src/managers/next-prompt-writer.ts#MAX_FILES_TO_SHOW"
+            "src/calculators/context-budget-calculator.ts#BYTES_PER_TOKEN",
+            "src/counters/token-counter.ts#BYTES_PER_TOKEN"
           ],
           "focusOk": true,
           "ungrounded": [],
@@ -166,10 +166,10 @@
           "manifestMatchesPrompt": true,
           "missingEvidence": [],
           "reduction": {
-            "unitTokens": 51,
-            "unitFileTokens": 4012,
-            "unitRatio": 0.012711864406779662,
-            "manifestRatio": 0.012711864406779662
+            "unitTokens": 109,
+            "unitFileTokens": 3838,
+            "unitRatio": 0.02840020844189682,
+            "manifestRatio": 0.02840020844189682
           }
         },
         {

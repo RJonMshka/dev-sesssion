@@ -25,13 +25,12 @@ import {
 	formatChunkProgress,
 	formatCompletedChunksSummary,
 	formatLayeredContextLines,
+	formatPlanLine,
+	formatRefList,
 	getPendingTasks,
 	mergeContextFiles,
 	trimToMaxLines,
 } from "@dev-session/core";
-
-/** Maximum files to show before truncating. */
-const MAX_FILES_TO_SHOW = 6;
 
 /**
  * opencode bootstrap formatter.
@@ -57,10 +56,8 @@ export const OpencodeBootstrapFormatter: BootstrapFormatter = {
 			return "(none)";
 		}
 
-		const shown = files.slice(0, MAX_FILES_TO_SHOW).map((f) => f.filepath);
-		const remaining = files.length - shown.length;
-		const suffix = remaining > 0 ? `, +${String(remaining)} more` : "";
-		return shown.join(", ") + suffix;
+		// One renderer for every formatter (REQ-PCX-6, REQ-PCX-7).
+		return formatRefList(files.map((f) => f.filepath));
 	},
 
 	/**
@@ -98,6 +95,10 @@ export const OpencodeBootstrapFormatter: BootstrapFormatter = {
 		lines.push(`Active chunk: ${String(chunk.chunk_id)} — ${chunk.title}`);
 		lines.push(formatBudgetLine(budget));
 
+		// The chunk's goal and steps live in its plan file (REQ-PCX-5).
+		const planLine = formatPlanLine(chunk, (p) => p);
+		if (planLine !== undefined) lines.push(planLine);
+
 		// -- Context section (up to 4 lines) --
 		const resolvedLayers = context.resolvedLayers ?? [];
 		const focusUnits = context.focusUnits ?? [];
@@ -105,7 +106,7 @@ export const OpencodeBootstrapFormatter: BootstrapFormatter = {
 			for (const line of formatLayeredContextLines(
 				resolvedLayers,
 				(f) => f,
-				MAX_FILES_TO_SHOW,
+				undefined,
 				focusUnits,
 			)) {
 				lines.push(line);

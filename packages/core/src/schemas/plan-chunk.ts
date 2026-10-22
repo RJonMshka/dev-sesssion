@@ -29,6 +29,11 @@ export const PlanChunkSchema = z
 		 * absent means the plan named none, and older files stay valid.
 		 */
 		files: z.array(z.string().min(1)).optional(),
+		/**
+		 * The chunk's plan section without its task lines — goal, steps, file
+		 * list — as the plan wrote it (LLD-prompt-context.md, REQ-PCX-1).
+		 */
+		brief: z.string().min(1).optional(),
 	})
 	.strict();
 

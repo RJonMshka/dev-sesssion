@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { BootstrapContext } from "../formatters/bootstrap-formatter.js";
+import { MAX_REF_LINE_CHARS } from "../formatters/formatter-utils.js";
 import { PlainTextFormatter } from "../formatters/plain-text-formatter.js";
 import type { ContextBudget, ContextBudgetBreakdown } from "../schemas/context-budget.js";
 import type { FileIndexEntry, PlanChunk, SessionState } from "../schemas/index.js";
@@ -99,10 +100,15 @@ describe("PlainTextFormatter", () => {
 			expect(result).toContain("packages/cli/src/file-2.ts");
 		});
 
-		it("truncates long file lists with count", () => {
-			const files = makeFiles(10);
-			const result = PlainTextFormatter.formatFilesToLoad(files);
-			expect(result).toContain("+4 more");
+		it("names every file that fits on the line (REQ-PCX-7)", () => {
+			const result = PlainTextFormatter.formatFilesToLoad(makeFiles(10));
+			expect(result).not.toContain("more");
+		});
+
+		it("counts the files a too-long line leaves out (REQ-PCX-7)", () => {
+			const result = PlainTextFormatter.formatFilesToLoad(makeFiles(200));
+			expect(result.length).toBeLessThanOrEqual(MAX_REF_LINE_CHARS);
+			expect(result).toMatch(/, \+\d+ more$/);
 		});
 	});
 

@@ -20,6 +20,7 @@ const LOAD_PREFIXES: readonly string[] = [
 	"Summaries (read_file_layer for detail):",
 	"Focus (read_unit):",
 	"Files to load:",
+	"Plan:",
 	"Load full:",
 	"Load:",
 ];

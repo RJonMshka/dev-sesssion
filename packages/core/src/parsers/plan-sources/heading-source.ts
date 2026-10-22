@@ -11,6 +11,7 @@
  */
 
 import type { PlanChunk, Task } from "../../schemas/index.js";
+import { extractBrief } from "./brief.js";
 import { extractFileRefs } from "./file-refs.js";
 import {
 	buildDependsPattern,
@@ -324,6 +325,7 @@ function parse(content: string): PlanParseResult {
 		ordinal++;
 		const { tasks, dependsOn, estSessions } = readBody(section, dependsPattern);
 		const files = extractFileRefs(section.bodyLines);
+		const brief = extractBrief(section.bodyLines);
 		const base: PlanChunk = {
 			chunk_id: section.declaredValue ?? ordinal,
 			title: section.declaredTitle ?? section.heading,
@@ -331,6 +333,7 @@ function parse(content: string): PlanParseResult {
 			tasks,
 			// Absent rather than empty, so a plan naming no files writes no key.
 			...(files.length > 0 ? { files } : {}),
+			...(brief !== undefined ? { brief } : {}),
 		};
 		chunks.push(estSessions === undefined ? base : { ...base, est_sessions: estSessions });
 	}

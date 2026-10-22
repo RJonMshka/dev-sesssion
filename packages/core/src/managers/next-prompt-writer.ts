@@ -17,6 +17,7 @@ import { AtomicWriter, CliError } from "@dev-session/security";
 import type { BootstrapContext, BootstrapFormatter } from "../formatters/bootstrap-formatter.js";
 import {
 	FILE_LOAD_PREFIXES,
+	formatRefList,
 	LEGACY_LOAD_PREFIX,
 	trimToMaxLines as trimLines,
 } from "../formatters/formatter-utils.js";
@@ -32,9 +33,6 @@ import {
 	MAX_PROMPT_CHARS,
 	MAX_PROMPT_LINES,
 } from "../schemas/index.js";
-
-/** Maximum number of file paths to include in the "Files to load" line. */
-const MAX_FILES_TO_SHOW = 5;
 
 /** Maximum number of "Next" task lines to include. */
 const MAX_NEXT_LINES = 4;
@@ -65,18 +63,11 @@ function extractProjectName(sessionId: string): string {
  * Formats the "Files to load" value from file index entries.
  *
  * @param files - The file index entries tagged to the active chunk.
- * @returns A comma-separated string of file paths, capped at {@link MAX_FILES_TO_SHOW}.
+ * @returns A comma-separated string of file paths, capped by {@link formatRefList}.
  */
 function formatFilePaths(files: readonly FileIndexEntry[]): string {
-	if (files.length === 0) {
-		return "(none)";
-	}
-
-	const shown = files.slice(0, MAX_FILES_TO_SHOW).map((f) => f.filepath);
-	const remaining = files.length - shown.length;
-	const suffix = remaining > 0 ? `, +${String(remaining)} more` : "";
-
-	return shown.join(", ") + suffix;
+	// The same renderer every formatter uses (REQ-PCX-6).
+	return formatRefList(files.map((f) => f.filepath));
 }
 
 /**

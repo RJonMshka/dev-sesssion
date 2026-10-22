@@ -316,3 +316,50 @@ describe("mergeContextFiles", () => {
 		expect(mergeContextFiles([], [])).toEqual([]);
 	});
 });
+
+describe("formatRefList (LLD-prompt-context.md)", () => {
+	it("names every reference while the line fits (REQ-PCX-7)", async () => {
+		const { formatRefList } = await import("../formatters/formatter-utils.js");
+		const refs = Array.from({ length: 11 }, (_, i) => `@apps/shell/src/file${String(i)}.tsx·L1`);
+
+		expect(formatRefList(refs)).toBe(refs.join(", "));
+	});
+
+	it("stops within the character cap and counts what it left out (REQ-PCX-7)", async () => {
+		const { formatRefList, MAX_REF_LINE_CHARS } = await import("../formatters/formatter-utils.js");
+		const refs = Array.from({ length: 200 }, (_, i) => `@packages/core/src/module${String(i)}.ts`);
+
+		const line = formatRefList(refs);
+		const m = /, \+(\d+) more$/.exec(line);
+		const shown = line.replace(/, \+\d+ more$/, "").split(", ");
+
+		expect(line.length).toBeLessThanOrEqual(MAX_REF_LINE_CHARS);
+		expect(m).not.toBeNull();
+		expect(shown.length + Number(m?.[1])).toBe(200);
+		expect(shown).toEqual(refs.slice(0, shown.length));
+	});
+
+	it("renders an empty list as (none) (REQ-PCX-7)", async () => {
+		const { formatRefList } = await import("../formatters/formatter-utils.js");
+		expect(formatRefList([])).toBe("(none)");
+	});
+});
+
+describe("formatPlanLine (LLD-prompt-context.md)", () => {
+	it("names the chunk's file when it has a brief (REQ-PCX-5)", async () => {
+		const { formatPlanLine, FILE_LOAD_PREFIXES, PLAN_PREFIX } = await import(
+			"../formatters/formatter-utils.js"
+		);
+		const chunk = { chunk_id: 3, title: "T", depends_on: [], tasks: [], brief: "Goal: x" };
+
+		expect(formatPlanLine(chunk, (p) => `@${p}`)).toBe("Plan: @.session/PLAN_3.md");
+		expect(FILE_LOAD_PREFIXES).toContain(PLAN_PREFIX);
+	});
+
+	it("is undefined for a chunk without a brief (REQ-PCX-5)", async () => {
+		const { formatPlanLine } = await import("../formatters/formatter-utils.js");
+		expect(formatPlanLine({ chunk_id: 1, title: "T", depends_on: [], tasks: [] }, (p) => p)).toBe(
+			undefined,
+		);
+	});
+});

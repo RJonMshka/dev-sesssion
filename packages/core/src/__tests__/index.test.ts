@@ -97,9 +97,10 @@ describe("@dev-session/core public surface", () => {
 		expect(PlainTextFormatter.formatFilesToLoad([])).toBe("(none)");
 		expect(PlainTextFormatter.formatFilesToLoad([entry("a.ts"), entry("b.ts")])).toBe("a.ts, b.ts");
 
+		// Every file that fits is named; the cap is characters, not a count (REQ-PCX-7).
 		const many = ["a", "b", "c", "d", "e", "f", "g", "h"].map((n) => entry(`${n}.ts`));
 		expect(PlainTextFormatter.formatFilesToLoad(many)).toBe(
-			"a.ts, b.ts, c.ts, d.ts, e.ts, f.ts, +2 more",
+			"a.ts, b.ts, c.ts, d.ts, e.ts, f.ts, g.ts, h.ts",
 		);
 	});
 

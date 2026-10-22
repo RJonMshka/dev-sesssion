@@ -139,6 +139,12 @@ export const LOAD_FULL_PREFIX = "Load full:";
 export const SUMMARIES_PREFIX = "Summaries (read_file_layer for detail):";
 
 /**
+ * Prefix introducing the active chunk's plan file, which holds its brief
+ * (LLD-prompt-context.md, REQ-PCX-5).
+ */
+export const PLAN_PREFIX = "Plan:";
+
+/**
  * Prefix introducing the focused-units line (REQ-UNIT-13). Each reference is
  * `path#id:start-end`; everything before `#` is the file.
  */
@@ -159,6 +165,7 @@ export const FILE_LOAD_PREFIXES: readonly string[] = [
 	FOCUS_PREFIX,
 	LOAD_FULL_PREFIX,
 	SUMMARIES_PREFIX,
+	PLAN_PREFIX,
 	LOAD_PREFIX,
 ];
 
@@ -284,20 +291,54 @@ export function trimToMaxLines(lines: readonly string[], maxLines: number): read
 }
 
 /**
- * Caps a list of rendered file references and appends a "+N more" suffix.
+ * Longest a list of file references may run on one prompt line
+ * (LLD-prompt-context.md, REQ-PCX-7): five notes' worth, a tenth of
+ * `MAX_PROMPT_CHARS` — about 25 layered refs.
+ */
+export const MAX_REF_LINE_CHARS = 1_200;
+
+/**
+ * Renders a list of file references, naming every one that fits within
+ * {@link MAX_REF_LINE_CHARS} and counting the rest as `+N more` (REQ-PCX-7).
+ *
+ * The one list renderer: every shipped formatter and the prompt writer call it
+ * (REQ-PCX-6). A fixed count of six — five copies, plus a sixth at five — used
+ * to hide files the budget had already paid for.
  *
  * @param refs - The already-formatted file references.
- * @param maxFiles - Maximum references to show before truncating.
+ * @param maxCount - Optional cap on how many to name, on top of the character cap.
  * @returns A comma-separated string, or `"(none)"` when empty.
  */
-function capRefList(refs: readonly string[], maxFiles: number): string {
+export function formatRefList(
+	refs: readonly string[],
+	maxCount = Number.POSITIVE_INFINITY,
+): string {
 	if (refs.length === 0) {
 		return "(none)";
 	}
-	const shown = refs.slice(0, maxFiles);
-	const remaining = refs.length - shown.length;
-	const suffix = remaining > 0 ? `, +${String(remaining)} more` : "";
-	return shown.join(", ") + suffix;
+	const suffixFor = (n: number): string => (n > 0 ? `, +${String(n)} more` : "");
+	let shown = 0;
+	let length = 0;
+	for (const ref of refs) {
+		if (shown >= maxCount) break;
+		const next = length + (shown === 0 ? 0 : 2) + ref.length;
+		if (next + suffixFor(refs.length - shown - 1).length > MAX_REF_LINE_CHARS) break;
+		length = next;
+		shown++;
+	}
+	return refs.slice(0, shown).join(", ") + suffixFor(refs.length - shown);
+}
+
+/**
+ * The `Plan:` line for the active chunk, when it has a brief (REQ-PCX-5).
+ *
+ * @param chunk - The active chunk.
+ * @param ref - Renders a path in the formatter's reference syntax.
+ * @returns The line, or `undefined` when there is no brief to point at.
+ */
+export function formatPlanLine(chunk: PlanChunk, ref: (p: string) => string): string | undefined {
+	if (chunk.brief === undefined) return undefined;
+	return `${PLAN_PREFIX} ${ref(`.session/PLAN_${String(chunk.chunk_id)}.md`)}`;
 }
 
 /**
@@ -327,14 +368,15 @@ export function formatUnitRef(unit: FocusedUnit): string {
  *
  * @param resolved - Per-file resolved layers from `LayerResolver.resolve`.
  * @param ref - Renders a single filepath in the formatter's reference syntax.
- * @param maxFiles - Maximum files to list per line before truncating.
+ * @param maxFiles - Optional cap on refs per line, on top of the character
+ *   cap (REQ-PCX-7). Shipped formatters pass none.
  * @param focus - Units focused by the active tasks (REQ-UNIT-13).
  * @returns The prompt lines describing what to load and at which granularity.
  */
 export function formatLayeredContextLines(
 	resolved: readonly ResolvedFileLayer[],
 	ref: (filepath: string) => string,
-	maxFiles: number,
+	maxFiles: number = Number.POSITIVE_INFINITY,
 	focus: readonly FocusedUnit[] = [],
 ): readonly string[] {
 	const full: string[] = [];
@@ -349,13 +391,13 @@ export function formatLayeredContextLines(
 
 	const lines: string[] = [];
 	if (focus.length > 0) {
-		lines.push(`${FOCUS_PREFIX} ${capRefList(focus.map(formatUnitRef), maxFiles)}`);
+		lines.push(`${FOCUS_PREFIX} ${formatRefList(focus.map(formatUnitRef), maxFiles)}`);
 	}
 	if (full.length > 0) {
-		lines.push(`${LOAD_FULL_PREFIX} ${capRefList(full, maxFiles)}`);
+		lines.push(`${LOAD_FULL_PREFIX} ${formatRefList(full, maxFiles)}`);
 	}
 	if (summary.length > 0) {
-		lines.push(`${SUMMARIES_PREFIX} ${capRefList(summary, maxFiles)}`);
+		lines.push(`${SUMMARIES_PREFIX} ${formatRefList(summary, maxFiles)}`);
 	}
 	if (lines.length === 0) {
 		lines.push(`${LOAD_PREFIX} (none)`);

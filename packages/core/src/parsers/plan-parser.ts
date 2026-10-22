@@ -190,6 +190,13 @@ export const PlanParser = {
 			lines.push("files:");
 			for (const file of chunk.files) lines.push(`  - ${JSON.stringify(file)}`);
 		}
+		// REQ-PCX-4 — a literal block, readable as the markdown it is. The `2`
+		// fixes the indentation so a first line starting with spaces still
+		// parses; `-` strips the trailing newline.
+		if (chunk.brief !== undefined && chunk.brief.length > 0) {
+			lines.push("brief: |2-");
+			for (const line of chunk.brief.split("\n")) lines.push(line === "" ? "" : `  ${line}`);
+		}
 		if (chunk.tasks.length > 0) {
 			lines.push("tasks:");
 			for (const task of chunk.tasks) {

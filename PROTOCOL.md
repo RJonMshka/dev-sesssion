@@ -146,6 +146,11 @@ section names outside its task lines — a "Key Files" block, a backticked path
 in a numbered step. A tool MAY tag those files to the chunk in `FILE_INDEX.md`.
 A chunk without `files` is valid, and a reader MUST accept it.
 
+`brief` is optional. It holds the chunk's plan section — goal, steps, file
+list — with its task lines removed, as a YAML string (written as a literal
+block). At most 6,000 characters. A tool MAY point the agent at `PLAN_<n>.md`
+for it. A chunk without `brief` is valid, and a reader MUST accept it.
+
 ```yaml
 ---
 chunk_id: 4
@@ -154,6 +159,8 @@ depends_on: [3]        # chunk ids that must complete first (optional, default [
 est_sessions: 2        # optional estimate
 files:                 # optional — paths the plan section names outside its tasks
   - "src/commands/init.ts"
+brief: |2-             # optional — the section's own text without its task lines
+  **Goal**: a working `init` command.
 tasks:
   - text: "Parse args and detect project"
     status: done
