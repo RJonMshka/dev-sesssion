@@ -130,6 +130,9 @@ manager lockfiles.
 **REQ-EVAL-17** — The benchmark's plan-only developer pattern shall count a plan
 file at the repository root or under `docs/`.
 
+**REQ-EVAL-18** — `pnpm typecheck` shall type-check `evals/` and
+`tests/benchmarks/` under the repository's strict compiler options.
+
 ---
 
 ## Design
@@ -244,6 +247,7 @@ gating (`docs/releasing.md`).
 | REQ-EVAL-12 | unit | Prompt recall 0 with present declared files → failure; nothing declared → no failure |
 | REQ-EVAL-13 | unit + eval | Target file parsing rejects a missing `sourceDir` and non-string paths; `pnpm eval --target` on DevNexus leaves the source tree byte-identical |
 | REQ-EVAL-14 | unit | Default version equals `packages/cli/package.json`'s |
+| REQ-EVAL-18 | tooling | A planted type error in `evals/` and in `tests/benchmarks/` each fails `tsc -p evals/tsconfig.json` |
 | REQ-EVAL-15, 16, 17 | unit | `computeSavings` with 0 context files → `n/a`; lockfiles at any depth are excluded from the baseline; `docs/PLAN.md` counts as the plan, `apps/web/PLAN.md` does not |
 
 **Declared files.** A target's `expectedFiles` maps chunk id → repo-relative
@@ -281,9 +285,11 @@ checkbox tasks, so the list never reaches the file tagger. That fix belongs to
 `LLD-file-index.md` (HLD feature 3), and `pnpm eval --target` is how it will be
 shown to move recall off zero.
 
-`evals/` and `tests/benchmarks/` are type-checked by nothing — `pnpm typecheck`
-covers `packages/**` only, and tsx strips types. Checked by hand for this change
-with a strict throwaway tsconfig; wiring that into `typecheck` is unclaimed.
+`evals/` and `tests/benchmarks/` were type-checked by nothing — `pnpm typecheck`
+covered `packages/**` only, and tsx strips types. REQ-EVAL-18 adds
+`evals/tsconfig.json` (33 files, extending the root strict options) to
+`typecheck`. Verified by planting a type error in each directory: both reported,
+and removed again.
 
 Wiring REQ-EVAL-7 immediately earned its keep: with the exit code live,
 `pnpm eval` went red because `DEFAULT_VERSION` was still `2.2.0` — the release
