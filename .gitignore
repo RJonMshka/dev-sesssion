@@ -37,3 +37,7 @@ Thumbs.db
 
 # Eval harness dependency cache (installed on demand)
 evals/.cache/
+
+# Eval target files for real repos outside this tree (REQ-EVAL-13)
+evals/targets/*.local.json
+evals/report/local/

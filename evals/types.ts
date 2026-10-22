@@ -33,11 +33,17 @@ export interface Ablation {
 /** A fixture or real repo the eval runs against. */
 export interface EvalTarget {
 	readonly id: string;
-	/** Path relative to the repo root. */
+	/** Path relative to the repo root, or absolute for a target file (REQ-EVAL-13). */
 	readonly sourceDir: string;
 	/** Chunk the session should be resumed at. */
 	readonly chunk: number;
+	/** Empty means one unablated run. */
 	readonly ablations: readonly Ablation[];
+	/**
+	 * Files each chunk's work needs, keyed by chunk id, written from something the
+	 * plan's author wrote (REQ-EVAL-10). Absent means recall is not measured.
+	 */
+	readonly expectedFiles?: Readonly<Record<string, readonly string[]>>;
 }
 
 /** Result of the deterministic path-grounding check. */

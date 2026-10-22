@@ -90,6 +90,46 @@ features — the units eval ([LLD-code-units.md](LLD-code-units.md)) first among
 them — can then be measured through the same install path users take, so a
 packaging defect still reproduces.
 
+### Usefulness, not just correctness (added 2026-10-21)
+
+Every check above asks whether the context is *wrong*: a missing path, a
+duplicate, a stale ref. None asks whether it is *useful*, and an empty context
+passes every one of them. Running 2.4.2 against a real repository (DevNexus, a
+195-file micro-frontend monorepo whose plan names each phase's files under
+`### Key Files`) showed the gap: `init -y` tagged 0 files, the prompt named only
+`CLAUDE.md`, the deterministic tier would report the run clean, and the
+benchmark reported "99.8% saved — 620× smaller" for a context that loads
+nothing. The same run found `DEFAULT_VERSION` at `2.2.1` against a published
+`2.4.2` — the drift recorded under "What actually happened", recurring.
+
+**REQ-EVAL-10** — Where a target declares the files a chunk's work needs, the
+deterministic tier shall report, for each such chunk, the share of declared
+files present on disk that `FILE_INDEX.md` tags to that chunk or always-includes.
+
+**REQ-EVAL-11** — Where a target declares the files the active chunk's work
+needs, the deterministic tier shall report the share of declared files present
+on disk that the generated prompt names.
+
+**REQ-EVAL-12** — If the generated prompt names none of the declared files
+present on disk for the active chunk, then the deterministic tier shall report
+the run as failed.
+
+**REQ-EVAL-13** — Where `--target <file>` is passed, the deterministic tier shall
+run only the target that file describes, and shall not write to the target's
+source directory.
+
+**REQ-EVAL-14** — Where `--version` is not passed, the deterministic tier shall
+install the version that `packages/cli/package.json` declares.
+
+**REQ-EVAL-15** — If the with-tool context names no files, then the benchmark
+shall report the saving as not applicable rather than as a ratio.
+
+**REQ-EVAL-16** — The benchmark's without-tool baseline shall exclude package
+manager lockfiles.
+
+**REQ-EVAL-17** — The benchmark's plan-only developer pattern shall count a plan
+file at the repository root or under `docs/`.
+
 ---
 
 ## Design
@@ -199,6 +239,26 @@ gating (`docs/releasing.md`).
 | REQ-EVAL-7 | e2e | A deliberately failing case makes `pnpm eval` exit non-zero |
 | REQ-EVAL-8 | e2e | The deterministic tier completes with `ANTHROPIC_API_KEY` unset |
 | REQ-EVAL-9 | eval | `pnpm eval:units` installs from the packed tarball and reports the installed version as `local` |
+| REQ-EVAL-10 | unit | `FILE_INDEX.md` captured from a real `init` → per-chunk recall; always-include counts for every chunk; declared files absent on disk are excluded from the denominator |
+| REQ-EVAL-11 | unit | A captured prompt naming one of two present declared files → 0.5 |
+| REQ-EVAL-12 | unit | Prompt recall 0 with present declared files → failure; nothing declared → no failure |
+| REQ-EVAL-13 | unit + eval | Target file parsing rejects a missing `sourceDir` and non-string paths; `pnpm eval --target` on DevNexus leaves the source tree byte-identical |
+| REQ-EVAL-14 | unit | Default version equals `packages/cli/package.json`'s |
+| REQ-EVAL-15, 16, 17 | unit | `computeSavings` with 0 context files → `n/a`; lockfiles at any depth are excluded from the baseline; `docs/PLAN.md` counts as the plan, `apps/web/PLAN.md` does not |
+
+**Declared files.** A target's `expectedFiles` maps chunk id → repo-relative
+paths. They are written by hand from something the *plan's author* wrote — for
+DevNexus, each phase's `### Key Files` block, brace-expanded. They are ground
+truth about the repository, not about the generator, so writing them by hand
+does not break the "assert against real generator output" rule: the generator
+output is what gets *scored*. Paths absent on disk are reported but left out of
+the denominator, because a plan's file list drifts as code is written (31 of
+DevNexus's 104 named files never existed under that name) and the tool cannot be
+faulted for not tagging a file that is not there.
+
+**Real repositories stay out of the tree.** `--target` reads a JSON file
+(`evals/targets/*.local.json` is gitignored) naming an absolute `sourceDir`.
+The workspace is a copy, as for fixtures, so the source is only ever read.
 
 REQ-EVAL-1 is the one to watch fail first in the most literal sense: invert the
 ternary at `judge.ts:182`, confirm the test goes red, restore it. A test that
@@ -213,6 +273,17 @@ cannot catch that inversion is not testing the thing that matters.
 | REQ-EVAL-7 | **Failed first.** `run.ts` computed a failure count, printed it, and exited 0 |
 | REQ-EVAL-8 | Passed — verified with `ANTHROPIC_API_KEY` unset |
 | REQ-EVAL-6 | **Not built.** The adversarial corpus is the remaining slice |
+| REQ-EVAL-10..17 | **Failed first** — every test failed on a missing module before the module existed. Then `pnpm eval --target` on DevNexus with 2.4.2: prompt recall 0/11, tag recall 0% on all eight scoreable chunks, run reported FAIL where it was previously clean. Benchmark: "99.8% saved — 620× smaller" became "n/a — the context names 0 files"; baseline fell 202K → 141K tokens with the lockfile out; plan-only went 0 → 5,318 tokens once `docs/PLAN.md` counted. The two built-in fixtures still report savings (17 and 27 context files), and `pnpm eval` stays 2/2 clean, so CI is unaffected |
+
+The DevNexus run is the failing test for the product fix that follows it: the
+plan names each phase's files under `### Key Files`, and `PlanChunk` keeps only
+checkbox tasks, so the list never reaches the file tagger. That fix belongs to
+`LLD-file-index.md` (HLD feature 3), and `pnpm eval --target` is how it will be
+shown to move recall off zero.
+
+`evals/` and `tests/benchmarks/` are type-checked by nothing — `pnpm typecheck`
+covers `packages/**` only, and tsx strips types. Checked by hand for this change
+with a strict throwaway tsconfig; wiring that into `typecheck` is unclaimed.
 
 Wiring REQ-EVAL-7 immediately earned its keep: with the exit code live,
 `pnpm eval` went red because `DEFAULT_VERSION` was still `2.2.0` — the release

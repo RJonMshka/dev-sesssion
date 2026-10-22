@@ -36,8 +36,10 @@ export interface SavingsReport {
 	tokensSaved: number;
 	/** Percentage saved (0–100). */
 	percentSaved: number;
-	/** Compression ratio string, e.g. "8.3×". */
+	/** Compression ratio string, e.g. "8.3×"; "n/a" when not applicable. */
 	ratio: string;
+	/** False when the with-tool context names no files (REQ-EVAL-15). */
+	applicable: boolean;
 }
 
 /** Pass/fail status for each CLI command. */
