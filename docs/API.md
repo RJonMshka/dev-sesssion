@@ -36,6 +36,7 @@ Manages `SESSION_STATE.md`. All I/O uses `AtomicWriter` and `FrontmatterParser` 
 |---|---|---|---|
 | `load` | `(sessionDir: ValidatedPath) => SessionState` | `SessionState` | Parse and validate `SESSION_STATE.md` |
 | `save` | `(sessionDir: ValidatedPath, state: SessionState) => void` | `void` | Atomic write; auto-updates `last_updated` |
+| `toMarkdown` | `(state: SessionState) => string` | `string` | Pure — the exact text `save` writes. The budget counts it |
 | `markTaskDone` | `(state, taskText: string) => SessionState` | `SessionState` | Pure — mark matching task as done |
 | `markTaskInProgress` | `(state, taskText: string) => SessionState` | `SessionState` | Pure — mark matching task as in-progress |
 | `addNote` | `(state, note: string) => SessionState` | `SessionState` | Pure — append a note |
@@ -104,7 +105,8 @@ Manages `FILE_INDEX.md`. Parses the markdown table format and provides query hel
 
 | Method | Signature | Returns | Description |
 |---|---|---|---|
-| `load` | `(sessionDir: ValidatedPath) => FileIndexEntry[]` | `FileIndexEntry[]` | Parse `FILE_INDEX.md` |
+| `load` | `(sessionDir: ValidatedPath) => FileIndexEntry[]` | `FileIndexEntry[]` | Parse `FILE_INDEX.md`. The file stores no token costs, so entries come back without `token_cost` |
+| `withMeasuredCosts` | `(entries, projectRoot: string) => FileIndexEntry[]` | `FileIndexEntry[]` | Fill a missing `token_cost` from each file's size. Paths outside `projectRoot` or unreadable are left as they are |
 | `save` | `(sessionDir: ValidatedPath, entries: FileIndexEntry[]) => void` | `void` | Atomic write |
 | `add` | `(entries, entry: FileIndexEntry) => FileIndexEntry[]` | `FileIndexEntry[]` | Pure — append entry (deduplicates by path) |
 | `queryByChunk` | `(entries, chunkId: number) => FileIndexEntry[]` | `FileIndexEntry[]` | Filter to a specific chunk |
@@ -235,10 +237,11 @@ can recognise them in a prompt — not so you can retype them into a formatter.
 | `LOAD_FULL_PREFIX` | `Load full:` | The layered section — layer-2 files, escalated by an active task |
 | `SUMMARIES_PREFIX` | `Summaries (read_file_layer for detail):` | The layered section — layer 0–1 files |
 | `FOCUS_PREFIX` | `Focus (read_unit):` | The layered section — code units the active tasks name, each as `path#id:start-end` |
+| `PLAN_PREFIX` | `Plan:` | The active chunk's `.session/PLAN_<id>.md`, when the chunk has a `brief` |
 
 | Constant | Type | What it is |
 |---|---|---|
-| `FILE_LOAD_PREFIXES` | `readonly string[]` | All five, ordered most-specific-first so a prefix search cannot match a shorter entry by accident. `NextPromptWriter.validate()` accepts a line starting with any of them; `ReplayScorer` parses from the same list. |
+| `FILE_LOAD_PREFIXES` | `readonly string[]` | All six, ordered most-specific-first so a prefix search cannot match a shorter entry by accident. `NextPromptWriter.validate()` accepts a line starting with any of them; `ReplayScorer` parses from the same list. |
 | `LAYER_SUFFIX_RE` | `RegExp` | Matches the `·L<n>` marker `formatLayeredContextLines` appends to each summary-line path. Strip it before treating a reference as a path. |
 
 The layered lines are built from these constants by
@@ -249,10 +252,35 @@ The layered lines are built from these constants by
 still produces valid output, just without the Focus line. A unit reference is
 attributed to its file wherever paths are parsed, so cut at `#`.
 
-All six constants are exported from `@dev-session/core`, as is
+Two helpers render the rest, and every shipped formatter uses them:
+
+| Export | Signature | What it does |
+|---|---|---|
+| `formatRefList` | `(refs: readonly string[], maxCount?: number) => string` | Names every ref that fits in `MAX_REF_LINE_CHARS` (1,200), then `, +N more`; `(none)` when empty |
+| `formatPlanLine` | `(chunk: PlanChunk, ref: (p) => string) => string \| undefined` | `Plan: <ref>` for the chunk's file, or `undefined` without a brief |
+
+`formatLayeredContextLines`'s `maxFiles` is now an optional count cap on top of
+the character cap; omit it.
+
+All these constants are exported from `@dev-session/core`, as is
 `formatLayeredContextLines`. An out-of-tree formatter should import them: a
 hardcoded literal is a second source of truth, and the emitter and the validator
 drifting apart is the exact failure this list was introduced to end.
+
+---
+
+## PromptAssembler
+
+Builds `NEXT_PROMPT.md`, its manifest and its budget from a loaded session.
+
+| Method | Signature | Description |
+|---|---|---|
+| `assemble` | `(input: AssembleInput) => AssembledPrompt` | The prompt, manifest, budget and plan, using the adapter's formatter |
+| `charge` | `(input: ChargeInput) => ChargedContext` | The plan and budget alone — no formatter. `assemble` is built on it and `health` judges the budget by it, so they agree |
+
+`PlanChunkManager.startAt(chunks, chunkId?)` returns `{ active, completedIds }`
+for a session starting at `chunkId` (the lowest-numbered when omitted), and
+throws `CliError` naming the defined ids when `chunkId` is not one.
 
 ---
 

@@ -44,6 +44,44 @@ measures (feature 6).
 | 6 | Eval harness integrity | `LLD-eval-harness.md` | The harness that produces our published numbers has no tests and no CI |
 | 7 | Code units | `LLD-code-units.md` | The smallest thing a prompt can load beyond signatures is a whole file, and nothing records what a prompt loaded |
 | 8 | First run | `LLD-first-run.md` | `init -y` tags every file to chunk 1, `import` quotes the tool's own block back, and the prompt ignores `index` and `import` until `update` runs |
+| 9 | Single-file components | `LLD-sfc-index.md` | `.vue` and `.svelte` files never reach the ai-index |
+| 10 | One budget | `LLD-budget.md` | The prompt, `status`, `preview` and `health` each reported a different budget, all of them low |
+| 11 | Prompt context | `LLD-prompt-context.md` | The agent saw a chunk's checkboxes but not its goal or steps, and the load line hid files past six |
+
+### Status (2026-10-22)
+
+Shipped in 2.4.2 or earlier: 1, 5, 7, 8 (first slice), 6 (all but REQ-EVAL-6's
+adversarial corpus).
+
+Built on `docs/lld-remaining-features`, pushed, **not yet released or PR'd** —
+found by dogfooding 2.4.2 on DevNexus, a real 195-file micro-frontend monorepo
+whose plan names each phase's files:
+
+| Feature | Commit | What moved on DevNexus |
+|---|---|---|
+| 6 — recall, `--target`, honest benchmark (REQ-EVAL-10..18) | `f931566`, `8a83a22` | The eval now *fails* an empty context; it had passed one |
+| 3 — files the plan names (REQ-IDX-12..18) | `a630e4a` | Tag recall 0/47 → 47/47, no wrong tags |
+| 9 (SFC-1..5) | `84e646a` | Indexed files 95 → 111; 66 component units, hash fidelity 66/66 |
+| 10 (BUD-1..5) | `48e4722`, `3e2595f` | One figure everywhere (~4,500, honestly over the 4,000 default) |
+| 8 — import notes, `init --chunk` (REQ-RUN-23..31) | `1c73bec`, `b74010f` | Readable notes; start at phase 8 in one command |
+| 11 (PCX-1..7) | `4908221` | Prompt recall 5/11 → 11/11; `PLAN_1.md` holds the goal and all eight steps |
+
+Measure any further change with
+`pnpm eval --local --target evals/targets/devnexus.local.json` (gitignored; the
+target names files from DevNexus's own plan).
+
+Still open, in rough priority:
+
+- **The 4,000-token default budget.** DevNexus is over it on chunk 1 with an
+  ordinary `CLAUDE.md`. Revisit the default, or what counts against it.
+- **Files a chunk will create.** A phase whose files do not exist yet (DevNexus
+  phase 8) loads nothing for them; the brief says what they are.
+- **Feature 3's remaining half** — interactive tagging (up to 30 prompts) and
+  tagging-on-touch.
+- **Feature 4** (workflow-shaped prompt) and **feature 2** (`symbols`): no LLD yet.
+- **REQ-EVAL-6**, the adversarial corpus.
+- **The agent tier on a real target** — every number above is deterministic;
+  nothing yet shows an agent does better with the new context.
 
 1–4 are independent except that 4 depends on notes decay landing first. 8 takes over
 the `--yes` half of 3; the interactive half and tagging-on-touch stay with 3. 5 and 6

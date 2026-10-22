@@ -92,6 +92,8 @@ Imagine a thick textbook. Without a table of contents, you'd have to flip throug
 
 `FILE_INDEX.md` is the table of contents for your codebase. Every file the AI might need is listed here, tagged with the chunk(s) it belongs to. At the start of a session, the AI looks up the active chunk number, filters the index, and loads only those files.
 
+`init --yes` fills it from your plan: a file is tagged to a chunk when that chunk's section names it — in a task, a backticked path, or a "Key Files" block.
+
 **Example entry in `FILE_INDEX.md`:**
 
 ```markdown
@@ -151,6 +153,7 @@ This is a short (≤20 lines by default), self-contained prompt that you paste a
 Project: my-saas-app
 Active chunk: 3 — Billing integration
 Budget: ~2180/4000 tokens [OK]
+Plan: .session/PLAN_3.md
 Load: CLAUDE.md, src/billing/stripe.ts, src/users/subscription.ts
 Do NOT read: src/auth/**, dist/
 Resume: 4/7 tasks done Chunks 1-2 done.
@@ -162,6 +165,11 @@ Next:
 Note: decided to use Prisma instead of Knex
 ```
 
+`Plan:` points at the active chunk's plan file when its section in your plan
+has more than checkboxes — the goal, numbered steps and file list are kept
+there as its brief, while the checkboxes stay the tracked tasks. File lists name
+every file that fits on the line (about 25) before ending in `+N more`.
+
 (The exact wording of the file-reference lines depends on the adapter — Claude
 Code writes `@`-mentions, Cursor and Windsurf write `Ignore:` instead of
 `Do NOT read:`. See [adapters.md](adapters.md).)
@@ -172,7 +180,7 @@ Code writes `@`-mentions, Cursor and Windsurf write `Ignore:` instead of
 
 Every AI session has a **token budget** — like a word count limit on an essay. Load too many files and you blow the budget; load too few and the AI is working blind.
 
-`dev-sesssion` tracks a context budget estimate for each session, calculated from the files tagged to the active chunk. When you run `dev-sesssion status`, it shows you how much budget you're using and warns you if you're over the limit.
+`dev-sesssion` tracks a context budget estimate for each session: `SESSION_STATE.md`, the active `PLAN_N.md`, and the files tagged to the active chunk at the layer the prompt loads them. The prompt's `Budget:` line, `status`, `preview` and `health` all report that one figure, and warn when it is over the limit. A large `CLAUDE.md` counts — Claude Code loads it whole every session.
 
 > **Rule of thumb:** if you're consistently over budget, split the chunk in two. If you're well under, you might be able to merge two small chunks.
 

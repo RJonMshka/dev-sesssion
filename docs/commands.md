@@ -27,16 +27,24 @@ dev-sesssion init [options]
 |---|---|
 | `--team` | Enable team mode (auto-patches `.gitignore` + `.gitattributes`) |
 | `--max-files <n>` | Cap the number of files indexed, in `FILE_INDEX.md` and the ai-index (useful for large repos) |
+| `--chunk <id>` | Start at this chunk instead of the lowest-numbered. Lower-numbered chunks are recorded in `completed_chunks` (dated today, task statuses untouched) and get no files tagged. An id the plan does not define is an error, listing the ids it does. Without `--yes`, init asks |
 
 **What it does:**
 
 1. Detects existing `PLAN.md`, `CLAUDE.md`, `AGENTS.md`, `.cursor/`, `.windsurfrules`
 2. Splits an existing plan or scaffolds a new one interactively
 3. Walks the codebase to generate `FILE_INDEX.md`. With `--yes`, a file is tagged
-   to a chunk only when one of that chunk's unfinished tasks names it — by path
-   (`src/utils.ts`) or by a basename no other file shares (`utils.ts`). Files no
-   task names are left out of `FILE_INDEX.md`; the ai-index still reaches them.
-   Without `--yes`, it asks per directory
+   to a chunk only when the plan names it for that chunk — by path
+   (`src/utils.ts`) or by a basename no other file shares (`utils.ts`) — either
+   in one of the chunk's unfinished tasks, or elsewhere in its section: a fenced
+   "Key Files" block, a backticked path in a numbered step, or a bare path
+   containing `/`. Brace groups expand (`layout/{Sidebar,Header}.tsx`); globs and
+   directories are skipped; a chunk whose tasks are all done tags nothing. Files
+   the plan never names are left out of `FILE_INDEX.md`; the ai-index still
+   reaches them. Without `--yes`, it asks per directory
+   - Each chunk's `PLAN_N.md` keeps the paths it named (`files`) and the rest of
+     its section — goal, numbered steps, file list — as `brief`. The prompt points
+     at it with a `Plan:` line. Checkboxes remain the tracked tasks
 4. Builds `ai-index.yaml`, so the first prompt can focus the units your tasks
    name. If that fails (for example `--strict` refusing a secret), init warns and
    carries on without it
@@ -87,6 +95,10 @@ Output includes:
 
 `budget_cap` is the *bootstrap* budget (default 4,000 estimated tokens) — the
 cost of the generated context, not of the source files the AI loads afterwards.
+`total_tokens` is the figure on the prompt's `Budget:` line; `preview` and
+`health` report the same one. `SESSION_STATE.md` and the plan chunk (brief
+included) are counted from the text written for them, and a file without an
+ai-index entry at its measured size.
 A `memory` object with session-log aggregates is included when
 `.session/CONTEXT_LOG.md` exists, and `days_since_last_session` is `null` when
 `last_updated` cannot be parsed.
@@ -154,6 +166,10 @@ Run on its own, `dev-sesssion index` rebuilds `.session/ai-index.yaml`
 `NEXT_PROMPT.md` and `context-manifest.json` from it, so the prompt focuses
 units added since the last run. `--dry-run` writes none of them.
 
+TypeScript and JavaScript files are indexed, and so are `.vue` and `.svelte`
+components: their `<script>` blocks are parsed in place, so units carry the
+component file's own line numbers.
+
 The subcommands below manage `FILE_INDEX.md`.
 
 ### Add a file
@@ -199,7 +215,7 @@ dev-sesssion health [--fix] [--json]
 | Stale FILE_INDEX entries (file missing) | `STALE_INDEX_ENTRIES` | warning |
 | FILE_INDEX references chunks with no plan file | `MISSING_CHUNK_FILES` | warning |
 | More than 4 always-include files | `ALWAYS_INCLUDE_CREEP` | warning |
-| Context budget over the cap | `BUDGET_EXCEEDED` | warning |
+| Context budget over the cap — the same figure the prompt's `Budget:` line shows | `BUDGET_EXCEEDED` | warning |
 | NEXT_PROMPT.md missing | `PROMPT_MISSING` | warning |
 | NEXT_PROMPT.md over the configured cap (default 20) | `PROMPT_TOO_LONG` | warning |
 | FILE_INDEX has more than 500 entries | `FILE_INDEX_LARGE` | info |
@@ -294,13 +310,13 @@ dev-sesssion import --from claude
 
 Reads `CLAUDE.md` and imports each H2 section as a note in `SESSION_STATE.md`. Useful for migrating an existing CLAUDE.md-based workflow.
 
-Each note is a quotation attributed to the file, capped at 240 characters:
+Each note is a quotation of the section's prose — fenced code, tables and rules are left out, list markers stripped, and a section with no prose makes no note. It is attributed to the file and capped at 240 characters, cut at a word with an ellipsis:
 
 ```
 Quoted from CLAUDE.md § "Conventions": "Use tabs, not spaces."
 ```
 
-The prompt shows it as quoted text from `CLAUDE.md`, not as your own note, so an agent can tell the two apart. Running the import again adds nothing new. A note left by an older version in the unquoted `CLAUDE.md: <title> — …` form is replaced with the quoted one.
+The prompt shows it as quoted text from `CLAUDE.md`, not as your own note, so an agent can tell the two apart. Running the import again adds nothing new. A note left by an older version — the unquoted `CLAUDE.md: <title> — …` form, or 2.4.x's raw 120-character excerpt — is replaced with the current one.
 
 The `<!-- dev-sesssion:start -->` … `<!-- dev-sesssion:end -->` block that `init` writes into `CLAUDE.md` is the tool's own text and is never imported; notes that 2.4.1 and earlier imported from it are removed. When the import changes `SESSION_STATE.md`, `NEXT_PROMPT.md` is regenerated (not under `--dry-run`).
 
