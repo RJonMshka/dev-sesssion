@@ -25,6 +25,17 @@ const SESSION_STATE_FILENAME = "SESSION_STATE.md";
  */
 export const SessionStateManager = {
 	/**
+	 * Serializes a state exactly as {@link SessionStateManager.save} writes it.
+	 * Pure; the budget counts this text (LLD-budget.md, REQ-BUD-1).
+	 *
+	 * @param state - The session state.
+	 * @returns The `SESSION_STATE.md` content.
+	 */
+	toMarkdown(state: SessionState): string {
+		return serializeToMarkdown(state);
+	},
+
+	/**
 	 * Loads and validates SESSION_STATE.md from the given session directory.
 	 *
 	 * @param sessionDir - A validated path to the `.session/` directory.

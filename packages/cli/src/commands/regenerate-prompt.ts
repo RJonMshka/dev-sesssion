@@ -134,7 +134,13 @@ export function loadAssembleInput(sessionDir: ValidatedPath, options: LoadOption
 		state,
 		chunk: options.chunk ?? PlanChunkManager.loadActive(sessionDir, state),
 		allChunks: options.allChunks ?? PlanChunkManager.loadAll(sessionDir),
-		entries: options.entries ?? FileIndexManager.load(sessionDir),
+		// FILE_INDEX.md stores no costs, and init's own always-include entries
+		// have none either; measure every entry so all commands charge the same
+		// real sizes (REQ-BUD-4). Entries that already carry a cost keep it.
+		entries: FileIndexManager.withMeasuredCosts(
+			options.entries ?? FileIndexManager.load(sessionDir),
+			options.cwd,
+		),
 		index: options.index !== undefined ? options.index : AiIndexManager.load(sessionDir),
 		formatter: adapter.formatter,
 		// The name typed at init, when it differed from the detected one (REQ-RUN-21).

@@ -381,3 +381,23 @@ describe("ContextBudgetCalculator", () => {
 		});
 	});
 });
+
+describe("ContextBudgetCalculator — measured components (LLD-budget.md)", () => {
+	it("counts SESSION_STATE and the plan chunk from the text the tool writes (REQ-BUD-1)", async () => {
+		const { SessionStateManager } = await import("../managers/session-state-manager.js");
+		const { PlanParser } = await import("../parsers/plan-parser.js");
+		const state = makeState({
+			notes: ['Quoted from CLAUDE.md § "Scope": "Client-rendered SPAs behind simulated auth."'],
+		});
+		const chunk = makeChunk({ files: ["apps/shell/src/App.tsx", "turbo.json"] });
+		const bytes = (s: string): number => Math.ceil(Buffer.byteLength(s, "utf-8") / 4);
+
+		for (const budget of [
+			ContextBudgetCalculator.estimate(state, chunk, [], []),
+			ContextBudgetCalculator.estimateLayered(state, chunk, []),
+		]) {
+			expect(budget.breakdown.sessionState).toBe(bytes(SessionStateManager.toMarkdown(state)));
+			expect(budget.breakdown.planChunk).toBe(bytes(PlanParser.toMarkdown(chunk)));
+		}
+	});
+});

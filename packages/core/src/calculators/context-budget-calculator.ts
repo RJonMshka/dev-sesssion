@@ -2,8 +2,8 @@
  * Calculates the estimated token budget for a session's context window.
  *
  * Aggregates token costs from:
- * 1. SESSION_STATE.md (estimated from state content size)
- * 2. The active plan chunk (estimated from markdown size)
+ * 1. SESSION_STATE.md (counted from its serialized text)
+ * 2. The active plan chunk (counted from its serialized text)
  * 3. Chunk-tagged files (from {@link FileIndexEntry.token_cost} or live estimation)
  * 4. Always-include files (from {@link FileIndexEntry.token_cost} or live estimation)
  *
@@ -12,6 +12,8 @@
  * @packageDocumentation
  */
 
+import { SessionStateManager } from "../managers/session-state-manager.js";
+import { PlanParser } from "../parsers/plan-parser.js";
 import type { ContextBudget, ContextBudgetBreakdown } from "../schemas/context-budget.js";
 import { DEFAULT_CONTEXT_BUDGET } from "../schemas/context-budget.js";
 import type { FileIndexEntry, PlanChunk, SessionState } from "../schemas/index.js";
@@ -33,61 +35,27 @@ function estimateTokensFromString(content: string): number {
 }
 
 /**
- * Estimates token cost for session state by serializing it to a rough size estimate.
- *
- * Counts the string lengths of key fields rather than re-serializing to avoid
- * importing the YAML serializer.
+ * Counts SESSION_STATE.md from the text the tool writes for it (REQ-BUD-1).
  *
  * @param state - The current session state.
  * @returns Estimated token count.
  */
 function estimateSessionStateTokens(state: SessionState): number {
-	let charCount = 0;
-
-	// Frontmatter overhead
-	charCount += 50; // delimiters + fixed fields
-
-	// Tasks
-	for (const task of state.tasks) {
-		charCount += task.text.length + 30; // status, dates, YAML syntax
-	}
-
-	// Notes
-	for (const note of state.notes) {
-		charCount += note.length + 10;
-	}
-
-	// Last worked files
-	for (const file of state.last_worked_files) {
-		charCount += file.length + 10;
-	}
-
-	// Completed chunks
-	charCount += Object.keys(state.completed_chunks).length * 25;
-
-	return Math.ceil(charCount / BYTES_PER_TOKEN);
+	return estimateTokensFromString(SessionStateManager.toMarkdown(state));
 }
 
 /**
- * Estimates token cost for a plan chunk by measuring its content.
+ * Counts the active plan chunk from the text the tool writes for it (REQ-BUD-1).
+ *
+ * A fixed per-task allowance used to stand in for the serialized YAML, and came
+ * in ~40% under the bytes on disk — enough to print [OK] for an over-budget
+ * session.
  *
  * @param chunk - The active plan chunk.
  * @returns Estimated token count.
  */
 function estimatePlanChunkTokens(chunk: PlanChunk): number {
-	let charCount = 0;
-
-	// Frontmatter
-	charCount += 80; // delimiters + chunk_id + title + depends_on
-
-	charCount += chunk.title.length;
-
-	// Tasks
-	for (const task of chunk.tasks) {
-		charCount += task.text.length + 30;
-	}
-
-	return Math.ceil(charCount / BYTES_PER_TOKEN);
+	return estimateTokensFromString(PlanParser.toMarkdown(chunk));
 }
 
 /**
