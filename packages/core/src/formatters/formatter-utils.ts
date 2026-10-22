@@ -171,6 +171,13 @@ export const SUMMARIES_PREFIX = "Summaries (read_file_layer for detail):";
 export const PLAN_PREFIX = "Plan:";
 
 /**
+ * Prefix introducing paths the plan names that are not on disk (REQ-NEW-1).
+ * Not a file-load prefix: nothing on the line exists to be loaded, so the
+ * validator and replay scorer must not read it as one.
+ */
+export const NEW_FILES_PREFIX = "Not on disk yet:";
+
+/**
  * Prefix introducing the focused-units line (REQ-UNIT-13). Each reference is
  * `path#id:start-end`; everything before `#` is the file.
  */
@@ -365,6 +372,19 @@ export function formatRefList(
 export function formatPlanLine(chunk: PlanChunk, ref: (p: string) => string): string | undefined {
 	if (chunk.brief === undefined) return undefined;
 	return `${PLAN_PREFIX} ${ref(`.session/PLAN_${String(chunk.chunk_id)}.md`)}`;
+}
+
+/**
+ * The `Not on disk yet:` line (LLD-new-files.md, REQ-NEW-1). Paths are plain
+ * text, not passed through a formatter's `ref`: an `@path` to a missing file
+ * is an error in the tool that reads it.
+ *
+ * @param paths - Path-shaped absent paths, from `NewFiles.absent`.
+ * @returns The line, or `undefined` when there are none.
+ */
+export function formatNewFilesLine(paths: readonly string[] | undefined): string | undefined {
+	if (paths === undefined || paths.length === 0) return undefined;
+	return `${NEW_FILES_PREFIX} ${formatRefList(paths)}`;
 }
 
 /**

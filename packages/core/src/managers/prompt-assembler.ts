@@ -16,6 +16,7 @@
 import type { AiIndex } from "../annotation/types.js";
 import { ContextBudgetCalculator } from "../calculators/context-budget-calculator.js";
 import { type ContextPlan, LayerResolver } from "../calculators/layer-resolver.js";
+import { NewFiles } from "../calculators/new-files.js";
 import type { BootstrapContext, BootstrapFormatter } from "../formatters/bootstrap-formatter.js";
 import type {
 	ContextBudget,
@@ -55,10 +56,19 @@ export interface AssembleInput {
 	 * (REQ-RUN-20).
 	 */
 	readonly excluded?: readonly string[];
+	/**
+	 * Paths the active chunk's plan names that are not on disk, from
+	 * `NewFiles.absent` (LLD-new-files.md). The prompt states them and loads
+	 * the indexed files beside them (REQ-NEW-1, REQ-NEW-4).
+	 */
+	readonly absent?: readonly string[];
 }
 
 /** What charging the budget needs: the session, without any formatting. */
-export type ChargeInput = Pick<AssembleInput, "state" | "chunk" | "entries" | "index" | "excluded">;
+export type ChargeInput = Pick<
+	AssembleInput,
+	"state" | "chunk" | "entries" | "index" | "excluded" | "absent"
+>;
 
 /** The context a prompt would load, and the budget it is charged. */
 export interface ChargedContext {
@@ -142,10 +152,24 @@ export const PromptAssembler = {
 	charge(input: ChargeInput): ChargedContext {
 		const { chunk, entries, index } = input;
 		const excluded = new Set(input.excluded ?? []);
-		const chunkFiles = FileIndexManager.queryByChunk(entries, chunk.chunk_id).filter(
+		const tagged = FileIndexManager.queryByChunk(entries, chunk.chunk_id).filter(
 			(e) => !excluded.has(e.filepath),
 		);
 		const alwaysIncludeFiles = FileIndexManager.alwaysInclude(entries);
+		// The code beside files the chunk will create, charged like any chunk
+		// file so every command reports the same budget (REQ-NEW-4, REQ-NEW-5).
+		const taken = new Set([
+			...excluded,
+			...tagged.map((e) => e.filepath),
+			...alwaysIncludeFiles.map((e) => e.filepath),
+		]);
+		const neighbours = NewFiles.neighbours({
+			absent: input.absent ?? [],
+			index,
+			taken,
+			activeChunk: chunk.chunk_id,
+		});
+		const chunkFiles = [...tagged, ...neighbours];
 		const plan = withoutExcluded(
 			LayerResolver.plan({ chunkFiles, alwaysIncludeFiles, tasks: chunk.tasks, index }),
 			excluded,
@@ -178,6 +202,7 @@ export const PromptAssembler = {
 			],
 			projectName: input.projectName,
 			maxPromptLines: shown.max_prompt_lines,
+			...(input.absent !== undefined && input.absent.length > 0 ? { newFiles: input.absent } : {}),
 			...(index !== null ? { resolvedLayers: plan.layers, focusUnits: plan.focus } : {}),
 		};
 		const prompt = NextPromptWriter.generateWithFormatter(input.formatter, context);

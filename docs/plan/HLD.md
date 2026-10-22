@@ -47,6 +47,7 @@ measures (feature 6).
 | 9 | Single-file components | `LLD-sfc-index.md` | `.vue` and `.svelte` files never reach the ai-index |
 | 10 | One budget | `LLD-budget.md` | The prompt, `status`, `preview` and `health` each reported a different budget, all of them low |
 | 11 | Prompt context | `LLD-prompt-context.md` | The agent saw a chunk's checkboxes but not its goal or steps, and the load line hid files past six |
+| 12 | Files a chunk will create | `LLD-new-files.md` | A phase whose files do not exist yet loads nothing for them — not even the code they sit beside |
 
 ### Status (2026-10-22)
 
@@ -64,6 +65,7 @@ whose plan names each phase's files:
 | 9 (SFC-1..5) | `84e646a` | Indexed files 95 → 111; 66 component units, hash fidelity 66/66 |
 | 10 (BUD-1..5) | `48e4722`, `3e2595f` | One figure everywhere (~4,500, honestly over the 4,000 default) |
 | 10 (BUD-6..8) | `fix(budget): judge the chunk` | Always-include (`CLAUDE.md`, ~1,960) reported beside the cap, not against it: chunks 1–8 `[OK]` at ~950–2,550; chunk 9 still `[OVER]` at ~6,120 for a 17 KB doc |
+| 12 (NEW-1..6) | `feat(prompt): files a chunk will create` | Phase 8 states its 8 absent paths and loads `App.tsx`, `main.tsx`, `routing/MFEOutlet.tsx`, `routing/mfe-registry.ts`; recall unchanged |
 | 8 — import notes, `init --chunk` (REQ-RUN-23..31) | `1c73bec`, `b74010f` | Readable notes; start at phase 8 in one command |
 | 11 (PCX-1..7) | `4908221` | Prompt recall 5/11 → 11/11; `PLAN_1.md` holds the goal and all eight steps |
 
@@ -73,8 +75,6 @@ target names files from DevNexus's own plan).
 
 Still open, in rough priority:
 
-- **Files a chunk will create.** A phase whose files do not exist yet (DevNexus
-  phase 8) loads nothing for them; the brief says what they are.
 - **Feature 3's remaining half** — interactive tagging (up to 30 prompts) and
   tagging-on-touch.
 - **Feature 4** (workflow-shaped prompt) and **feature 2** (`symbols`): no LLD yet.

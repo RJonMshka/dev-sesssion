@@ -55,6 +55,7 @@ export type {
 	ResolvedFileLayer,
 } from "./calculators/layer-resolver.js";
 export { LayerResolver } from "./calculators/layer-resolver.js";
+export { type NeighbourInput, NewFiles } from "./calculators/new-files.js";
 export type {
 	FocusedUnit,
 	UnitFocusInput,
@@ -92,6 +93,7 @@ export {
 	formatChunkProgress,
 	formatCompletedChunksSummary,
 	formatLayeredContextLines,
+	formatNewFilesLine,
 	formatOverBudgetMessage,
 	formatPlanLine,
 	formatQuotedNote,
@@ -105,6 +107,7 @@ export {
 	MAX_NOTE_CHARS,
 	MAX_REF_LINE_CHARS,
 	mergeContextFiles,
+	NEW_FILES_PREFIX,
 	PLAN_PREFIX,
 	QUOTED_LABEL,
 	quoteText,

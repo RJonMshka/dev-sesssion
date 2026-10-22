@@ -26,6 +26,7 @@ import {
 	formatChunkProgress,
 	formatCompletedChunksSummary,
 	formatLayeredContextLines,
+	formatNewFilesLine,
 	formatPlanLine,
 	formatRefList,
 	getPendingTasks,
@@ -90,6 +91,9 @@ export const PlainTextFormatter: BootstrapFormatter = {
 		// The chunk's goal and steps live in its plan file (REQ-PCX-5).
 		const planLine = formatPlanLine(chunk, (p) => p);
 		if (planLine !== undefined) lines.push(planLine);
+		// Paths the plan names that are not on disk yet (REQ-NEW-1).
+		const newFilesLine = formatNewFilesLine(context.newFiles);
+		if (newFilesLine !== undefined) lines.push(newFilesLine);
 
 		// -- Context section (up to 4 lines) --
 		const resolvedLayers = context.resolvedLayers ?? [];

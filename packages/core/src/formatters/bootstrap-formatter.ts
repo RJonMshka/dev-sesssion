@@ -54,6 +54,12 @@ export interface BootstrapContext {
 	 */
 	readonly focusUnits?: readonly FocusedUnit[];
 	/**
+	 * Paths the plan names for the active chunk that are not on disk
+	 * (REQ-NEW-1). Formatters state them with `formatNewFilesLine`. Optional,
+	 * so a third-party formatter that ignores it still produces valid output.
+	 */
+	readonly newFiles?: readonly string[];
+	/**
 	 * Line cap for the generated prompt. Defaults to `DEFAULT_MAX_PROMPT_LINES`
 	 * when absent. Formatters must honor it — a prompt over the cap is refused
 	 * by `NextPromptWriter.write()`.

@@ -170,6 +170,15 @@ has more than checkboxes — the goal, numbered steps and file list are kept
 there as its brief, while the checkboxes stay the tracked tasks. File lists name
 every file that fits on the line (about 25) before ending in `+N more`.
 
+When the plan names files that do not exist yet — a phase that creates them —
+the prompt lists them on a `Not on disk yet:` line, as plain paths, and loads
+the summaries of the existing files beside them: the files in the nearest
+directory that has any, up to three per new file and eight in all, never the
+project root's. Those neighbours are chosen fresh each time the prompt is
+written and are not added to `FILE_INDEX.md`. A path the plan names that
+merely moved since it was written shows up on the same line; the prompt says
+it is not on disk, not that it should be created.
+
 (The exact wording of the file-reference lines depends on the adapter — Claude
 Code writes `@`-mentions, Cursor and Windsurf write `Ignore:` instead of
 `Do NOT read:`. See [adapters.md](adapters.md).)

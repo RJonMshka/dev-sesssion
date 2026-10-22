@@ -252,12 +252,13 @@ The layered lines are built from these constants by
 still produces valid output, just without the Focus line. A unit reference is
 attributed to its file wherever paths are parsed, so cut at `#`.
 
-Two helpers render the rest, and every shipped formatter uses them:
+Three helpers render the rest, and every shipped formatter uses them:
 
 | Export | Signature | What it does |
 |---|---|---|
 | `formatRefList` | `(refs: readonly string[], maxCount?: number) => string` | Names every ref that fits in `MAX_REF_LINE_CHARS` (1,200), then `, +N more`; `(none)` when empty |
 | `formatPlanLine` | `(chunk: PlanChunk, ref: (p) => string) => string \| undefined` | `Plan: <ref>` for the chunk's file, or `undefined` without a brief |
+| `formatNewFilesLine` | `(paths: readonly string[] \| undefined) => string \| undefined` | `Not on disk yet: <paths>` (`NEW_FILES_PREFIX`) from `context.newFiles`, as plain paths — never through `ref`, since they do not exist; `undefined` when there are none. Not a file-load prefix, so the validator and `ReplayScorer` ignore it |
 
 `formatLayeredContextLines`'s `maxFiles` is now an optional count cap on top of
 the character cap; omit it.

@@ -14,6 +14,7 @@ import * as path from "node:path";
 import type { ValidatedPath } from "@dev-session/security";
 
 import { AiIndexManager } from "../annotation/ai-index-manager.js";
+import { NewFiles } from "../calculators/new-files.js";
 import { formatOverBudgetMessage } from "../formatters/formatter-utils.js";
 import { FILE_INDEX_PAGE_SIZE, FileIndexManager } from "../managers/file-index-manager.js";
 import { PlanChunkManager } from "../managers/plan-chunk-manager.js";
@@ -290,11 +291,15 @@ function checkBudget(
 	chunk: PlanChunk,
 	entries: readonly FileIndexEntry[],
 ): HealthIssue[] {
+	const projectRoot = path.dirname(sessionDir);
+	const index = safeLoad(() => AiIndexManager.load(sessionDir)) ?? null;
 	const { budget } = PromptAssembler.charge({
 		state,
 		chunk,
-		entries: FileIndexManager.withMeasuredCosts(entries, path.dirname(sessionDir)),
-		index: safeLoad(() => AiIndexManager.load(sessionDir)) ?? null,
+		// The prompt charges the code beside absent files; so must this (REQ-NEW-5).
+		absent: NewFiles.absent(chunk, projectRoot, entries, index),
+		entries: FileIndexManager.withMeasuredCosts(entries, projectRoot),
+		index,
 		excluded:
 			safeLoad(() =>
 				TrimOverridesManager.getExcludedPaths(TrimOverridesManager.load(sessionDir)),

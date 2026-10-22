@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { BootstrapContext } from "../formatters/bootstrap-formatter.js";
-import { MAX_REF_LINE_CHARS } from "../formatters/formatter-utils.js";
+import { MAX_REF_LINE_CHARS, NEW_FILES_PREFIX } from "../formatters/formatter-utils.js";
 import { PlainTextFormatter } from "../formatters/plain-text-formatter.js";
 import type { ContextBudget, ContextBudgetBreakdown } from "../schemas/context-budget.js";
 import type { FileIndexEntry, PlanChunk, SessionState } from "../schemas/index.js";
@@ -297,5 +297,15 @@ describe("PlainTextFormatter", () => {
 
 			expect(content).toContain("+6 more tasks");
 		});
+	});
+});
+
+describe("files not on disk yet", () => {
+	it("states them as plain text after the plan line (REQ-NEW-1)", () => {
+		const prompt = PlainTextFormatter.generatePrompt(
+			makeContext({ newFiles: ["src/routing/transitions.ts"] }),
+		);
+		expect(prompt).toContain(`${NEW_FILES_PREFIX} src/routing/transitions.ts`);
+		expect(PlainTextFormatter.generatePrompt(makeContext())).not.toContain(NEW_FILES_PREFIX);
 	});
 });

@@ -45,6 +45,9 @@ dev-sesssion init [options]
    - Each chunk's `PLAN_N.md` keeps the paths it named (`files`) and the rest of
      its section — goal, numbered steps, file list — as `brief`. The prompt points
      at it with a `Plan:` line. Checkboxes remain the tracked tasks
+   - Paths the active chunk names that are not on disk yet go on a
+     `Not on disk yet:` line, and the existing files beside them are loaded as
+     summaries (not written to `FILE_INDEX.md`)
 4. Builds `ai-index.yaml`, so the first prompt can focus the units your tasks
    name. If that fails (for example `--strict` refusing a secret), init warns and
    carries on without it

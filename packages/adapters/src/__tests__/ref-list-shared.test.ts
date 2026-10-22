@@ -6,7 +6,7 @@
  * compare each formatter's real output against the shared helper's.
  */
 
-import { formatRefList, LOAD_PREFIX, PLAN_PREFIX } from "@dev-session/core";
+import { formatRefList, LOAD_PREFIX, NEW_FILES_PREFIX, PLAN_PREFIX } from "@dev-session/core";
 import { describe, expect, it } from "vitest";
 import { ClaudeBootstrapFormatter } from "../claude-bootstrap-formatter.js";
 import { CursorBootstrapFormatter } from "../cursor-bootstrap-formatter.js";
@@ -38,5 +38,13 @@ describe.each(FORMATTERS)("%s formatter", (_name, formatter, ref) => {
 
 		expect(prompt).toContain(`${PLAN_PREFIX} ${ref(`.session/PLAN_${String(chunk.chunk_id)}.md`)}`);
 		expect(formatter.generatePrompt(makeContext())).not.toContain(PLAN_PREFIX);
+	});
+
+	it("states plan-named paths not on disk as plain text (REQ-NEW-1)", () => {
+		const newFiles = ["src/routing/transitions.ts", "e2e/golden-path.spec.ts"];
+		const prompt = formatter.generatePrompt(makeContext({ newFiles }));
+
+		expect(prompt).toContain(`${NEW_FILES_PREFIX} ${formatRefList(newFiles)}`);
+		expect(formatter.generatePrompt(makeContext())).not.toContain(NEW_FILES_PREFIX);
 	});
 });
