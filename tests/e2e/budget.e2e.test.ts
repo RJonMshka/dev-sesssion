@@ -98,3 +98,20 @@ describe("files the ai-index does not cover", () => {
 		expect(promptBudget()).toBe(atInit);
 	});
 });
+
+describe("health", () => {
+	it("judges the budget the prompt was charged (REQ-BUD-5)", async () => {
+		// 20 KB the ai-index does not cover: over the 4,000-token default.
+		fs.writeFileSync(path.join(tmpDir, "src", "theme.css"), `.a { color: red; }\n`.repeat(1100));
+		await cli("init", "--yes");
+		expect(fs.readFileSync(path.join(tmpDir, ".session", "NEXT_PROMPT.md"), "utf-8")).toContain(
+			"[OVER]",
+		);
+
+		const r = await runCli(["health", "--cwd", tmpDir]);
+		const out = r.stdout + r.stderr;
+
+		expect(out).toContain("BUDGET_EXCEEDED");
+		expect(out).toContain(`~${String(promptBudget())} /`);
+	});
+});

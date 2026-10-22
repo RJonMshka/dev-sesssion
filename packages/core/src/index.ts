@@ -132,7 +132,12 @@ export { ContextManifest } from "./managers/context-manifest.js";
 export { FILE_INDEX_PAGE_SIZE, FileIndexManager } from "./managers/file-index-manager.js";
 export { NextPromptWriter } from "./managers/next-prompt-writer.js";
 export { DONE_LOG_FILENAME, PlanChunkManager } from "./managers/plan-chunk-manager.js";
-export type { AssembledPrompt, AssembleInput } from "./managers/prompt-assembler.js";
+export type {
+	AssembledPrompt,
+	AssembleInput,
+	ChargedContext,
+	ChargeInput,
+} from "./managers/prompt-assembler.js";
 export { PromptAssembler } from "./managers/prompt-assembler.js";
 export { RoutinesWriter } from "./managers/routines-writer.js";
 export type {

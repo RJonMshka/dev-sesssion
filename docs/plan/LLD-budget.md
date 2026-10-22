@@ -66,6 +66,15 @@ entry for `CLAUDE.md` is built without a cost, so `init` too charged 50 for a
 7.8 KB file that Claude Code loads whole every session (~1,960 tokens). Every
 entry is now measured on the way into the assembler, whoever built it.
 
+**REQ-BUD-5** — `health` shall judge whether the session is over budget by the
+budget the prompt assembler charges for it.
+
+Added 2026-10-21, after the rest of this LLD shipped. On DevNexus the prompt read
+`~5019/4000 [OVER]` while `health` reported "7 checks passed, no issues":
+`checkBudget` (`health-checker.ts:281`) called `estimate` on entries read from
+`FILE_INDEX.md`, which carry no costs, so every file was charged the flat
+default and the ai-index was never consulted.
+
 ---
 
 ## Design
@@ -102,6 +111,7 @@ through the calculator but still charges whole-file costs; see Out of scope.
 | REQ-BUD-1 | unit | For a state and a chunk with timestamps and notes, the breakdown equals `ceil(bytes(toMarkdown(x)) / 4)` |
 | REQ-BUD-2 | e2e | `status --json` total equals the number on the prompt's `Budget:` line — after `init`, and again after `index` |
 | REQ-BUD-3 | e2e | `preview --json` total equals the same number, after `init` and after `index` |
+| REQ-BUD-5 | e2e | A plan naming a 20 KB file: the prompt reads `[OVER]`, and `health` reports `BUDGET_EXCEEDED` with the prompt's figure |
 | REQ-BUD-4 | e2e | A 4 KB CSS file a task names: `status` after `init`, and the prompt after `update -y`, equal the prompt `init` wrote |
 
 ### What actually happened
@@ -124,12 +134,16 @@ That is the correction, not a regression: `CLAUDE.md` (~1,960 tokens, loaded
 whole by Claude Code every session) and `tokens.css` (~962) were each being
 charged 50.
 
+REQ-BUD-5 **failed first** (`health` printed "All 7 checks passed" over an
+`[OVER]` prompt). With `health` on `PromptAssembler.charge`, DevNexus reports
+`BUDGET_EXCEEDED ~4507 / 4000`, the prompt's own figure.
+
 ---
 
 ## Out of scope
 
-- **`health`'s over-budget check** still charges whole-file costs, so it can warn
-  where the prompt says `[OK]` after `index`. Moving it onto the assembler means
-  giving a `core` checker the adapter's formatter; worth doing, not in this change.
+- ~~`health`'s over-budget check~~ — addressed by REQ-BUD-5. The budget does
+  not depend on the formatter, so `PromptAssembler.charge` exposes the plan and
+  budget half of `assemble` and `health` calls it; no formatter is needed.
 - **Accurate token counts.** All of this is the bytes/4 heuristic; the point here
   is that the heuristic is applied once, to real text.
