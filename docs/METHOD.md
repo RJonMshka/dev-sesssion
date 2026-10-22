@@ -139,6 +139,8 @@ LLD, `n` counts from 1 within that area.
 | `EVAL` | The eval harness's own correctness and its corpus | `LLD-eval-harness.md` |
 | `UNIT` | Code units — extraction, focused loading, the context manifest | `LLD-code-units.md` |
 | `RUN` | First run — init tagging, import of `CLAUDE.md`, prompt freshness | `LLD-first-run.md` |
+| `PLA` | Plan authoring — `plan check`, `init --plan`, the agent skill | `LLD-plan-authoring.md` |
+| `ORC` | A harness driving the loop — `advance --json`, non-TTY, MCP `check_plan` | `LLD-plan-authoring.md` |
 
 Add a row when you add an area. Ids are global once written down: they appear in
 test names, in code comments above the block that satisfies them, and in commit

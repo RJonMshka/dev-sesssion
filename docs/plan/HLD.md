@@ -48,6 +48,7 @@ measures (feature 6).
 | 10 | One budget | `LLD-budget.md` | The prompt, `status`, `preview` and `health` each reported a different budget, all of them low |
 | 11 | Prompt context | `LLD-prompt-context.md` | The agent saw a chunk's checkboxes but not its goal or steps, and the load line hid files past six |
 | 12 | Files a chunk will create | `LLD-new-files.md` | A phase whose files do not exist yet loads nothing for them — not even the code they sit beside |
+| 13 | Plan authoring and orchestration | `LLD-plan-authoring.md` | An agent cannot check a plan it wrote without running `init`, and a harness driving `advance` either hangs on a prompt or skips work |
 
 ### Status (2026-10-22)
 
@@ -78,6 +79,7 @@ Still open, in rough priority:
 - **Feature 3's remaining half** — interactive tagging (up to 30 prompts) and
   tagging-on-touch.
 - **Feature 4** (workflow-shaped prompt) and **feature 2** (`symbols`): no LLD yet.
+- **Feature 13** (plan authoring, orchestration): LLD drafted 2026-10-22, not built.
 - **REQ-EVAL-6**, the adversarial corpus.
 - **The agent tier on a real target** — every number above is deterministic;
   nothing yet shows an agent does better with the new context.
