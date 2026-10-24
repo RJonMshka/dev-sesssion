@@ -126,9 +126,9 @@ LLD, `n` counts from 1 within that area.
 
 | Area | Scope | LLD |
 |---|---|---|
-| `IDX` | File index parsing, layout, and auto-tagging | `LLD-session-integrity.md`, `LLD-file-index.md` |
+| `IDX` | File index parsing, layout, and auto-tagging | `LLD-session-integrity.md`, `LLD-file-index.md`, `LLD-tagging.md` |
 | `CHK` | Chunk ids — discovery, ordering, representation | `LLD-session-integrity.md` |
-| `DRY` | Dry-run contract | `LLD-session-integrity.md` |
+| `DRY` | Dry-run contract | `LLD-session-integrity.md`, `LLD-tagging.md` |
 | `PS` | Plan sources — parsing plans of varying formats | `LLD-plan-sources.md` |
 | `SYM` | Symbol rendering — the `symbols` command | `LLD-symbols.md` |
 | `WF` | Workflow-shaped `NEXT_PROMPT.md` | `LLD-workflow-prompt.md` |
@@ -136,7 +136,7 @@ LLD, `n` counts from 1 within that area.
 | `SFC` | Indexing single-file components (`.vue`, `.svelte`) | `LLD-sfc-index.md` |
 | `BUD` | The context budget — counting, and one figure across commands | `LLD-budget.md` |
 | `PCX` | What the prompt points at — the chunk brief and file-reference lines | `LLD-prompt-context.md` |
-| `EVAL` | The eval harness's own correctness and its corpus | `LLD-eval-harness.md` |
+| `EVAL` | The eval harness's own correctness, its corpus, and the agent tier | `LLD-eval-harness.md`, `LLD-agent-tier.md` |
 | `UNIT` | Code units — extraction, focused loading, the context manifest | `LLD-code-units.md` |
 | `RUN` | First run — init tagging, import of `CLAUDE.md`, prompt freshness | `LLD-first-run.md` |
 | `PLA` | Plan authoring — `plan check`, `init --plan`, the agent skill | `LLD-plan-authoring.md` |

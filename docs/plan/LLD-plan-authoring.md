@@ -144,6 +144,11 @@ REQ-PLA-10 turn "the skill is cheap" from a claim into a test.
 - **REQ-ORC-4** — Where the MCP server is running, it shall expose a read-only
   `check_plan` tool returning the same report as `plan check --json`.
 - **REQ-ORC-5** — The MCP server shall not expose `advance` or `init`.
+- **REQ-ORC-6** — When `advance` runs, it shall make the active chunk the
+  lowest-numbered chunk above the current one, whether that id is fractional
+  or leaves a gap.
+- **REQ-ORC-7** — While a chunk with a higher id than the active one exists,
+  `advance` shall not report `allChunksComplete`.
 
 REQ-ORC-3 adds a message and changes no outcome: `init -y` still scaffolds its
 placeholder chunk and exits 0, so nothing in this LLD is a breaking change.
@@ -203,8 +208,18 @@ export function checkPlan(content: string): PlanCheckReport;
 `parsePlan` throws `ParseError` below threshold (REQ-PS-3). `checkPlan` catches
 it and returns `source: null` with the ranked candidates, so the agent gets the
 same report shape whether the plan is good, weak or unrecognized.
-`split-plan.ts:111-129` then renders from this report instead of computing the
-same facts inline, so `init` and `plan check` cannot disagree.
+
+`init` and `plan check` read the same `parsePlan` result, so they agree on
+chunks, exclusions and warnings by construction; the integration test pins that
+on both archive plans. `split-plan.ts` keeps its own flow, because it needs the
+full `PlanChunk[]` to write, but the sentence explaining an exclusion moved to
+core as `describeExclusion(reason)` so the two commands cannot word it
+differently.
+
+Built 2026-10-22. Running it on `docs/archive/PLANv2.md` exits 1: its
+`Revision — 2026-04-14` section holds 12 tasks and declares no chunk number, so
+`init` would drop them. `init` only warns about that; `plan check` fails, which
+is the point.
 
 ### CLI: `plan check` (REQ-PLA-5, 6)
 
@@ -270,6 +285,28 @@ to the user and is never touched.
 `confirm()` at `advance.ts:113`. It throws a `CliError` whose suggestion names
 `--yes`. It's a check in the CLI, not core: TTY is a CLI concern.
 
+### Advancing in plan order (REQ-ORC-6, 7)
+
+Found while checking this LLD against the code on 2026-10-24. The HLD carried it
+as "`advance()` still does `active_chunk + 1`". The orchestration loop turns that
+from a known gap into data loss:
+
+- `advance.ts:129` computes `nextChunkId = currentChunkId + 1`, and
+  `PlanChunkManager.advance` (`plan-chunk-manager.ts:218`) writes
+  `active_chunk + 1`.
+- Chunks 1, 2, 3, 3.5, 4: advancing from 3 lands on 4 and skips 3.5.
+- Chunks 1, 3 (2 excluded, or a plan numbered from 10): advancing from 1 finds
+  no chunk 2 and takes the last-chunk branch (`advance.ts:132`). The session
+  reports "All chunks complete" with work left. Under `advance --json`, a
+  harness reads `allChunksComplete: true` and stops for good.
+
+Fix in core, mirroring `startAt` (`plan-chunk-manager.ts:191`), which already
+orders chunks numerically (REQ-CHK-2): `PlanChunkManager.nextAfter(chunks, id)`
+returns the lowest `chunk_id` greater than `id`, or `undefined`.
+`PlanChunkManager.advance(state, nextId)` takes the target instead of computing
+it, and `advance.ts` asks `nextAfter` instead of adding 1. Ids stay plain
+numbers, so the schema doesn't change.
+
 ### Init without a plan (REQ-ORC-3)
 
 Don't fail; tell the user what to do. At `init.ts:168`, before `scaffoldPlan`,
@@ -316,6 +353,8 @@ should stay meaningful.
 | REQ-ORC-1 | `tests/e2e/lifecycle.e2e.test.ts`: `advance --json` mid-plan and at last chunk | e2e |
 | REQ-ORC-2 | same: execa with `stdin: "pipe"`, incomplete tasks, no `--yes` → non-zero, state unchanged | e2e |
 | REQ-ORC-3 | `tests/e2e/first-run.e2e.test.ts`: planless fixture with `-y` exits 0, stdout names `plan check` and `--plan` and the placeholder; commands resolve against `createProgram()` | e2e |
+| REQ-ORC-6 | `plan-chunk-manager` unit: `nextAfter` over `[1,2,3,3.5,4]` from 3 → 3.5, over `[1,3]` from 1 → 3, from the max → `undefined` | unit |
+| REQ-ORC-6, 7 | `tests/e2e/lifecycle.e2e.test.ts`: plan with chunks 1, 3 and 1, 1.5, 2 — `advance --json --yes` lands on 3 / 1.5 and reports `allChunksComplete: false` | e2e |
 | REQ-ORC-4, 5 | `packages/cli/src/__tests__/mcp.test.ts`: tool list and `check_plan` output equals `checkPlan` | unit |
 
 REQ-PLA-11 is the test that matters most. Without it, the skill becomes
