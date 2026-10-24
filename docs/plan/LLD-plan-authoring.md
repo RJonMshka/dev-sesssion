@@ -287,6 +287,12 @@ to the user and is never touched.
 
 ### Advancing in plan order (REQ-ORC-6, 7)
 
+*Built 2026-10-24 on `fix/live-bugs`. `--json` (REQ-ORC-1) is not built, so the
+e2e test reads the active chunk from `status --json`. Landing on a fractional
+chunk also needed `CONTEXT_LOG.md`'s `active_chunk` widened from integer to
+number, as `SESSION_STATE.md`'s already was — otherwise the log entry `advance`
+appends made every later command fail to parse.*
+
 Found while checking this LLD against the code on 2026-10-24. The HLD carried it
 as "`advance()` still does `active_chunk + 1`". The orchestration loop turns that
 from a known gap into data loss:

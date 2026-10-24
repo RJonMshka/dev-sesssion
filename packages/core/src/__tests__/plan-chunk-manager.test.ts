@@ -133,16 +133,31 @@ describe("PlanChunkManager", () => {
 		});
 	});
 
+	describe("nextAfter", () => {
+		const chunks = (ids: number[]): PlanChunk[] =>
+			ids.map((chunk_id) => ({ chunk_id, title: "T", depends_on: [], tasks: [] }));
+
+		it("returns the lowest id above the current one, fractional or across a gap (REQ-ORC-6)", () => {
+			expect(PlanChunkManager.nextAfter(chunks([4, 1, 3.5, 2, 3]), 3)?.chunk_id).toBe(3.5);
+			expect(PlanChunkManager.nextAfter(chunks([1, 3]), 1)?.chunk_id).toBe(3);
+		});
+
+		it("returns undefined only from the highest id (REQ-ORC-7)", () => {
+			expect(PlanChunkManager.nextAfter(chunks([1, 1.5, 2]), 2)).toBeUndefined();
+			expect(PlanChunkManager.nextAfter(chunks([1, 1.5, 2]), 1.5)?.chunk_id).toBe(2);
+		});
+	});
+
 	describe("advance", () => {
-		it("increments active_chunk by 1", () => {
-			const state = makeState(2);
-			const advanced = PlanChunkManager.advance(state);
-			expect(advanced.active_chunk).toBe(3);
+		it("makes the given chunk active (REQ-ORC-6)", () => {
+			const state = makeState(3);
+			const advanced = PlanChunkManager.advance(state, 3.5);
+			expect(advanced.active_chunk).toBe(3.5);
 		});
 
 		it("adds current chunk to completed_chunks", () => {
 			const state = makeState(2);
-			const advanced = PlanChunkManager.advance(state);
+			const advanced = PlanChunkManager.advance(state, state.active_chunk + 1);
 			expect(advanced.completed_chunks["2"]).toBeDefined();
 		});
 
@@ -151,7 +166,7 @@ describe("PlanChunkManager", () => {
 				...makeState(3),
 				completed_chunks: { "1": "2026-03-01", "2": "2026-03-15" },
 			};
-			const advanced = PlanChunkManager.advance(state);
+			const advanced = PlanChunkManager.advance(state, state.active_chunk + 1);
 			expect(advanced.completed_chunks["1"]).toBe("2026-03-01");
 			expect(advanced.completed_chunks["2"]).toBe("2026-03-15");
 			expect(advanced.completed_chunks["3"]).toBeDefined();

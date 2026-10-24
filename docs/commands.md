@@ -192,8 +192,12 @@ Run this when all tasks in the active chunk are complete. The command:
 
 1. Marks the current chunk as completed in `SESSION_STATE.md`
 2. Archives it to `DONE_LOG.md`
-3. Activates the next chunk
+3. Activates the next chunk — the lowest chunk id above the current one, so
+   chunk `3.5` follows `3`, and a plan numbered `1, 3` goes from 1 to 3
 4. Writes a fresh `NEXT_PROMPT.md`
+
+On the highest-numbered chunk it reports that all chunks are complete and
+exits 0 without changing anything.
 
 ---
 

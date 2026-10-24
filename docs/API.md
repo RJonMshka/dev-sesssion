@@ -290,6 +290,11 @@ never rewrites `PLAN_<n>.md`.
 for a session starting at `chunkId` (the lowest-numbered when omitted), and
 throws `CliError` naming the defined ids when `chunkId` is not one.
 
+`PlanChunkManager.nextAfter(chunks, chunkId)` returns the chunk with the lowest
+id above `chunkId` — fractional ids and gaps included — or `undefined` from the
+highest. `PlanChunkManager.advance(state, nextChunkId)` takes that id; it no
+longer adds 1 itself.
+
 ---
 
 ## SessionVerifier

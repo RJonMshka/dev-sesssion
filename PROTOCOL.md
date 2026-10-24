@@ -61,7 +61,7 @@ machine-readable state; the body is human narrative.
 
 ```yaml
 ---
-active_chunk: 16              # integer id of the chunk in progress
+active_chunk: 16              # id of the chunk in progress (may be fractional, e.g. 3.5)
 session_id: "chunk-16-..."    # opaque id for the current session
 last_updated: "2026-06-17"    # ISO date (YYYY-MM-DD)
 tasks:                        # tasks for the active chunk
@@ -85,7 +85,7 @@ project_name: "Rocket Shop"   # optional; overrides the detected project name
 
 | Field | Type | Notes |
 |---|---|---|
-| `active_chunk` | integer ≥ 1 | Matches a `PLAN_<n>.md` chunk id. |
+| `active_chunk` | number ≥ 1 | Matches a `PLAN_<n>.md` chunk id, so it may be fractional. Advancing moves it to the lowest chunk id above it — `3` → `3.5`, and `1` → `3` when there is no chunk `2`. |
 | `session_id` | string | Opaque; identifies the working session. |
 | `last_updated` | string | `YYYY-MM-DD`. |
 | `tasks[]` | list | `{ text, status }`; `status ∈ {todo, in-progress, done}`. Optional ISO-8601 `added_at` / `completed_at`. Replaced by the new chunk's tasks on advance. A task's status is the higher of what this list and `PLAN_<n>.md` record for the same exact text — `done` > `in-progress` > `todo` — so recording status here is enough, and `PLAN_<n>.md` need not be rewritten. |
@@ -136,7 +136,7 @@ Indexes larger than 500 entries are paginated into `FILE_INDEX_1.md`,
 
 ### `PLAN_<n>.md` (required, one or more)
 
-One file per plan chunk. The filename matches `^PLAN_(\d+)\.md$`. YAML
+One file per plan chunk. The filename matches `^PLAN_(\d+(?:\.\d+)?)\.md$`. YAML
 frontmatter declares the chunk; the body is the human plan. `chunk_id` is a
 number ≥ 1 and may be fractional (e.g. `3.5`), so an interstitial chunk can be
 inserted between two existing ones without renumbering the whole plan.
