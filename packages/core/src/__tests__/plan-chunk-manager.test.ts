@@ -319,3 +319,66 @@ describe("PlanChunkManager — brief (LLD-prompt-context.md)", () => {
 		expect(loaded?.brief).toBe(brief);
 	});
 });
+
+describe("one task status (LLD-workflow-prompt.md Part B)", () => {
+	const chunkWith = (tasks: PlanChunk["tasks"]): PlanChunk => ({
+		chunk_id: 1,
+		title: "T",
+		depends_on: [],
+		tasks,
+	});
+	const status = (chunk: PlanChunk): string[] => chunk.tasks.map((t) => t.status);
+
+	it("counts a task done when either file records it done (REQ-WF-8)", () => {
+		const plan = chunkWith([
+			{ text: "A", status: "done" },
+			{ text: "B", status: "todo" },
+		]);
+		const state = [
+			{ text: "A", status: "todo" as const },
+			{ text: "B", status: "done" as const },
+		];
+
+		expect(status(PlanChunkManager.withSessionStatus(plan, state))).toEqual(["done", "done"]);
+	});
+
+	it("ranks in-progress above todo, and never lowers a status (REQ-WF-8)", () => {
+		const plan = chunkWith([
+			{ text: "A", status: "todo" },
+			{ text: "B", status: "in-progress" },
+			{ text: "C", status: "todo" },
+		]);
+		const state = [
+			{ text: "A", status: "in-progress" as const },
+			{ text: "B", status: "todo" as const },
+			{ text: "Not in this chunk", status: "done" as const },
+		];
+
+		expect(status(PlanChunkManager.withSessionStatus(plan, state))).toEqual([
+			"in-progress",
+			"in-progress",
+			"todo",
+		]);
+	});
+
+	it("loadActive counts the status SESSION_STATE.md records (REQ-WF-7)", () => {
+		const dir = fs.mkdtempSync(path.join(import.meta.dirname ?? __dirname, ".tmp-"));
+		try {
+			writeChunk(dir, 1, "One", ["First", "Second"]);
+			const state: SessionState = {
+				...makeState(1),
+				tasks: [
+					{ text: "First", status: "done" },
+					{ text: "Second", status: "todo" },
+				],
+			};
+
+			const chunk = PlanChunkManager.loadActive(dir as ValidatedPath, state);
+
+			expect(status(chunk)).toEqual(["done", "todo"]);
+			expect(fs.readFileSync(path.join(dir, "PLAN_1.md"), "utf8")).not.toContain("done");
+		} finally {
+			fs.rmSync(dir, { recursive: true, force: true });
+		}
+	});
+});

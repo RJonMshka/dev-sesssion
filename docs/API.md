@@ -39,6 +39,7 @@ Manages `SESSION_STATE.md`. All I/O uses `AtomicWriter` and `FrontmatterParser` 
 | `toMarkdown` | `(state: SessionState) => string` | `string` | Pure — the exact text `save` writes. The budget counts it |
 | `markTaskDone` | `(state, taskText: string) => SessionState` | `SessionState` | Pure — mark matching task as done |
 | `markTaskInProgress` | `(state, taskText: string) => SessionState` | `SessionState` | Pure — mark matching task as in-progress |
+| `adoptTask` | `(state, taskText: string) => SessionState` | `SessionState` | Pure — append the task as `todo` unless state already lists that exact text |
 | `addNote` | `(state, note: string) => SessionState` | `SessionState` | Pure — append a note |
 | `updateLastWorked` | `(state, files: string[]) => SessionState` | `SessionState` | Pure — replace last-worked file list |
 | `compact` | `(state) => SessionState` | `SessionState` | Pure — trim completed-chunk detail, add summary note |
@@ -278,6 +279,12 @@ Builds `NEXT_PROMPT.md`, its manifest and its budget from a loaded session.
 |---|---|---|
 | `assemble` | `(input: AssembleInput) => AssembledPrompt` | The prompt, manifest, budget and plan, using the adapter's formatter |
 | `charge` | `(input: ChargeInput) => ChargedContext` | The plan and budget alone — no formatter. `assemble` is built on it and `health` judges the budget by it, so they agree |
+
+`PlanChunkManager.loadActive(sessionDir, state)` returns the active chunk with
+each task's status merged from `state.tasks` by
+`PlanChunkManager.withSessionStatus(chunk, stateTasks)`: tasks match by exact
+text, and the higher status wins (`done` > `in-progress` > `todo`). Pure; it
+never rewrites `PLAN_<n>.md`.
 
 `PlanChunkManager.startAt(chunks, chunkId?)` returns `{ active, completedIds }`
 for a session starting at `chunkId` (the lowest-numbered when omitted), and

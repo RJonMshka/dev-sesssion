@@ -88,7 +88,7 @@ project_name: "Rocket Shop"   # optional; overrides the detected project name
 | `active_chunk` | integer ≥ 1 | Matches a `PLAN_<n>.md` chunk id. |
 | `session_id` | string | Opaque; identifies the working session. |
 | `last_updated` | string | `YYYY-MM-DD`. |
-| `tasks[]` | list | `{ text, status }`; `status ∈ {todo, in-progress, done}`. Optional ISO-8601 `added_at` / `completed_at`. |
+| `tasks[]` | list | `{ text, status }`; `status ∈ {todo, in-progress, done}`. Optional ISO-8601 `added_at` / `completed_at`. Replaced by the new chunk's tasks on advance. A task's status is the higher of what this list and `PLAN_<n>.md` record for the same exact text — `done` > `in-progress` > `todo` — so recording status here is enough, and `PLAN_<n>.md` need not be rewritten. |
 | `notes[]` | list of string | Durable gotchas/decisions. Trim aggressively. A note copied from a repository file is written as an attributed quotation, e.g. `Quoted from CLAUDE.md § "Setup step": "…"`, so a reader can tell it from the owner's own notes. |
 | `last_worked_files[]` | list of string | Repo-relative paths. |
 | `completed_chunks` | map | chunk id → ISO date. |
