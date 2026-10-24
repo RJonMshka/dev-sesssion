@@ -56,6 +56,48 @@ dev-sesssion init [options]
 
 ---
 
+## dev-sesssion plan check
+
+Report whether `init` would read a plan, and how — without running `init` and
+without writing any file. Use it after writing or editing a plan.
+
+```bash
+dev-sesssion plan check <file> [--json]
+```
+
+`<file>` is relative to the project root (`--cwd`); a path outside it is
+rejected. The report names the plan format chosen and every format's score,
+each chunk (id, title, task count, whether it has a goal or steps besides its
+tasks, the paths it names), every section skipped and why, and dependencies on
+chunks the plan does not define.
+
+**Exit code:** `0` when the plan yields chunks and `init` would drop no task;
+`1` when it yields none, no format recognizes it, or a skipped section holds
+tasks. A skipped section with no tasks (an `## Overview`) does not fail it.
+
+**`--json`** prints one document and nothing else:
+
+```json
+{
+  "ok": true,
+  "source": { "name": "headings", "confidence": 0.95 },
+  "candidates": [
+    { "name": "headings", "confidence": 0.95, "reason": "2 numbered h2 heading(s)" },
+    { "name": "task-list", "confidence": 0, "reason": "document has headings" }
+  ],
+  "chunks": [
+    { "id": 1, "title": "Client", "taskCount": 1, "hasBrief": true, "namedPaths": ["src/client.ts"] }
+  ],
+  "excluded": [],
+  "warnings": []
+}
+```
+
+`source` is `null` when no format recognizes the document; `candidates` still
+lists every score.
+
+---
+
 ## dev-sesssion status
 
 Show task progress, context budget, and health warnings for the active chunk.

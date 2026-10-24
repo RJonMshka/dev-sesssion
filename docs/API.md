@@ -446,6 +446,20 @@ Inspect `result.excluded` before treating a parse as complete: a section is
 skipped when it declares no chunk number, which is right for prose scaffolding
 and worth surfacing when the section contains tasks.
 
+To check a plan without ingesting it, `checkPlan` returns the same facts as one
+report that never throws for plan content — `ok` is false when the plan yields
+no chunks, no source recognizes it, or a skipped section holds tasks. It backs
+`dev-sesssion plan check`.
+
+```ts
+import { checkPlan } from "@dev-session/core";
+
+const report = checkPlan(planMarkdown);
+report.ok;          // false → init would get nothing, or drop tasks
+report.source;      // { name, confidence } | null
+report.chunks;      // [{ id, title, taskCount, hasBrief, namedPaths }]
+```
+
 ### Registering your own
 
 ```ts

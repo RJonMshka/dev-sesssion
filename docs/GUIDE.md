@@ -283,6 +283,7 @@ Every command, flag, exit code and JSON shape is in
 | Command | Reach for it when |
 |---|---|
 | `init` / `migrate` | Setting up a project, or every package of a monorepo |
+| `plan check` | You wrote or edited a plan and want to know `init` will read it |
 | `prompt` | Starting a session — print or `--copy` the handoff |
 | `update` | Ending a session — mark tasks done, regenerate the prompt |
 | `advance` | The active chunk is finished |
@@ -379,7 +380,7 @@ dev-sesssion status --json | jq '.budget.over_budget'
 dev-sesssion status --json | jq '.tasks.percent_complete'
 ```
 
-`status`, `health`, `preview`, `lint-context` and `memory` all take `--json`.
+`status`, `health`, `preview`, `lint-context`, `memory` and `plan check` all take `--json`.
 The full shape of each is in [commands.md](commands.md).
 
 ### CI integration

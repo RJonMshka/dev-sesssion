@@ -4,6 +4,8 @@
  * @packageDocumentation
  */
 
+export type { PlanCheckCandidate, PlanCheckChunk, PlanCheckReport } from "./check.js";
+export { checkPlan, describeExclusion } from "./check.js";
 export { HeadingPlanSource } from "./heading-source.js";
 export type { PlanIngestResult, PlanSourceCandidate } from "./registry.js";
 export {
