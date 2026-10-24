@@ -235,6 +235,20 @@ export function quoteText(text: string): string {
 }
 
 /**
+ * Renders a summary taken from a doc comment as a labelled quotation
+ * (REQ-PROV-8, REQ-SYM-7, -9).
+ *
+ * The layer renderer and the `index --show` / `--file` printers share it, so
+ * a summary reads the same wherever an agent meets it.
+ *
+ * @param summary - The stored or extracted summary.
+ * @returns `quoted: "<summary>"`, escaped onto one line.
+ */
+export function formatQuotedSummary(summary: string): string {
+	return `${QUOTED_LABEL} ${quoteText(summary)}`;
+}
+
+/**
  * Shortens `text` to the longest prefix, plus an ellipsis, whose rendering fits.
  *
  * Truncation happens before quoting, so a cut can never split an escape or

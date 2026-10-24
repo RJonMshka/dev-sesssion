@@ -383,6 +383,10 @@ tests run in temp directories.
 
 ### `index --show` / `--file` (REQ-SYM-9)
 
+*Built 2026-10-24 on `fix/live-bugs` (HLD build order step 3): `formatQuotedSummary`
+moved and both printers use it. REQ-SYM-7's own test waits for
+`SymbolQuery.renderText`; `PATH_SHAPED` moves with REQ-SYM-8, not here.*
+
 The two summary lines in each (`index-cmd.ts:219`, `:222`, `:258`, `:265`) call
 `formatQuotedSummary`. Nothing else in those subcommands changes. They stay as
 they are rather than becoming aliases of `symbols`; see the decision recorded

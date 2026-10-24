@@ -27,6 +27,7 @@ import {
 	AutoExtractor,
 	type FileIndexEntry,
 	FileIndexManager,
+	formatQuotedSummary,
 	PlanChunkManager,
 	SessionStateManager,
 } from "@dev-session/core";
@@ -216,10 +217,13 @@ async function runIndexFile(
 	const parsed = extractor.extractFile(validatedPath);
 
 	log.info(`File: ${path.relative(cwd, absPath)}`);
-	log.message(`  Module summary: ${parsed.moduleSummary || "(none)"}`);
+	// Doc-comment text is repository text: quoted, never tool speech (REQ-SYM-9).
+	log.message(`  Module summary: ${quotedOrNone(parsed.moduleSummary, "(none)")}`);
 	log.message(`  Exports: ${String(parsed.exports.length)}`);
 	for (const sym of parsed.exports) {
-		log.message(`    ${sym.name} (line ${String(sym.line)}): ${sym.summary || "(no summary)"}`);
+		log.message(
+			`    ${sym.name} (line ${String(sym.line)}): ${quotedOrNone(sym.summary, "(no summary)")}`,
+		);
 	}
 	log.message(`  Token cost: ~${String(parsed.tokenCost)} tokens`);
 
@@ -230,6 +234,17 @@ async function runIndexFile(
 		const relPath = path.relative(projectRoot, absPath).replace(/\\/g, "/");
 		log.info(`Would update index entry: ${relPath}`);
 	}
+}
+
+/**
+ * A doc-comment summary as a quotation (REQ-SYM-9), or the placeholder when empty.
+ *
+ * @param summary - The summary, possibly empty.
+ * @param none - What to print when there is none.
+ * @returns The quoted summary or `none`.
+ */
+function quotedOrNone(summary: string | undefined, none: string): string {
+	return summary ? formatQuotedSummary(summary) : none;
 }
 
 /**
@@ -255,14 +270,16 @@ function runIndexShow(filePath: string, sessionDir: ValidatedPath): void {
 	}
 
 	log.info(`Index entry: ${filePath}`);
-	log.message(`  Module summary: ${entry.module_summary || "(none)"}`);
+	log.message(`  Module summary: ${quotedOrNone(entry.module_summary, "(none)")}`);
 	log.message(`  Layer default: ${String(entry.layer_default)}`);
 	log.message(
 		`  Token cost: ${String(entry.token_cost)} (${entry.token_cost_accurate ? "accurate" : "heuristic"})`,
 	);
 	log.message(`  Public symbols: ${String(Object.keys(entry.exports).length)}`);
 	for (const [name, sym] of Object.entries(entry.exports)) {
-		log.message(`    ${name} (line ${String(sym.line)}): ${sym.summary || "(no summary)"}`);
+		log.message(
+			`    ${name} (line ${String(sym.line)}): ${quotedOrNone(sym.summary, "(no summary)")}`,
+		);
 	}
 }
 

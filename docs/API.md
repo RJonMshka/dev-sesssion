@@ -209,6 +209,7 @@ importer that lifts such text must use these rather than its own format:
 | `formatQuotedNote` | `({ sourceFile, section?, text }) => string` | `Quoted from CLAUDE.md § "Setup step": "…"`, capped at `MAX_NOTE_CHARS`. |
 | `MAX_NOTE_CHARS` | `240` | Cap on one quoted note, attribution included. |
 | `QUOTED_LABEL` | `"quoted:"` | Precedes each summary `renderLayer0` / `renderLayer1` quote from a doc comment. |
+| `formatQuotedSummary` | `(summary: string) => string` | `quoted: "…"` — a doc-comment summary as the layer renderer and `index --show` / `--file` print it. |
 | `ClaudeMdNotes` | `{ build, merge }` | Turns `CLAUDE.md` `##` sections into quoted notes. `merge` swaps an earlier unquoted note for the quoted one. |
 
 ### File-load line prefixes
