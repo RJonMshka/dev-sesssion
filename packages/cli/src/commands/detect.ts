@@ -80,53 +80,59 @@ export interface DetectionResult {
 const PLAN_PATHS = ["PLAN.md", "docs/PLAN.md"] as const;
 
 /**
+ * Read one plan file and compute its statistics.
+ *
+ * Uses {@link PlanParser.detectBoundaries} to count h2 headings and estimate
+ * the chunk count. `init --plan` calls this for the file it names (REQ-PLA-7).
+ *
+ * @param cwd - Absolute path to the project root.
+ * @param relativePath - The plan's path relative to `cwd`, already validated.
+ * @returns The plan's statistics, or undefined when the file is missing or unreadable.
+ */
+export function describePlanFile(
+	cwd: string,
+	relativePath: string,
+): PlanDetectionResult | undefined {
+	const fullPath = path.join(cwd, relativePath);
+
+	let content: string;
+	try {
+		content = fs.readFileSync(fullPath, "utf-8");
+	} catch {
+		// Missing or unreadable — treat as not found
+		return undefined;
+	}
+
+	const lineCount = content.split("\n").length;
+
+	let headingCount = 0;
+	let estimatedChunks = 0;
+
+	try {
+		const boundaries = PlanParser.detectBoundaries(content);
+		// Count only high-confidence boundaries (h2 headings, confidence >= 1.0)
+		headingCount = boundaries.filter((b) => b.confidence >= 1.0).length;
+		// Estimated chunks = number of h2 boundaries (each becomes a chunk)
+		estimatedChunks = headingCount;
+	} catch {
+		// ParseError (empty file, etc.) — report what we can
+	}
+
+	return { found: true, relativePath, lineCount, headingCount, estimatedChunks };
+}
+
+/**
  * Detect an existing PLAN.md file and compute statistics.
  *
- * Checks both `PLAN.md` (root) and `docs/PLAN.md`. If found, reads
- * the file and uses {@link PlanParser.detectBoundaries} to count
- * h2 headings and estimate chunk count.
+ * Checks both `PLAN.md` (root) and `docs/PLAN.md`, in that order.
  *
  * @param cwd - Absolute path to the project root.
  * @returns Plan detection result with line count, heading count, and estimated chunks.
  */
 export function detectPlanFile(cwd: string): PlanDetectionResult {
 	for (const relativePath of PLAN_PATHS) {
-		const fullPath = path.join(cwd, relativePath);
-
-		if (!fs.existsSync(fullPath)) {
-			continue;
-		}
-
-		let content: string;
-		try {
-			content = fs.readFileSync(fullPath, "utf-8");
-		} catch {
-			// Unreadable — treat as not found
-			continue;
-		}
-
-		const lineCount = content.split("\n").length;
-
-		let headingCount = 0;
-		let estimatedChunks = 0;
-
-		try {
-			const boundaries = PlanParser.detectBoundaries(content);
-			// Count only high-confidence boundaries (h2 headings, confidence >= 1.0)
-			headingCount = boundaries.filter((b) => b.confidence >= 1.0).length;
-			// Estimated chunks = number of h2 boundaries (each becomes a chunk)
-			estimatedChunks = headingCount;
-		} catch {
-			// ParseError (empty file, etc.) — report what we can
-		}
-
-		return {
-			found: true,
-			relativePath,
-			lineCount,
-			headingCount,
-			estimatedChunks,
-		};
+		const found = describePlanFile(cwd, relativePath);
+		if (found !== undefined) return found;
 	}
 
 	return {

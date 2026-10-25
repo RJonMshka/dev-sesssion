@@ -28,10 +28,11 @@ dev-sesssion init [options]
 | `--team` | Enable team mode (auto-patches `.gitignore` + `.gitattributes`) |
 | `--max-files <n>` | Cap the number of files indexed, in `FILE_INDEX.md` and the ai-index (useful for large repos) |
 | `--chunk <id>` | Start at this chunk instead of the lowest-numbered. Lower-numbered chunks are recorded in `completed_chunks` (dated today, task statuses untouched) and get no files tagged. An id the plan does not define is an error, listing the ids it does. Without `--yes`, init asks |
+| `--plan <file>` | Read this plan instead of looking for `PLAN.md` and `docs/PLAN.md`. The path is relative to the project root; one that leads outside it is refused (exit 3) before anything is written. Use it when `PLAN.md` already holds something else, such as a spec or a roadmap |
 
 **What it does:**
 
-1. Detects existing `PLAN.md`, `CLAUDE.md`, `AGENTS.md`, `.cursor/`, `.windsurfrules`
+1. Detects existing `PLAN.md` (or reads the `--plan` file), `CLAUDE.md`, `AGENTS.md`, `.cursor/`, `.windsurfrules`
 2. Splits an existing plan or scaffolds a new one interactively
 3. Walks the codebase to generate `FILE_INDEX.md`. With `--yes`, a file is tagged
    to a chunk only when the plan names it for that chunk — by path

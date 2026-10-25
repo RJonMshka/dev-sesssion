@@ -35,7 +35,7 @@ import { CliError, ParseError, PathValidator, SecurityError } from "@dev-session
 import type { Command } from "commander";
 import { dryRunMkdir } from "../utils/dry-run.js";
 import { handleError } from "../utils/error-handler.js";
-import { runDetection } from "./detect.js";
+import { type DetectionResult, describePlanFile, runDetection } from "./detect.js";
 import { runFinalWrites } from "./final-writes.js";
 import { generateIndex } from "./generate-index.js";
 import { scaffoldPlan } from "./scaffold-plan.js";
@@ -67,6 +67,8 @@ export interface InitOptions {
 	readonly maxFiles?: number;
 	/** The chunk to start at (`--chunk`); asked for interactively when absent (REQ-RUN-27, -31). */
 	readonly chunk?: number;
+	/** The plan file to ingest (`--plan`), relative to `cwd`; replaces the PLAN.md search (REQ-PLA-7). */
+	readonly plan?: string;
 }
 
 /**
@@ -88,7 +90,8 @@ export async function runInit(options: InitOptions): Promise<void> {
 	const projectInfo = ProjectDetector.detect(options.cwd);
 	s.stop("Project detected.");
 
-	const detection = runDetection(options.cwd, projectInfo);
+	// Validated before anything is written, so a bad --plan leaves no .session/.
+	const detection = withPlanOption(runDetection(options.cwd, projectInfo), options);
 
 	if (options.verbose) {
 		log.info(`Project root: ${options.cwd}`);
@@ -281,6 +284,29 @@ function safeReason(cause: unknown): string {
 }
 
 /**
+ * Applies `--plan`: the named file replaces whatever the PLAN.md search found.
+ * The detector itself is unchanged (REQ-PLA-7).
+ *
+ * @param detection - What the default search found.
+ * @param options - Init options; `plan` is the user's path, relative to `cwd`.
+ * @returns The detection, with `plan` describing the named file when given.
+ * @throws {SecurityError} If the path escapes the project root (REQ-PLA-8).
+ * @throws {CliError} If the file cannot be read.
+ */
+function withPlanOption(detection: DetectionResult, options: InitOptions): DetectionResult {
+	if (options.plan === undefined) return detection;
+	const resolved = PathValidator.safeResolvePath(options.plan, options.cwd);
+	const plan = describePlanFile(options.cwd, path.relative(path.resolve(options.cwd), resolved));
+	if (plan === undefined) {
+		throw new CliError({
+			message: `Cannot read plan file: ${options.plan}`,
+			suggestion: "Pass --plan a file path relative to the project root.",
+		});
+	}
+	return { ...detection, plan };
+}
+
+/**
  * Resolve whether to run in team mode.
  *
  * Resolution order:
@@ -386,7 +412,8 @@ export function registerInitCommand(program: Command): void {
 			"Cap the number of files indexed (useful for large repos)",
 			undefined,
 		)
-		.option("--chunk <id>", "Start at this chunk; lower-numbered chunks are recorded as completed");
+		.option("--chunk <id>", "Start at this chunk; lower-numbered chunks are recorded as completed")
+		.option("--plan <file>", "Read this plan file instead of looking for PLAN.md or docs/PLAN.md");
 
 	cmd.action(async () => {
 		const globalOpts = program.opts<{
@@ -398,7 +425,12 @@ export function registerInitCommand(program: Command): void {
 			adapter?: string;
 		}>();
 
-		const cmdOpts = cmd.opts<{ team: boolean; maxFiles?: string; chunk?: string }>();
+		const cmdOpts = cmd.opts<{
+			team: boolean;
+			maxFiles?: string;
+			chunk?: string;
+			plan?: string;
+		}>();
 		const chunk = cmdOpts.chunk !== undefined ? Number.parseFloat(cmdOpts.chunk) : undefined;
 		if (chunk !== undefined && Number.isNaN(chunk)) {
 			handleError(
@@ -419,6 +451,7 @@ export function registerInitCommand(program: Command): void {
 			teamMode: cmdOpts.team,
 			...(maxFiles !== undefined && !Number.isNaN(maxFiles) ? { maxFiles } : {}),
 			...(chunk !== undefined ? { chunk } : {}),
+			...(cmdOpts.plan !== undefined ? { plan: cmdOpts.plan } : {}),
 		};
 
 		try {

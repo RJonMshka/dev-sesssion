@@ -297,3 +297,48 @@ describe("preview and trim agree with the written prompt", () => {
 		expect(session("NEXT_PROMPT.md") + session("context-manifest.json")).toBe(before);
 	});
 });
+
+describe("init --plan <file>", () => {
+	/** A plan whose chunk titles appear nowhere in the fixture's PLAN.md. */
+	const OTHER_PLAN = `# Agent plan
+
+## Chunk 1 — Logging
+
+- [ ] Add a logger to src/utils.ts
+
+## Chunk 2 — Metrics
+
+- [ ] Count retries in client.ts
+`;
+
+	it("ingests the named file instead of PLAN.md (REQ-PLA-7)", async () => {
+		fs.mkdirSync(path.join(tmpDir, "docs"), { recursive: true });
+		fs.writeFileSync(path.join(tmpDir, "docs", "agent-plan.md"), OTHER_PLAN);
+
+		await cli("init", "--plan", "docs/agent-plan.md", "--yes");
+
+		expect(session("PLAN_1.md")).toContain("Logging");
+		expect(session("PLAN_2.md")).toContain("Metrics");
+		// PLAN.md was there and was not read.
+		expect(session("PLAN_1.md")).not.toContain("Client retries");
+		// …nor rewritten.
+		expect(fs.readFileSync(path.join(tmpDir, "PLAN.md"), "utf-8")).toBe(PLAN);
+	});
+
+	it("rejects a path outside the project root with a SecurityError (REQ-PLA-8)", async () => {
+		const outside = fs.mkdtempSync(path.join(os.tmpdir(), "dev-sesssion-outside-"));
+		try {
+			fs.writeFileSync(path.join(outside, "plan.md"), OTHER_PLAN);
+			const rel = path.relative(tmpDir, path.join(outside, "plan.md"));
+
+			const r = await runCli(["init", "--plan", rel, "--yes", "--cwd", tmpDir]);
+
+			// handleError maps SecurityError to exit 3.
+			expect(r.exitCode).toBe(3);
+			expect(r.stdout + r.stderr).toMatch(/security violation/i);
+			expect(fs.existsSync(path.join(tmpDir, ".session"))).toBe(false);
+		} finally {
+			fs.rmSync(outside, { recursive: true, force: true });
+		}
+	});
+});
