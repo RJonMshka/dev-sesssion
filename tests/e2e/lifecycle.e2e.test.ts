@@ -114,12 +114,28 @@ describe("dev-sesssion advance", () => {
 		return (JSON.parse(status.stdout) as { active_chunk?: number }).active_chunk;
 	};
 
+	/** Parse `advance --json` stdout; it must be exactly one JSON document. */
+	interface AdvanceJson {
+		archivedChunkId: number;
+		newChunkId: number;
+		newChunkTitle: string;
+		tasksRemaining: number;
+		forceAdvanced: boolean;
+		allChunksComplete: boolean;
+	}
+	const advanceJson = async (): Promise<AdvanceJson> => {
+		const result = await runCli(["advance", "--json", "--yes", "--cwd", tmpDir]);
+		expect(result.exitCode, result.stderr || result.stdout).toBe(0);
+		return JSON.parse(result.stdout) as AdvanceJson;
+	};
+
 	it("lands on a fractional chunk rather than skipping it (REQ-ORC-6)", async () => {
 		await initWithChunks([1, 1.5, 2]);
 
-		const result = await runCli(["advance", "--yes", "--cwd", tmpDir]);
+		const json = await advanceJson();
 
-		expect(result.exitCode).toBe(0);
+		expect(json.newChunkId).toBe(1.5);
+		expect(json.allChunksComplete).toBe(false);
 		expect(await activeChunk()).toBe(1.5);
 		expect(fs.existsSync(path.join(tmpDir, ".session", "PLAN_1.5.md"))).toBe(true);
 	});
@@ -127,15 +143,55 @@ describe("dev-sesssion advance", () => {
 	it("crosses a gap in ids without reporting all chunks complete (REQ-ORC-6, REQ-ORC-7)", async () => {
 		await initWithChunks([1, 3]);
 
-		const result = await runCli(["advance", "--yes", "--cwd", tmpDir]);
-
-		expect(result.exitCode).toBe(0);
-		expect(result.stdout + result.stderr).not.toMatch(/all chunks complete/i);
+		const json = await advanceJson();
+		expect(json).toMatchObject({ archivedChunkId: 1, newChunkId: 3, allChunksComplete: false });
 		expect(await activeChunk()).toBe(3);
 
-		const last = await runCli(["advance", "--yes", "--cwd", tmpDir]);
-		expect(last.stdout + last.stderr).toMatch(/all chunks complete/i);
+		const last = await advanceJson();
+		expect(last).toMatchObject({ newChunkId: 3, allChunksComplete: true });
 		expect(await activeChunk()).toBe(3);
+	});
+
+	it("writes its result as one JSON document, mid-plan and at the last chunk (REQ-ORC-1)", async () => {
+		await initProject();
+
+		const mid = await runCli(["advance", "--json", "--yes", "--cwd", tmpDir]);
+		expect(mid.exitCode).toBe(0);
+		// The whole of stdout parses — no clack decoration around it.
+		const midJson = JSON.parse(mid.stdout) as AdvanceJson;
+		expect(midJson).toEqual({
+			archivedChunkId: 1,
+			newChunkId: 2,
+			newChunkTitle: "Core",
+			tasksRemaining: 1,
+			forceAdvanced: true,
+			allChunksComplete: false,
+		});
+
+		const end = await runCli(["advance", "--json", "--yes", "--cwd", tmpDir]);
+		expect(end.exitCode).toBe(0);
+		expect(JSON.parse(end.stdout)).toMatchObject({ newChunkId: 2, allChunksComplete: true });
+	});
+
+	it("refuses to prompt without a TTY: exits non-zero, state unchanged, names --yes (REQ-ORC-2)", async () => {
+		await initProject();
+		const sessionDir = path.join(tmpDir, ".session");
+		const snapshot = (): Record<string, string> =>
+			Object.fromEntries(
+				fs.readdirSync(sessionDir).map((f) => {
+					const p = path.join(sessionDir, f);
+					return [f, fs.statSync(p).isFile() ? fs.readFileSync(p, "utf-8") : "<dir>"];
+				}),
+			);
+		const before = snapshot();
+
+		// execa pipes stdin, so the child sees no TTY. Chunk 1 has open tasks.
+		const result = await runCli(["advance", "--cwd", tmpDir]);
+
+		expect(result.exitCode).not.toBe(0);
+		expect(result.stdout + result.stderr).toContain("--yes");
+		expect(snapshot()).toEqual(before);
+		expect(await activeChunk()).toBe(1);
 	});
 
 	it("fails when there is no session", async () => {

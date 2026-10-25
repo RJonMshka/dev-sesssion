@@ -199,6 +199,31 @@ Run this when all tasks in the active chunk are complete. The command:
 On the highest-numbered chunk it reports that all chunks are complete and
 exits 0 without changing anything.
 
+If the active chunk still has open tasks, `advance` asks before moving on.
+`--yes` (global) skips the question and advances anyway. When stdin is not a
+terminal, as under a script or a coding harness, there is nobody to ask: it
+exits 1 without changing anything and names `--yes` as the override.
+
+| Option | Description |
+|---|---|
+| `--json` | Print the result as one JSON document on stdout; progress messages go to stderr |
+
+`--json` output, for a harness driving the loop:
+
+```json
+{
+  "archivedChunkId": 1,
+  "newChunkId": 2,
+  "newChunkTitle": "Core",
+  "tasksRemaining": 1,
+  "forceAdvanced": true,
+  "allChunksComplete": false
+}
+```
+
+Stop when `allChunksComplete` is `true`. In that case `newChunkId` equals
+`archivedChunkId` and nothing was archived.
+
 ---
 
 ## dev-sesssion prompt

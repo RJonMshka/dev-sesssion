@@ -30,6 +30,7 @@ import { CliError, PathValidator, type ValidatedPath } from "@dev-session/securi
 import type { Command } from "commander";
 import { dryRunSkipWrite } from "../utils/dry-run.js";
 import { handleError } from "../utils/error-handler.js";
+import { withStdoutOnStderr, writeJson } from "../utils/json-output.js";
 import { regeneratePrompt } from "./regenerate-prompt.js";
 
 // ---------------------------------------------------------------------------
@@ -111,6 +112,14 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 			log.warn("Force-advancing in --yes mode.");
 			forceAdvanced = true;
 		} else {
+			// A harness cannot answer the prompt, so without a TTY it would hang
+			// forever. Fail before anything is written (REQ-ORC-2).
+			if (process.stdin.isTTY !== true) {
+				throw new CliError({
+					message: `Chunk ${String(currentChunkId)} has incomplete tasks and stdin is not a terminal, so advance cannot ask to confirm.`,
+					suggestion: "Mark the tasks done first, or pass --yes to advance with them incomplete.",
+				});
+			}
 			const forceResult = await confirm({
 				message: "Force advance with incomplete tasks?",
 			});
@@ -283,7 +292,8 @@ export function registerAdvanceCommand(program: Command): void {
 	program
 		.command("advance")
 		.description("Archive current chunk and advance to the next one")
-		.action(async () => {
+		.option("--json", "Output the result as machine-readable JSON", false)
+		.action(async (cmdOptions: { json?: boolean }) => {
 			const opts = program.opts<{
 				cwd: string;
 				yes: boolean;
@@ -300,10 +310,24 @@ export function registerAdvanceCommand(program: Command): void {
 				...(opts.adapter !== undefined ? { adapter: opts.adapter } : {}),
 			};
 
-			try {
-				await runAdvance(advanceOptions);
-			} catch (error: unknown) {
-				handleError(error);
+			if (cmdOptions.json !== true) {
+				try {
+					await runAdvance(advanceOptions);
+				} catch (error: unknown) {
+					handleError(error);
+				}
+				return;
 			}
+
+			// One JSON document on stdout; progress and errors go to stderr (REQ-ORC-1).
+			const result = await withStdoutOnStderr(async () => {
+				try {
+					return await runAdvance(advanceOptions);
+				} catch (error: unknown) {
+					handleError(error);
+					return undefined;
+				}
+			});
+			if (result !== undefined) writeJson(result);
 		});
 }
