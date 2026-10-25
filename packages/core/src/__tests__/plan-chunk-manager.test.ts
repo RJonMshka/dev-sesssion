@@ -133,16 +133,31 @@ describe("PlanChunkManager", () => {
 		});
 	});
 
+	describe("nextAfter", () => {
+		const chunks = (ids: number[]): PlanChunk[] =>
+			ids.map((chunk_id) => ({ chunk_id, title: "T", depends_on: [], tasks: [] }));
+
+		it("returns the lowest id above the current one, fractional or across a gap (REQ-ORC-6)", () => {
+			expect(PlanChunkManager.nextAfter(chunks([4, 1, 3.5, 2, 3]), 3)?.chunk_id).toBe(3.5);
+			expect(PlanChunkManager.nextAfter(chunks([1, 3]), 1)?.chunk_id).toBe(3);
+		});
+
+		it("returns undefined only from the highest id (REQ-ORC-7)", () => {
+			expect(PlanChunkManager.nextAfter(chunks([1, 1.5, 2]), 2)).toBeUndefined();
+			expect(PlanChunkManager.nextAfter(chunks([1, 1.5, 2]), 1.5)?.chunk_id).toBe(2);
+		});
+	});
+
 	describe("advance", () => {
-		it("increments active_chunk by 1", () => {
-			const state = makeState(2);
-			const advanced = PlanChunkManager.advance(state);
-			expect(advanced.active_chunk).toBe(3);
+		it("makes the given chunk active (REQ-ORC-6)", () => {
+			const state = makeState(3);
+			const advanced = PlanChunkManager.advance(state, 3.5);
+			expect(advanced.active_chunk).toBe(3.5);
 		});
 
 		it("adds current chunk to completed_chunks", () => {
 			const state = makeState(2);
-			const advanced = PlanChunkManager.advance(state);
+			const advanced = PlanChunkManager.advance(state, state.active_chunk + 1);
 			expect(advanced.completed_chunks["2"]).toBeDefined();
 		});
 
@@ -151,7 +166,7 @@ describe("PlanChunkManager", () => {
 				...makeState(3),
 				completed_chunks: { "1": "2026-03-01", "2": "2026-03-15" },
 			};
-			const advanced = PlanChunkManager.advance(state);
+			const advanced = PlanChunkManager.advance(state, state.active_chunk + 1);
 			expect(advanced.completed_chunks["1"]).toBe("2026-03-01");
 			expect(advanced.completed_chunks["2"]).toBe("2026-03-15");
 			expect(advanced.completed_chunks["3"]).toBeDefined();
@@ -317,5 +332,68 @@ describe("PlanChunkManager — brief (LLD-prompt-context.md)", () => {
 		const [loaded] = PlanChunkManager.loadAll(dir as ValidatedPath);
 
 		expect(loaded?.brief).toBe(brief);
+	});
+});
+
+describe("one task status (LLD-workflow-prompt.md Part B)", () => {
+	const chunkWith = (tasks: PlanChunk["tasks"]): PlanChunk => ({
+		chunk_id: 1,
+		title: "T",
+		depends_on: [],
+		tasks,
+	});
+	const status = (chunk: PlanChunk): string[] => chunk.tasks.map((t) => t.status);
+
+	it("counts a task done when either file records it done (REQ-WF-8)", () => {
+		const plan = chunkWith([
+			{ text: "A", status: "done" },
+			{ text: "B", status: "todo" },
+		]);
+		const state = [
+			{ text: "A", status: "todo" as const },
+			{ text: "B", status: "done" as const },
+		];
+
+		expect(status(PlanChunkManager.withSessionStatus(plan, state))).toEqual(["done", "done"]);
+	});
+
+	it("ranks in-progress above todo, and never lowers a status (REQ-WF-8)", () => {
+		const plan = chunkWith([
+			{ text: "A", status: "todo" },
+			{ text: "B", status: "in-progress" },
+			{ text: "C", status: "todo" },
+		]);
+		const state = [
+			{ text: "A", status: "in-progress" as const },
+			{ text: "B", status: "todo" as const },
+			{ text: "Not in this chunk", status: "done" as const },
+		];
+
+		expect(status(PlanChunkManager.withSessionStatus(plan, state))).toEqual([
+			"in-progress",
+			"in-progress",
+			"todo",
+		]);
+	});
+
+	it("loadActive counts the status SESSION_STATE.md records (REQ-WF-7)", () => {
+		const dir = fs.mkdtempSync(path.join(import.meta.dirname ?? __dirname, ".tmp-"));
+		try {
+			writeChunk(dir, 1, "One", ["First", "Second"]);
+			const state: SessionState = {
+				...makeState(1),
+				tasks: [
+					{ text: "First", status: "done" },
+					{ text: "Second", status: "todo" },
+				],
+			};
+
+			const chunk = PlanChunkManager.loadActive(dir as ValidatedPath, state);
+
+			expect(status(chunk)).toEqual(["done", "todo"]);
+			expect(fs.readFileSync(path.join(dir, "PLAN_1.md"), "utf8")).not.toContain("done");
+		} finally {
+			fs.rmSync(dir, { recursive: true, force: true });
+		}
 	});
 });

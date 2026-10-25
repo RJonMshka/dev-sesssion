@@ -181,6 +181,9 @@ already record what they say. This cleans up state files that 2.4.x wrote.
 
 ### Part B — One task status
 
+*Built 2026-10-24 on `fix/live-bugs`. REQ-WF-7's test asserts the `Resume:`
+count and `status --json`; the `Next (task k of n):` line is Part C.*
+
 **REQ-WF-7** — When `SESSION_STATE.md` records a status for a task of the
 active chunk, the prompt, `status` and `advance` shall count that task with
 that status.

@@ -97,6 +97,7 @@ export {
 	formatOverBudgetMessage,
 	formatPlanLine,
 	formatQuotedNote,
+	formatQuotedSummary,
 	formatRefList,
 	formatUnitRef,
 	getPendingTasks,

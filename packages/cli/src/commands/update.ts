@@ -96,6 +96,8 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 		const taskResult = await promptTaskUpdates(chunk.tasks);
 		if (taskResult.changed) {
 			for (const update of taskResult.updates) {
+				// The text comes from the active chunk; state may not list it yet (REQ-WF-10).
+				state = SessionStateManager.adoptTask(state, update.text);
 				if (update.newStatus === TaskStatus.DONE) {
 					state = SessionStateManager.markTaskDone(state, update.text);
 				} else if (update.newStatus === TaskStatus.IN_PROGRESS) {
@@ -164,7 +166,8 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 		blockOnSecrets: options.strict,
 		...(options.adapter !== undefined ? { adapter: options.adapter } : {}),
 		state,
-		chunk,
+		// Re-merged, so the prompt counts the tasks just marked (REQ-WF-7).
+		chunk: PlanChunkManager.withSessionStatus(chunk, state.tasks),
 		entries: allEntries,
 	});
 

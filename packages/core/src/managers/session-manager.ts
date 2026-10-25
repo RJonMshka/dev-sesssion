@@ -20,7 +20,7 @@ import { AiIndexManager } from "../annotation/ai-index-manager.js";
 import { AutoExtractor } from "../annotation/auto-extractor.js";
 import type { FileEntry, ParsedUnit } from "../annotation/types.js";
 import { sliceLines } from "../annotation/unit-extractor.js";
-import type { FileIndexEntry, Task } from "../schemas/index.js";
+import type { FileIndexEntry, PlanChunk, SessionState, Task } from "../schemas/index.js";
 import { FileIndexManager } from "./file-index-manager.js";
 import { PlanChunkManager } from "./plan-chunk-manager.js";
 import { SessionStateManager } from "./session-state-manager.js";
@@ -110,23 +110,22 @@ export class SessionManager {
 	}
 
 	/**
-	 * Get the active chunk, its title, and its live task list.
+	 * Get the active chunk, its title, and its tasks with their merged status.
 	 *
 	 * @returns The active chunk info.
 	 * @throws {ParseError} If SESSION_STATE.md is missing or invalid.
 	 */
 	getActiveChunk(): ActiveChunkInfo {
 		const state = SessionStateManager.load(this.sessionDir);
+		const chunk = this.tryLoadActive(state);
 
-		let title = "";
-		try {
-			title = PlanChunkManager.loadActive(this.sessionDir, state).title;
-		} catch {
-			// No matching PLAN_<n>.md file — the title is optional context here.
-			title = "";
-		}
-
-		return { activeChunk: state.active_chunk, title, tasks: state.tasks };
+		// The active chunk's tasks, status merged with state (REQ-WF-11). With no
+		// PLAN_<n>.md, state's own list is all there is.
+		return {
+			activeChunk: state.active_chunk,
+			title: chunk?.title ?? "",
+			tasks: chunk?.tasks ?? state.tasks,
+		};
 	}
 
 	/**
@@ -268,7 +267,11 @@ export class SessionManager {
 		this.assertWritable("mark_task_done");
 
 		const state = SessionStateManager.load(this.sessionDir);
-		const updated = SessionStateManager.markTaskDone(state, text);
+		// A task of the active chunk that state does not list yet — e.g. state
+		// written by an older `advance` — is recorded rather than missed (REQ-WF-10).
+		const inChunk = this.tryLoadActive(state)?.tasks.some((t) => t.text === text) === true;
+		const adopted = inChunk ? SessionStateManager.adoptTask(state, text) : state;
+		const updated = SessionStateManager.markTaskDone(adopted, text);
 		const matched = updated !== state;
 
 		if (matched) {
@@ -276,6 +279,20 @@ export class SessionManager {
 		}
 
 		return { matched, tasks: updated.tasks };
+	}
+
+	/**
+	 * Load the active chunk, or `undefined` when its PLAN_<n>.md is absent or invalid.
+	 *
+	 * @param state - The session state naming the active chunk.
+	 * @returns The active chunk with merged task status, if it can be read.
+	 */
+	private tryLoadActive(state: SessionState): PlanChunk | undefined {
+		try {
+			return PlanChunkManager.loadActive(this.sessionDir, state);
+		} catch {
+			return undefined;
+		}
 	}
 
 	/**

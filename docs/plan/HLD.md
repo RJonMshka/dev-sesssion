@@ -78,9 +78,9 @@ Every open item now has an LLD (2026-10-24). Build order:
 
 | # | What | LLD | Size | Why here |
 |---|---|---|---|---|
-| 1 | Task status reaches the prompt (WF-7..11) | `LLD-workflow-prompt.md` Part B | S–M, `fix:` | Live bug: `update` and MCP `mark_task_done` write `SESSION_STATE.md`; the prompt and `status` read `PLAN_N.md`, so marking a task done changes nothing a user sees |
-| 2 | Advance in plan order (ORC-6, 7) | `LLD-plan-authoring.md` | S, `fix:` | Live bug: `active_chunk + 1` skips fractional chunks and reports "all complete" across a gap. Same lines of `advance.ts` as 1 |
-| 3 | Quote summaries in `index --show` / `--file` (SYM-7, 9) | `LLD-symbols.md` | S, `fix:` | Live provenance gap through the CLI |
+| 1 | ✅ **Done** `c57608f` — Task status reaches the prompt (WF-7..11) | `LLD-workflow-prompt.md` Part B | S–M, `fix:` | Live bug: `update` and MCP `mark_task_done` write `SESSION_STATE.md`; the prompt and `status` read `PLAN_N.md`, so marking a task done changes nothing a user sees |
+| 2 | ✅ **Done** `1901b2a` — Advance in plan order (ORC-6, 7) | `LLD-plan-authoring.md` | S, `fix:` | Live bug: `active_chunk + 1` skips fractional chunks and reports "all complete" across a gap. Same lines of `advance.ts` as 1 |
+| 3 | ✅ **Done** `2e0a595` — Quote summaries in `index --show` / `--file` (SYM-7, 9) | `LLD-symbols.md` | S, `fix:` | Live provenance gap through the CLI |
 | 4 | Feature 13 rest: `init --plan`, skill, ORC-1..5 | `LLD-plan-authoring.md` | M | `plan check` (PLA-1..6) built; the loop needs ORC-6 first |
 | 5 | Notes decay (WF-1..6), then the workflow prompt (WF-12..22) | `LLD-workflow-prompt.md` Parts A, C | S + M | The feature aimed at correctness; A is the prerequisite the HLD named and never defined |
 | 6 | Tagging on touch, interactive init cut (IDX-19..43, DRY-7) | `LLD-tagging.md` | M–L | Feature 3's second half. Step 1 (move tagging into core, cut the 30-prompt branch) ships alone |
@@ -89,6 +89,9 @@ Every open item now has an LLD (2026-10-24). Build order:
 | 9 | Agent tier on DevNexus (EVAL-19..45) | `LLD-agent-tier.md` | M + paid runs | Last: it should measure the features above. Stats and harness fixes are free; a run is ~$75 cached at 6 tasks × 5 repeats |
 
 Steps 1–3 are bug fixes found while planning, and ship first as `fix:` commits.
+Done 2026-10-24 on `fix/live-bugs`, not yet pushed. Step 2 also widened
+`CONTEXT_LOG.md`'s `active_chunk` to a number, which landing on a fractional
+chunk needed. Step 4 is next.
 5, 6 and 7 are independent of each other.
 
 ---

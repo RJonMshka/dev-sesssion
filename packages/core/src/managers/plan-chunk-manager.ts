@@ -13,7 +13,7 @@ import * as path from "node:path";
 
 import type { ValidatedPath } from "@dev-session/security";
 import { AtomicWriter, CliError, FrontmatterParser, ParseError } from "@dev-session/security";
-import type { PlanChunk, SessionState } from "../schemas/index.js";
+import type { PlanChunk, SessionState, Task, TaskStatusValue } from "../schemas/index.js";
 import { PlanChunkSchema, TaskStatus } from "../schemas/index.js";
 
 /**
@@ -100,6 +100,13 @@ function buildArchiveSummary(chunk: PlanChunk, completionDate: string): string {
 	return `## Chunk ${String(chunk.chunk_id)} — ${chunk.title}\nCompleted: ${completionDate}\nTasks: ${String(taskCount)}\n\n`;
 }
 
+/** Status rank for merging the two files that record a task: done > in-progress > todo. */
+const STATUS_RANK: Readonly<Record<TaskStatusValue, number>> = {
+	todo: 0,
+	"in-progress": 1,
+	done: 2,
+};
+
 /**
  * Reads existing content from DONE_LOG.md, returning an empty string if the file does not exist.
  *
@@ -149,6 +156,10 @@ export const PlanChunkManager = {
 	/**
 	 * Loads the plan chunk that matches the active chunk in the session state.
 	 *
+	 * Each task's status is raised to what `state.tasks` records for it
+	 * (REQ-WF-7), so every reader of the active chunk sees one status.
+	 * `PLAN_N.md` itself is not rewritten.
+	 *
 	 * @param sessionDir - A validated path to the `.session/` directory.
 	 * @param state - The current session state containing `active_chunk`.
 	 * @returns The validated plan chunk for the active chunk.
@@ -165,19 +176,41 @@ export const PlanChunkManager = {
 			});
 		}
 
-		return readChunkFile(filePath, filename);
+		return PlanChunkManager.withSessionStatus(readChunkFile(filePath, filename), state.tasks);
 	},
 
 	/**
-	 * Advances the session state to the next chunk.
+	 * Merges the status `SESSION_STATE.md` records into a chunk's tasks
+	 * (LLD-workflow-prompt.md, REQ-WF-7, -8).
 	 *
-	 * Pure function — performs no I/O. Returns a new `SessionState` with
-	 * `active_chunk` incremented by 1 and the current chunk added to
-	 * `completed_chunks` with today's ISO date.
+	 * Pure. Tasks match by exact text, and a status only ever rises:
+	 * done in either file wins, and in-progress outranks todo. A state task
+	 * the chunk does not have is ignored.
 	 *
-	 * @param state - The current session state.
-	 * @returns A new session state with the chunk advanced.
+	 * @param chunk - The chunk as `PLAN_N.md` records it.
+	 * @param stateTasks - The tasks `SESSION_STATE.md` records.
+	 * @returns The chunk with each task's status merged.
 	 */
+	withSessionStatus(chunk: PlanChunk, stateTasks: readonly Task[]): PlanChunk {
+		const recorded = new Map<string, Task>();
+		for (const task of stateTasks) {
+			const seen = recorded.get(task.text);
+			if (seen === undefined || STATUS_RANK[task.status] > STATUS_RANK[seen.status]) {
+				recorded.set(task.text, task);
+			}
+		}
+		const tasks = chunk.tasks.map((task) => {
+			const other = recorded.get(task.text);
+			if (other === undefined || STATUS_RANK[other.status] <= STATUS_RANK[task.status]) {
+				return task;
+			}
+			return other.completed_at === undefined
+				? { ...task, status: other.status }
+				: { ...task, status: other.status, completed_at: other.completed_at };
+		});
+		return { ...chunk, tasks };
+	},
+
 	/**
 	 * Chooses where a new session starts (LLD-first-run.md, REQ-RUN-27, -28, -30).
 	 *
@@ -209,13 +242,45 @@ export const PlanChunkManager = {
 		return { active, completedIds };
 	},
 
-	advance(state: SessionState): SessionState {
+	/**
+	 * The chunk `advance` moves to: the lowest id above `chunkId`
+	 * (LLD-plan-authoring.md, REQ-ORC-6, -7).
+	 *
+	 * Ordered numerically like {@link PlanChunkManager.startAt}, so a fractional
+	 * id (`3.5`) is not skipped and a gap in ids (`1, 3`) is crossed.
+	 *
+	 * @param chunks - The plan's chunks, in any order.
+	 * @param chunkId - The current chunk's id.
+	 * @returns The next chunk, or `undefined` when `chunkId` is the highest.
+	 */
+	nextAfter(chunks: readonly PlanChunk[], chunkId: number): PlanChunk | undefined {
+		let next: PlanChunk | undefined;
+		for (const chunk of chunks) {
+			if (chunk.chunk_id > chunkId && (next === undefined || chunk.chunk_id < next.chunk_id)) {
+				next = chunk;
+			}
+		}
+		return next;
+	},
+
+	/**
+	 * Advances the session state to the given chunk.
+	 *
+	 * Pure function — performs no I/O. Returns a new `SessionState` with
+	 * `active_chunk` set to `nextChunkId` (from {@link PlanChunkManager.nextAfter})
+	 * and the current chunk added to `completed_chunks` with today's ISO date.
+	 *
+	 * @param state - The current session state.
+	 * @param nextChunkId - The chunk to make active.
+	 * @returns A new session state with the chunk advanced.
+	 */
+	advance(state: SessionState, nextChunkId: number): SessionState {
 		const today = new Date().toISOString().slice(0, 10);
 		const currentChunkKey = String(state.active_chunk);
 
 		return {
 			...state,
-			active_chunk: state.active_chunk + 1,
+			active_chunk: nextChunkId,
 			completed_chunks: {
 				...state.completed_chunks,
 				[currentChunkKey]: today,

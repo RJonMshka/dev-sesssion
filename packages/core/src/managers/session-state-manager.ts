@@ -86,6 +86,23 @@ export const SessionStateManager = {
 	},
 
 	/**
+	 * Adds a task, as todo, when the state lists none with that exact text.
+	 *
+	 * Pure function — performs no I/O. Used before marking a task of the active
+	 * chunk that state does not hold yet (REQ-WF-10).
+	 *
+	 * @param state - The current session state.
+	 * @param taskText - The exact text of the task.
+	 * @returns The state unchanged if it already lists the task, else with it appended.
+	 */
+	adoptTask(state: SessionState, taskText: string): SessionState {
+		if (state.tasks.some((task) => task.text === taskText)) {
+			return state;
+		}
+		return { ...state, tasks: [...state.tasks, { text: taskText, status: TaskStatus.TODO }] };
+	},
+
+	/**
 	 * Marks a task as in-progress by matching on its text.
 	 *
 	 * Pure function — performs no I/O. If no task matches, returns state unchanged.

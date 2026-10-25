@@ -148,6 +148,14 @@ describe("SessionMemoryManager.append", () => {
 // summarizeStats
 // ---------------------------------------------------------------------------
 
+describe("a log entry for a fractional chunk", () => {
+	it("round-trips, so a session advanced to chunk 3.5 stays readable (REQ-ORC-6)", () => {
+		SessionMemoryManager.append(sessionDir, makeEntry({ active_chunk: 3.5 }));
+
+		expect(SessionMemoryManager.load(sessionDir).map((e) => e.active_chunk)).toEqual([3.5]);
+	});
+});
+
 describe("SessionMemoryManager.summarizeStats", () => {
 	it("returns zeroed stats for empty entries", () => {
 		const stats = SessionMemoryManager.summarizeStats([]);

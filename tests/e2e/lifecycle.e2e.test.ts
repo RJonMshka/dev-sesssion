@@ -100,6 +100,44 @@ describe("dev-sesssion advance", () => {
 		expect(json.active_chunk).toBe(2);
 	});
 
+	/** Init over a plan with these chunk ids, one task each. */
+	async function initWithChunks(ids: readonly number[]): Promise<void> {
+		writePackageJson(tmpDir);
+		const sections = ids.map(
+			(id) => `## Chunk ${String(id)} — Part ${String(id)}\n\n- [ ] Do ${String(id)}\n`,
+		);
+		fs.writeFileSync(path.join(tmpDir, "PLAN.md"), `# Plan\n\n${sections.join("\n")}`);
+		expect((await runCli(["init", "--yes", "--cwd", tmpDir])).ok).toBe(true);
+	}
+	const activeChunk = async (): Promise<number | undefined> => {
+		const status = await runCli(["status", "--json", "--cwd", tmpDir]);
+		return (JSON.parse(status.stdout) as { active_chunk?: number }).active_chunk;
+	};
+
+	it("lands on a fractional chunk rather than skipping it (REQ-ORC-6)", async () => {
+		await initWithChunks([1, 1.5, 2]);
+
+		const result = await runCli(["advance", "--yes", "--cwd", tmpDir]);
+
+		expect(result.exitCode).toBe(0);
+		expect(await activeChunk()).toBe(1.5);
+		expect(fs.existsSync(path.join(tmpDir, ".session", "PLAN_1.5.md"))).toBe(true);
+	});
+
+	it("crosses a gap in ids without reporting all chunks complete (REQ-ORC-6, REQ-ORC-7)", async () => {
+		await initWithChunks([1, 3]);
+
+		const result = await runCli(["advance", "--yes", "--cwd", tmpDir]);
+
+		expect(result.exitCode).toBe(0);
+		expect(result.stdout + result.stderr).not.toMatch(/all chunks complete/i);
+		expect(await activeChunk()).toBe(3);
+
+		const last = await runCli(["advance", "--yes", "--cwd", tmpDir]);
+		expect(last.stdout + last.stderr).toMatch(/all chunks complete/i);
+		expect(await activeChunk()).toBe(3);
+	});
+
 	it("fails when there is no session", async () => {
 		writePackageJson(tmpDir);
 		const result = await runCli(["advance", "--yes", "--cwd", tmpDir]);

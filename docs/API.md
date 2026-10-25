@@ -39,6 +39,7 @@ Manages `SESSION_STATE.md`. All I/O uses `AtomicWriter` and `FrontmatterParser` 
 | `toMarkdown` | `(state: SessionState) => string` | `string` | Pure — the exact text `save` writes. The budget counts it |
 | `markTaskDone` | `(state, taskText: string) => SessionState` | `SessionState` | Pure — mark matching task as done |
 | `markTaskInProgress` | `(state, taskText: string) => SessionState` | `SessionState` | Pure — mark matching task as in-progress |
+| `adoptTask` | `(state, taskText: string) => SessionState` | `SessionState` | Pure — append the task as `todo` unless state already lists that exact text |
 | `addNote` | `(state, note: string) => SessionState` | `SessionState` | Pure — append a note |
 | `updateLastWorked` | `(state, files: string[]) => SessionState` | `SessionState` | Pure — replace last-worked file list |
 | `compact` | `(state) => SessionState` | `SessionState` | Pure — trim completed-chunk detail, add summary note |
@@ -208,6 +209,7 @@ importer that lifts such text must use these rather than its own format:
 | `formatQuotedNote` | `({ sourceFile, section?, text }) => string` | `Quoted from CLAUDE.md § "Setup step": "…"`, capped at `MAX_NOTE_CHARS`. |
 | `MAX_NOTE_CHARS` | `240` | Cap on one quoted note, attribution included. |
 | `QUOTED_LABEL` | `"quoted:"` | Precedes each summary `renderLayer0` / `renderLayer1` quote from a doc comment. |
+| `formatQuotedSummary` | `(summary: string) => string` | `quoted: "…"` — a doc-comment summary as the layer renderer and `index --show` / `--file` print it. |
 | `ClaudeMdNotes` | `{ build, merge }` | Turns `CLAUDE.md` `##` sections into quoted notes. `merge` swaps an earlier unquoted note for the quoted one. |
 
 ### File-load line prefixes
@@ -279,9 +281,20 @@ Builds `NEXT_PROMPT.md`, its manifest and its budget from a loaded session.
 | `assemble` | `(input: AssembleInput) => AssembledPrompt` | The prompt, manifest, budget and plan, using the adapter's formatter |
 | `charge` | `(input: ChargeInput) => ChargedContext` | The plan and budget alone — no formatter. `assemble` is built on it and `health` judges the budget by it, so they agree |
 
+`PlanChunkManager.loadActive(sessionDir, state)` returns the active chunk with
+each task's status merged from `state.tasks` by
+`PlanChunkManager.withSessionStatus(chunk, stateTasks)`: tasks match by exact
+text, and the higher status wins (`done` > `in-progress` > `todo`). Pure; it
+never rewrites `PLAN_<n>.md`.
+
 `PlanChunkManager.startAt(chunks, chunkId?)` returns `{ active, completedIds }`
 for a session starting at `chunkId` (the lowest-numbered when omitted), and
 throws `CliError` naming the defined ids when `chunkId` is not one.
+
+`PlanChunkManager.nextAfter(chunks, chunkId)` returns the chunk with the lowest
+id above `chunkId` — fractional ids and gaps included — or `undefined` from the
+highest. `PlanChunkManager.advance(state, nextChunkId)` takes that id; it no
+longer adds 1 itself.
 
 ---
 

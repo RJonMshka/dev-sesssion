@@ -192,8 +192,12 @@ Run this when all tasks in the active chunk are complete. The command:
 
 1. Marks the current chunk as completed in `SESSION_STATE.md`
 2. Archives it to `DONE_LOG.md`
-3. Activates the next chunk
+3. Activates the next chunk — the lowest chunk id above the current one, so
+   chunk `3.5` follows `3`, and a plan numbered `1, 3` goes from 1 to 3
 4. Writes a fresh `NEXT_PROMPT.md`
+
+On the highest-numbered chunk it reports that all chunks are complete and
+exits 0 without changing anything.
 
 ---
 
@@ -601,12 +605,12 @@ dev-sesssion mcp [--read-only]
 
 | Tool | What it does |
 |---|---|
-| `get_active_chunk` | Active chunk ID, title, and live task list |
+| `get_active_chunk` | Active chunk ID, title, and its tasks — each task's status the higher of what `PLAN_<n>.md` and `SESSION_STATE.md` record |
 | `list_context_files` | Files in `FILE_INDEX.md`, optionally filtered to a chunk |
 | `read_file_layer` | Render a file at layer 0 (summary), 1 (signatures), or 2 (full source) |
 | `read_unit` | Return one function, method, class or type by `path#id` — the refs on the prompt's `Focus (read_unit):` line. Reads the file as it is now, so the range is current even after edits |
 | `query_index` | Query the ai-index by exactly one of tag, chunk, or layer |
-| `mark_task_done` | Mark a task done by exact text match — disabled in read-only mode |
+| `mark_task_done` | Mark a task of the active chunk done by exact text match; the next regenerated prompt counts it — disabled in read-only mode |
 | `get_next_prompt` | Read the raw contents of `NEXT_PROMPT.md` |
 
 Requires a `.session/` directory.

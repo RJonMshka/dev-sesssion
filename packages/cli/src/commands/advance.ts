@@ -126,14 +126,14 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 	}
 
 	// Step 2: Verify next chunk exists
-	const nextChunkId = currentChunkId + 1;
-	const nextChunkExists = allChunks.some((c) => c.chunk_id === nextChunkId);
+	// The lowest id above this one, so 3.5 is not skipped and a gap is crossed (REQ-ORC-6, 7).
+	const nextChunk = PlanChunkManager.nextAfter(allChunks, currentChunkId);
 
-	if (!nextChunkExists) {
+	if (nextChunk === undefined) {
 		// Reaching the last chunk is a clean terminal state, not an error: nothing
 		// to archive or advance to. Return a passing result so callers exit 0.
 		log.success(
-			`Chunk ${String(currentChunkId)} is the last chunk — no PLAN_${String(nextChunkId)}.md to advance to.`,
+			`Chunk ${String(currentChunkId)} is the last chunk — no higher-numbered PLAN_<n>.md to advance to.`,
 		);
 		log.info("All chunks complete. Run `dev-sesssion status` to review.");
 
@@ -171,7 +171,12 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 	}
 
 	// Step 5: Advance to next chunk
-	state = PlanChunkManager.advance(state);
+	// State's task list follows the chunk, so MCP and `update` see the new
+	// chunk's tasks, not the archived one's (REQ-WF-9).
+	state = {
+		...PlanChunkManager.advance(state, nextChunk.chunk_id),
+		tasks: [...nextChunk.tasks],
+	};
 	if (dryRun) {
 		dryRunSkipWrite(
 			path.join(sessionDir, "SESSION_STATE.md"),
