@@ -27,6 +27,7 @@ import type { AiIndex, PlanChunk } from "@dev-session/core";
 import {
 	AiIndexBuilder,
 	AiIndexManager,
+	noPlanDirection,
 	PlanChunkManager,
 	ProjectDetector,
 } from "@dev-session/core";
@@ -169,7 +170,9 @@ export async function runInit(options: InitOptions): Promise<void> {
 		}
 	} else {
 		// Migration path B: interactive scaffolding
-		log.info("No PLAN.md found. Starting interactive setup.");
+		// Say what was looked for and what to do next; under --yes, also that the
+		// placeholder chunk below is not real work (REQ-ORC-3).
+		log.warn(noPlanDirection({ placeholder: options.yes }));
 		const scaffoldResult = await scaffoldPlan(sessionDir, options, projectName);
 		chunks = scaffoldResult.chunks;
 		projectName = scaffoldResult.projectName;

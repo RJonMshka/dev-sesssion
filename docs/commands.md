@@ -33,7 +33,10 @@ dev-sesssion init [options]
 **What it does:**
 
 1. Detects existing `PLAN.md` (or reads the `--plan` file), `CLAUDE.md`, `AGENTS.md`, `.cursor/`, `.windsurfrules`
-2. Splits an existing plan or scaffolds a new one interactively
+2. Splits an existing plan or scaffolds a new one interactively. With no plan,
+   it says where it looked and how to write one, check it with `plan check`,
+   and pass it with `--plan`. Under `--yes` it still exits 0 with one
+   placeholder chunk, and says so
 3. Walks the codebase to generate `FILE_INDEX.md`. With `--yes`, a file is tagged
    to a chunk only when the plan names it for that chunk — by path
    (`src/utils.ts`) or by a basename no other file shares (`utils.ts`) — either

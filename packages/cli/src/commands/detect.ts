@@ -16,7 +16,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { ProjectInfo } from "@dev-session/core";
-import { PlanParser } from "@dev-session/core";
+import { DEFAULT_PLAN_PATHS, PlanParser } from "@dev-session/core";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -76,8 +76,8 @@ export interface DetectionResult {
 // Detection functions
 // ---------------------------------------------------------------------------
 
-/** Possible PLAN.md locations, checked in order. */
-const PLAN_PATHS = ["PLAN.md", "docs/PLAN.md"] as const;
+/** Possible PLAN.md locations, checked in order. Shared with the no-plan message. */
+const PLAN_PATHS = DEFAULT_PLAN_PATHS;
 
 /**
  * Read one plan file and compute its statistics.

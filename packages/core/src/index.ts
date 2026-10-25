@@ -162,6 +162,7 @@ export { PlanParser } from "./parsers/plan-parser.js";
 export type {
 	ExcludedSection,
 	ExclusionReason,
+	NoPlanDirectionOptions,
 	PlanCheckCandidate,
 	PlanCheckChunk,
 	PlanCheckReport,
@@ -173,13 +174,18 @@ export type {
 } from "./parsers/plan-sources/index.js";
 // Plan source registry — many plan dialects in, one PlanChunk[] out
 export {
+	CHUNK_HEADING_SHAPE,
 	checkPlan,
+	DEFAULT_PLAN_PATHS,
 	describeExclusion,
 	detectPlanSource,
 	formatCandidates,
 	getPlanSourceByName,
 	getRegisteredPlanSources,
 	HeadingPlanSource,
+	INIT_WITH_PLAN_COMMAND,
+	noPlanDirection,
+	PLAN_CHECK_COMMAND,
 	PLAN_SOURCE_MIN_CONFIDENCE,
 	parsePlan,
 	registerPlanSource,

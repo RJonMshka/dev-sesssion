@@ -342,3 +342,18 @@ describe("init --plan <file>", () => {
 		}
 	});
 });
+
+describe("init without a plan", () => {
+	it("says no plan was found and names how to write, check and pass one (REQ-ORC-3)", async () => {
+		fs.rmSync(path.join(tmpDir, "PLAN.md"));
+
+		const out = await cli("init", "--yes"); // throws unless exit 0
+
+		expect(out).toContain("No plan found (looked for PLAN.md, docs/PLAN.md)");
+		expect(out).toContain("dev-sesssion plan check <file>");
+		expect(out).toContain("dev-sesssion init --plan <file> -y");
+		// Under --yes the session is not empty-handed, and says so.
+		expect(out).toMatch(/placeholder chunk/i);
+		expect(fs.existsSync(path.join(tmpDir, ".session", "PLAN_1.md"))).toBe(true);
+	});
+});

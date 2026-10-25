@@ -473,6 +473,13 @@ report.source;      // { name, confidence } | null
 report.chunks;      // [{ id, title, taskCount, hasBrief, namedPaths }]
 ```
 
+When there is no plan at all, `noPlanDirection({ placeholder })` is the text
+`init` prints: where it looked (`DEFAULT_PLAN_PATHS`) and how to write, check
+and pass a plan. `placeholder: true` adds that the session holds a stand-in
+chunk. The commands it names are exported as `PLAN_CHECK_COMMAND` and
+`INIT_WITH_PLAN_COMMAND`, and the heading shape as `CHUNK_HEADING_SHAPE`, so
+other agent-facing text names the same ones.
+
 ### Registering your own
 
 ```ts
