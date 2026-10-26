@@ -13,13 +13,8 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { PathValidator } from "@dev-session/security";
 import type { AiIndex } from "../annotation/types.js";
+import { PATH_SHAPED } from "../formatters/formatter-utils.js";
 import type { FileIndexEntry, PlanChunk } from "../schemas/index.js";
-
-/**
- * Characters a stated path may hold (REQ-NEW-2). The line renders plan text
- * outside any quotation, so the path must be path-shaped by construction.
- */
-const PATH_SHAPED = /^[A-Za-z0-9._\-+@/]+$/;
 
 /** Neighbours loaded per absent path (REQ-NEW-4). */
 const PER_PATH = 3;

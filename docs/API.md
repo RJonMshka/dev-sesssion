@@ -430,6 +430,31 @@ characters outside `[A-Za-z0-9._/^~@{}-]`.
 
 ---
 
+## SymbolQuery
+
+What the ai-index holds for a file or a name, behind `dev-sesssion symbols`.
+Pure over a loaded `AiIndex`, apart from reading each reported file to compare
+its hash. `SessionManager.symbolsForFile(path)` and `symbolsByName(name)` load
+the index and validate the path for you.
+
+| Member | Signature | Description |
+|---|---|---|
+| `file` | `(index, key, projectRoot) => SymbolFileReport \| null` | Cost, module summary, exports by line, units by line (`null` when not recorded). `null` when the file has no entry |
+| `name` | `(index, name, projectRoot) => SymbolNameReport` | Every unit whose id or leaf member name equals `name`, with `focusable`, `evidence` and the report's `ambiguous` and `codeShaped` |
+| `renderText` | `(report) => string[]` | Text lines; summaries quoted with `formatQuotedSummary`, non-path-shaped paths with `quoteText` |
+
+`Freshness` is `"current" | "stale" | "removed" | "unknown"`.
+
+`UnitFocusResolver.explain(index, name)` returns the declarations a name
+matches, each with its usage evidence, and the refs a task naming it in
+backticks would focus (or `"ambiguous"`). It shares its decision code with
+`resolve`, so `symbols` and the prompt cannot disagree.
+
+`PATH_SHAPED` is the pattern a path must match to be printed bare outside a
+quotation.
+
+---
+
 ## Plan sources
 
 A plan source turns a plan document into `PlanChunk[]`. Sources are held in a

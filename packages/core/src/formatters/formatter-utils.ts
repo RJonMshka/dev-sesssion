@@ -217,6 +217,13 @@ export const MAX_NOTE_CHARS = 240;
 /** Marks a summary the layer renderer quotes from a doc comment (REQ-PROV-2, -8). */
 export const QUOTED_LABEL = "quoted:";
 
+/**
+ * Characters a path may hold to be rendered bare, outside any quotation
+ * (REQ-NEW-2, REQ-SYM-8). Anything else is repository text and is quoted or
+ * dropped, depending on the line.
+ */
+export const PATH_SHAPED = /^[A-Za-z0-9._\-+@/]+$/;
+
 /** Appended to text shortened to fit a cap. */
 const ELLIPSIS = "…";
 

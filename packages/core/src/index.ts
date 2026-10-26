@@ -28,13 +28,19 @@ export type {
 	AiIndex,
 	FileAnnotations,
 	FileEntry,
+	Freshness,
 	LayerHint,
 	ParsedFile,
 	ParsedSymbol,
 	ParsedUnit,
 	SymbolAnnotations,
 	SymbolEntry,
+	SymbolExportRow,
+	SymbolFileReport,
+	SymbolMatch,
+	SymbolNameReport,
 	SymbolSurface,
+	SymbolUnitRow,
 	UnitEntry,
 	UnitKind,
 } from "./annotation/index.js";
@@ -45,6 +51,7 @@ export {
 	AiIndexManager,
 	AnnotationParser,
 	AutoExtractor,
+	SymbolQuery,
 } from "./annotation/index.js";
 // Calculators
 export { ContextBudgetCalculator } from "./calculators/context-budget-calculator.js";
@@ -58,6 +65,8 @@ export type {
 export { LayerResolver } from "./calculators/layer-resolver.js";
 export { type NeighbourInput, NewFiles } from "./calculators/new-files.js";
 export type {
+	DeclarationGroup,
+	FocusExplanation,
 	FocusedUnit,
 	UnitFocusInput,
 	UnitFocusResult,
@@ -110,6 +119,7 @@ export {
 	MAX_REF_LINE_CHARS,
 	mergeContextFiles,
 	NEW_FILES_PREFIX,
+	PATH_SHAPED,
 	PLAN_PREFIX,
 	QUOTED_LABEL,
 	quoteText,

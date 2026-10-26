@@ -18,7 +18,12 @@ import { CliError, PathValidator, type ValidatedPath } from "@dev-session/securi
 
 import { AiIndexManager } from "../annotation/ai-index-manager.js";
 import { AutoExtractor } from "../annotation/auto-extractor.js";
-import type { FileEntry, ParsedUnit } from "../annotation/types.js";
+import {
+	type SymbolFileReport,
+	type SymbolNameReport,
+	SymbolQuery,
+} from "../annotation/symbol-query.js";
+import type { AiIndex, FileEntry, ParsedUnit } from "../annotation/types.js";
 import { sliceLines } from "../annotation/unit-extractor.js";
 import { checkPlanFile, type PlanCheckReport } from "../parsers/plan-sources/check.js";
 import type { FileIndexEntry, PlanChunk, SessionState, Task } from "../schemas/index.js";
@@ -166,13 +171,7 @@ export class SessionManager {
 			return AiIndexManager.renderLayer2(validated);
 		}
 
-		const index = AiIndexManager.load(this.sessionDir);
-		if (!index) {
-			throw new CliError({
-				message: "No ai-index.yaml found",
-				suggestion: "Run `dev-sesssion index` first to generate the index.",
-			});
-		}
+		const index = this.loadIndex();
 
 		const key = path.relative(index.project_root, validated).replace(/\\/g, "/");
 		const entry = index.files[key];
@@ -186,6 +185,61 @@ export class SessionManager {
 		return layer === 0
 			? AiIndexManager.renderLayer0(key, entry)
 			: AiIndexManager.renderLayer1(key, entry);
+	}
+
+	/**
+	 * Report what the ai-index holds for one file, and whether the record still
+	 * matches it (REQ-SYM-1, -13..18). Reads only.
+	 *
+	 * @param relPath - File path relative to the project root. Untrusted.
+	 * @returns The file report.
+	 * @throws {SecurityError} If the path escapes the project root.
+	 * @throws {CliError} If the index is missing or does not hold the file.
+	 */
+	symbolsForFile(relPath: string): SymbolFileReport {
+		const validated = PathValidator.safeResolvePath(relPath, this.projectRoot);
+		const index = this.loadIndex();
+		// Keyed against the root this command runs in, not index.project_root,
+		// so a moved checkout still finds its entries (REQ-SYM-18).
+		const key = path.relative(this.projectRoot, validated).replace(/\\/g, "/");
+		const report = SymbolQuery.file(index, key, this.projectRoot);
+		if (report === null) {
+			throw new CliError({
+				message: `File is not indexed: ${key}`,
+				suggestion:
+					"Run `dev-sesssion index` if the file is new; files the extractor does not parse have no entry.",
+			});
+		}
+		return report;
+	}
+
+	/**
+	 * Report every unit a name matches, and which of them a task naming it
+	 * would focus (REQ-SYM-2..6). Reads only.
+	 *
+	 * @param name - The name, as a task would write it.
+	 * @returns The name report; `matches` is empty when nothing matched.
+	 * @throws {CliError} If the index is missing.
+	 */
+	symbolsByName(name: string): SymbolNameReport {
+		return SymbolQuery.name(this.loadIndex(), name, this.projectRoot);
+	}
+
+	/**
+	 * Load the ai-index, or explain how to create it.
+	 *
+	 * @returns The index.
+	 * @throws {CliError} If no ai-index.yaml exists.
+	 */
+	private loadIndex(): AiIndex {
+		const index = AiIndexManager.load(this.sessionDir);
+		if (!index) {
+			throw new CliError({
+				message: "No ai-index.yaml found",
+				suggestion: "Run `dev-sesssion index` first to generate the index.",
+			});
+		}
+		return index;
 	}
 
 	/**
@@ -251,13 +305,7 @@ export class SessionManager {
 			});
 		}
 
-		const index = AiIndexManager.load(this.sessionDir);
-		if (!index) {
-			throw new CliError({
-				message: "No ai-index.yaml found",
-				suggestion: "Run `dev-sesssion index` first to generate the index.",
-			});
-		}
+		const index = this.loadIndex();
 
 		if (query.tag !== undefined) {
 			return AiIndexManager.queryByTag(index, query.tag);

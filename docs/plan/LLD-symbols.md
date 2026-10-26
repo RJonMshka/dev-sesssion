@@ -456,3 +456,30 @@ commit as the code.
 - **Signatures quoted.** A signature is source code, rendered under its file's
   header (LLD-context-provenance.md, Out of scope). Unit ids are name-shaped by
   REQ-PROV-9/10, so they need no quoting either.
+
+---
+
+## What actually happened
+
+Built 2026-10-26 on `feat/symbols` (HLD build order step 7).
+
+- `UnitFocusResolver.explain` shares more than the parts the design listed.
+  The per-name step of `resolve` (choose, then focus each sibling) was pulled
+  out as one private `focusName`, and `explain` runs it on a backticked
+  mention, `MAX_FOCUS_UNITS` cap included. `focusable` is therefore exactly what
+  a one-task prompt focuses, even for a name whose live declarations have more
+  than five siblings between them.
+- `evidence` is set only when a name has more than one declaration, matching
+  what the resolver records in the manifest. The text output says "no usage
+  evidence" beside each contested declaration that has none.
+- REQ-SYM-3's unit tests pin how many units each case focuses (1, 1, 0, 0, 1),
+  so the comparison with the resolver cannot pass because both sides are empty.
+- The integration run over `packages/core/src` reproduced the recorded outcome:
+  `trimToMaxLines`, 2 declarations, both focusable with evidence, and
+  `LayerResolver.plan` focused the same two refs.
+- The e2e for "no `.session/`" did not pass on first run as expected. The
+  `simple-node-app` fixture ships a `.session/`, so the test removes it first.
+- `readFileLayer` and `queryIndex` now load the index through the same private
+  `loadIndex` as the new methods. Their behaviour is unchanged.
+  `readFileLayer`'s `index.project_root` lookup is still the out-of-scope
+  follow-up.

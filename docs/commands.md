@@ -286,6 +286,58 @@ Finds FILE_INDEX entries whose files no longer exist. Use `--fix` to remove them
 
 ---
 
+## dev-sesssion symbols
+
+Shows what the ai-index holds — the data prompts are built from — and whether
+that record still matches the code. Reads only: it writes nothing and does not
+regenerate the prompt.
+
+```bash
+dev-sesssion symbols <path> [--json]
+dev-sesssion symbols --name <name> [--json]
+```
+
+`symbols <path>` prints the file's token cost and module summary, each export's
+signature and line, and each code unit's id, kind, line range, token cost and
+share of the file. Summaries come from doc comments in the file, so they are
+printed as quotations (`quoted: "…"`).
+
+```
+src/utils.ts · 1,468 tokens · current
+quoted: "Request parsing helpers."
+Exports
+  L12  export function parseBody(req: Request): Body — quoted: "Parses a JSON body."
+Units
+  parseBody          function  L10-48    210 tok  14%  exported
+  normalizeHeaders   function  L50-61     58 tok   4%
+```
+
+`symbols --name <name>` lists every unit whose id, or member name after the
+last `.`, is exactly `<name>` (no substring or fuzzy matching), as
+`path#id:start-end`. `would focus` marks the declarations a task naming
+`` `<name>` `` would focus. The decision comes from the same code the prompt
+uses. When a name is declared more than once, each declaration shows its usage
+evidence. If none or too many have evidence, the name is ambiguous and focuses
+nothing. A plain word such as `helper` counts in a task only between backticks,
+and the output says so. A prompt focuses at most 5 units across all its tasks,
+so a unit marked `would focus` can still be crowded out by other tasks.
+
+Each file is checked against the hash recorded when it was indexed:
+
+| Mark | Meaning |
+|---|---|
+| `current` | The file matches its record |
+| `STALE — run dev-sesssion index` | The file changed since indexing |
+| `removed since indexing` | The file no longer exists |
+| `freshness unknown` | The index predates file hashes |
+
+Exit codes: `0` when a report prints, stale or not; `1` when `--name` matches
+nothing, when there is no index or `.session/`, when the file is not indexed,
+or when the path is outside the project. `--json` prints one JSON document with
+`freshness` on every file; summaries stay raw strings there.
+
+---
+
 ## dev-sesssion health
 
 Full session audit with severity-graded findings.
