@@ -20,6 +20,7 @@ import { AiIndexManager } from "../annotation/ai-index-manager.js";
 import { AutoExtractor } from "../annotation/auto-extractor.js";
 import type { FileEntry, ParsedUnit } from "../annotation/types.js";
 import { sliceLines } from "../annotation/unit-extractor.js";
+import { checkPlanFile, type PlanCheckReport } from "../parsers/plan-sources/check.js";
 import type { FileIndexEntry, PlanChunk, SessionState, Task } from "../schemas/index.js";
 import { FileIndexManager } from "./file-index-manager.js";
 import { PlanChunkManager } from "./plan-chunk-manager.js";
@@ -185,6 +186,19 @@ export class SessionManager {
 		return layer === 0
 			? AiIndexManager.renderLayer0(key, entry)
 			: AiIndexManager.renderLayer1(key, entry);
+	}
+
+	/**
+	 * Check a plan file the way `init` would read it, without writing anything
+	 * (REQ-ORC-4). Allowed in read-only mode: it only reads.
+	 *
+	 * @param relPath - Plan file path relative to the project root. Untrusted.
+	 * @returns The same report `plan check --json` prints.
+	 * @throws {SecurityError} If the path escapes the project root.
+	 * @throws {CliError} If the file cannot be read.
+	 */
+	checkPlan(relPath: string): PlanCheckReport {
+		return checkPlanFile(relPath, this.projectRoot);
 	}
 
 	/**

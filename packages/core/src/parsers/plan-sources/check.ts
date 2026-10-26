@@ -9,7 +9,8 @@
  * @packageDocumentation
  */
 
-import { isParseError } from "@dev-session/security";
+import * as fs from "node:fs";
+import { CliError, isParseError, PathValidator } from "@dev-session/security";
 import { detectPlanSource, type PlanSourceCandidate, parsePlan } from "./registry.js";
 import type { ExcludedSection, ExclusionReason } from "./types.js";
 
@@ -121,4 +122,28 @@ export function checkPlan(content: string): PlanCheckReport {
 		excluded: result.excluded,
 		warnings: result.warnings,
 	};
+}
+
+/**
+ * Checks a plan file inside the project root. Shared by `plan check` and the
+ * MCP `check_plan` tool, so both report the same thing (REQ-ORC-4).
+ *
+ * @param file - Path relative to `projectRoot`. Untrusted.
+ * @param projectRoot - The project root.
+ * @returns The report, as {@link checkPlan} gives it.
+ * @throws {SecurityError} If the path escapes the project root.
+ * @throws {CliError} If the file cannot be read.
+ */
+export function checkPlanFile(file: string, projectRoot: string): PlanCheckReport {
+	const resolved = PathValidator.safeResolvePath(file, projectRoot);
+	let content: string;
+	try {
+		content = fs.readFileSync(resolved, "utf-8");
+	} catch {
+		throw new CliError({
+			message: `Cannot read plan file: ${file}`,
+			suggestion: "Pass a path relative to the project root.",
+		});
+	}
+	return checkPlan(content);
 }

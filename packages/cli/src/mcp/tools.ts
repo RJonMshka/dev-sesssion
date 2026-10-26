@@ -181,6 +181,26 @@ export function registerSessionTools(server: McpServer, manager: SessionManager)
 	);
 
 	server.registerTool(
+		"check_plan",
+		{
+			description:
+				"Check a plan file the way `init` would read it, without writing anything. " +
+				"Returns the same JSON report as `dev-sesssion plan check <file> --json`.",
+			inputSchema: {
+				path: z.string().min(1),
+			},
+			annotations: { readOnlyHint: true },
+		},
+		(args) => {
+			try {
+				return okJson(manager.checkPlan(args.path));
+			} catch (error: unknown) {
+				return errorResult(error);
+			}
+		},
+	);
+
+	server.registerTool(
 		"get_next_prompt",
 		{
 			description: "Read the raw contents of NEXT_PROMPT.md (the next-session bootstrap).",

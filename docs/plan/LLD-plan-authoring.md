@@ -351,6 +351,13 @@ read-only. The tool list goes from 7 to 8. `advance` stays off MCP: it archives
 and compacts state, and the server has a read-only mode (`server.ts:36`) that
 should stay meaningful.
 
+*Built 2026-10-26 on `feat/plan-orchestration`. The file read moved into core as
+`checkPlanFile`, which `plan check` and `SessionManager.checkPlan` both call, so
+the CLI and the tool can't drift. `check_plan` carries `readOnlyHint` and works on
+a `--read-only` server. Like every MCP tool it needs a `.session/` to start, so
+an agent checking a plan before the first `init` uses the CLI, which the skill
+already says to do.*
+
 ---
 
 ## Test plan

@@ -177,6 +177,7 @@ export type {
 export {
 	CHUNK_HEADING_SHAPE,
 	checkPlan,
+	checkPlanFile,
 	DEFAULT_PLAN_PATHS,
 	describeExclusion,
 	detectPlanSource,

@@ -2,16 +2,14 @@
  * `dev-sesssion plan check <file>` (LLD-plan-authoring.md, REQ-PLA-1..6).
  *
  * Reports whether `init` would read a plan, and how, without touching
- * `.session/`. The checking lives in `checkPlan` in core; this module reads the
- * file and renders the report.
+ * `.session/`. The checking lives in `checkPlanFile` in core; this module
+ * renders the report.
  *
  * @module
  */
 
-import * as fs from "node:fs";
 import { log } from "@clack/prompts";
-import { checkPlan, describeExclusion, type PlanCheckReport } from "@dev-session/core";
-import { CliError, PathValidator } from "@dev-session/security";
+import { checkPlanFile, describeExclusion, type PlanCheckReport } from "@dev-session/core";
 import type { Command } from "commander";
 import { handleError } from "../utils/error-handler.js";
 
@@ -23,27 +21,6 @@ export interface PlanCheckOptions {
 	readonly cwd: string;
 	/** Print the report as one JSON document. */
 	readonly json: boolean;
-}
-
-/**
- * Reads the plan file inside the project root.
- *
- * @param file - Path relative to `cwd`.
- * @param cwd - The project root.
- * @returns The file's contents.
- * @throws {SecurityError} If the path escapes the project root.
- * @throws {CliError} If the file cannot be read.
- */
-function readPlanFile(file: string, cwd: string): string {
-	const resolved = PathValidator.safeResolvePath(file, cwd);
-	try {
-		return fs.readFileSync(resolved, "utf-8");
-	} catch {
-		throw new CliError({
-			message: `Cannot read plan file: ${file}`,
-			suggestion: "Pass a path relative to the project root.",
-		});
-	}
 }
 
 /**
@@ -95,7 +72,7 @@ function renderReport(report: PlanCheckReport): void {
  * @throws {CliError} If the file cannot be read.
  */
 export function runPlanCheck(options: PlanCheckOptions): boolean {
-	const report = checkPlan(readPlanFile(options.file, options.cwd));
+	const report = checkPlanFile(options.file, options.cwd);
 	if (options.json) {
 		// REQ-PLA-5 — one JSON document on stdout, nothing else.
 		process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);

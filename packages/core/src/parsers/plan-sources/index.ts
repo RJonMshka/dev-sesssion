@@ -5,7 +5,7 @@
  */
 
 export type { PlanCheckCandidate, PlanCheckChunk, PlanCheckReport } from "./check.js";
-export { checkPlan, describeExclusion } from "./check.js";
+export { checkPlan, checkPlanFile, describeExclusion } from "./check.js";
 export type { NoPlanDirectionOptions } from "./direction.js";
 export {
 	CHUNK_HEADING_SHAPE,

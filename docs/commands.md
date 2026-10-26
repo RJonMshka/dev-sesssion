@@ -641,8 +641,11 @@ dev-sesssion mcp [--read-only]
 | `query_index` | Query the ai-index by exactly one of tag, chunk, or layer |
 | `mark_task_done` | Mark a task of the active chunk done by exact text match; the next regenerated prompt counts it — disabled in read-only mode |
 | `get_next_prompt` | Read the raw contents of `NEXT_PROMPT.md` |
+| `check_plan` | Check a plan file by path, the way `init` would read it; returns the same report as `plan check --json` and writes nothing |
 
-Requires a `.session/` directory.
+Requires a `.session/` directory. The server never exposes `advance` or `init`:
+they rewrite session state, and an orchestrator runs them through the CLI
+(`advance --json`) so `--read-only` keeps meaning what it says.
 
 ---
 
