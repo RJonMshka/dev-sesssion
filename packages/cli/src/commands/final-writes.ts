@@ -17,6 +17,7 @@ import {
 	PlanChunkManager,
 	RoutinesWriter,
 	SessionStateManager,
+	serializeSessionBaseYaml,
 } from "@dev-session/core";
 import type { ValidatedPath } from "@dev-session/security";
 import { AtomicWriter, CliError, PathValidator, SecretScanner } from "@dev-session/security";
@@ -25,6 +26,7 @@ import { createAdapterReadFile, createAdapterWriteFile } from "../utils/adapter-
 import { dryRunGitignorePatch, dryRunWrite } from "../utils/dry-run.js";
 import { resolveAdapter } from "../utils/resolve-adapter.js";
 import { detectProjectName, regeneratePrompt } from "./regenerate-prompt.js";
+import { withSessionBase } from "./touch-tagging.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -136,10 +138,14 @@ export async function runFinalWrites(
 	// --- 1. Write SESSION_STATE.md ---
 	// Chunks below the starting one are recorded as advance would (REQ-RUN-28).
 	const today = new Date().toISOString().slice(0, 10);
-	const sessionState: SessionState = {
-		...buildInitialState(activeChunk, projectName, options.cwd),
-		completed_chunks: Object.fromEntries(completedIds.map((id) => [String(id), today])),
-	};
+	// The base marks where the first session starts (REQ-IDX-19).
+	const sessionState: SessionState = await withSessionBase(
+		{
+			...buildInitialState(activeChunk, projectName, options.cwd),
+			completed_chunks: Object.fromEntries(completedIds.map((id) => [String(id), today])),
+		},
+		options.cwd,
+	);
 	const stateContent = serializeSessionState(sessionState);
 
 	secretWarnings += scanContent(stateContent, "SESSION_STATE.md", options.verbose);
@@ -291,6 +297,7 @@ function serializeSessionState(state: SessionState): string {
 		`active_chunk: ${state.active_chunk}`,
 		`session_id: "${state.session_id}"`,
 		`last_updated: "${state.last_updated}"`,
+		...serializeSessionBaseYaml(state.session_base),
 		"---",
 		"",
 		"# Session State",

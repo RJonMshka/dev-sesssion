@@ -88,7 +88,9 @@ the budget, and `status`, `preview` and `health` shall report that same budget
 REQ-NEW-4 to `FILE_INDEX.md`.
 
 A neighbour is a placement guess, recomputed on every regeneration; once the new
-file exists, `index` tags the real one. Persisting the guess would outlive it.
+file exists and a session touches it, `update` tags the real one
+(LLD-tagging.md, REQ-IDX-33). `index` does not. Persisting the guess would
+outlive it.
 
 ---
 

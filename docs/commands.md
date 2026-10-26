@@ -169,10 +169,11 @@ A `memory` object with session-log aggregates is included when
 
 ## dev-sesssion update
 
-Interactively mark tasks done and add session notes.
+Interactively mark tasks done and add session notes, and tag the files the
+session changed.
 
 ```bash
-dev-sesssion update
+dev-sesssion update [--no-tag]
 ```
 
 **What it does:**
@@ -180,9 +181,40 @@ dev-sesssion update
 1. Shows the current task list with checkboxes
 2. Lets you mark tasks done or in-progress
 3. Prompts for optional session notes
-4. Detects git-modified files and suggests adding them to the index
-5. Regenerates `NEXT_PROMPT.md` for the next session
+4. Tags the files this session changed to the active chunk (below)
+5. Regenerates `NEXT_PROMPT.md` for the next session, loading the files just tagged
 6. Scans written content for secrets
+
+**Tagging what the session touched.** In a git repository, `init`, `update`
+and `advance` record a session base in `SESSION_STATE.md`: `HEAD` and the files
+already dirty. The next `update` tags each file changed since then to the active
+chunk, and also to any open chunk whose tasks or file list name it. A file
+counts as changed if your own commits since the base changed it, or the working
+tree has it modified, staged or untracked. "Your own" means the author email
+matches `git config user.email`. Commits from a `pull` or a merge do not count,
+and with no `user.email` set, no commit counts.
+
+A file is not tagged when it:
+
+- is a deletion, under `.session/`, `node_modules/`, `dist/` or `build/`, or
+  always-included;
+- was written by dev-sesssion (`CLAUDE.md` and the other adapter files,
+  `.gitignore`, `.gitattributes`);
+- is a lockfile, binary, or marked `linguist-generated` in `.gitattributes`;
+- changed only in whitespace, or was changed and changed back;
+- has characters in its path other than letters, digits and `. _ - + @ /`;
+- was already dirty at the base and has not changed since.
+
+If more than 20 files remain, `update` treats the session as a sweep (a rename,
+a formatter run, a dependency bump) and tags none of them. If every task in the
+active chunk is done, it tags nothing. The report names each file tagged and
+counts the rest by reason.
+
+Without `--yes`, `update` asks once, with every file preselected. `--no-tag`
+skips tagging and still moves the base, so the files are not offered again.
+Under `--dry-run` it prints what it would tag and writes nothing. `advance`
+records a new base and tags nothing. The first `update` after upgrading has no
+base yet: it tags nothing, says `no-base`, and records one.
 
 ---
 

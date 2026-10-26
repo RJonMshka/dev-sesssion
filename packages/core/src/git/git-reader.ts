@@ -116,6 +116,90 @@ function parseLogLine(line: string): GitCommit | null {
 	};
 }
 
+/** One `git status` entry: its two-letter code and the path it now has. */
+export interface StatusEntry {
+	/** Porcelain v1 `XY` code, e.g. ` M`, `A `, `??`, `R `. */
+	readonly code: string;
+	/** Repo-relative path, unquoted. For a rename, the new path. */
+	readonly path: string;
+	/** For a rename or copy, the old path. */
+	readonly from?: string;
+}
+
+/** What a path's diff against a base amounts to. */
+export type DiffKind = "changed" | "blank" | "binary";
+
+/** Arguments per `check-attr` call, to stay under the command-line limit. */
+const ATTR_BATCH = 200;
+
+/**
+ * Splits NUL-separated git output into records.
+ *
+ * @param out - Raw `-z` output, or `null`.
+ * @returns The records, without the empty one after the final NUL.
+ */
+function records(out: string | null): string[] {
+	if (out === null || out.length === 0) return [];
+	const parts = out.split("\0");
+	if (parts[parts.length - 1] === "") parts.pop();
+	return parts;
+}
+
+/**
+ * Parses `status --porcelain=v1 -z` output (REQ-IDX-22). A rename or copy
+ * is followed by a second record holding the old path.
+ *
+ * @param out - Raw output, or `null`.
+ * @returns One entry per path.
+ */
+function parseStatusZ(out: string | null): StatusEntry[] {
+	const recs = records(out);
+	const entries: StatusEntry[] = [];
+	for (let i = 0; i < recs.length; i++) {
+		const rec = recs[i] ?? "";
+		if (rec.length < 4) continue;
+		const code = rec.slice(0, 2);
+		const entry: StatusEntry = { code, path: rec.slice(3) };
+		if (code.includes("R") || code.includes("C")) {
+			i++;
+			const from = recs[i];
+			entries.push(from !== undefined ? { ...entry, from } : entry);
+		} else {
+			entries.push(entry);
+		}
+	}
+	return entries;
+}
+
+/**
+ * Parses `diff --numstat -z --no-renames` output.
+ *
+ * @param out - Raw output, or `null`.
+ * @returns Path → kind, for every path git reported.
+ */
+function parseNumstatZ(out: string | null): Map<string, DiffKind> {
+	const map = new Map<string, DiffKind>();
+	for (const rec of records(out)) {
+		const m = /^(-|\d+)\t(-|\d+)\t(.*)$/s.exec(rec);
+		if (m === null || m[3] === undefined) continue;
+		if (m[1] === "-") map.set(m[3], "binary");
+		else map.set(m[3], m[1] === "0" && m[2] === "0" ? "blank" : "changed");
+	}
+	return map;
+}
+
+/**
+ * Id of the empty tree in this repository's hash format, so SHA-256
+ * repositories work as well as SHA-1 ones.
+ *
+ * @param cwd - Repository working directory.
+ * @returns The tree id, or `null` if git cannot compute it.
+ */
+async function emptyTree(cwd: string): Promise<string | null> {
+	const out = await git(cwd, ["hash-object", "-t", "tree", "/dev/null"]);
+	return out !== null && /^[0-9a-f]{40,64}$/.test(out) ? out : null;
+}
+
 /**
  * Read-only git queries used by session verification and replay scoring.
  */
@@ -219,5 +303,155 @@ export const GitReader = {
 	async changedBetween(cwd: string, from: string, to: string): Promise<string[]> {
 		const range = `${assertSafeRev(from)}..${assertSafeRev(to)}`;
 		return lines(await git(cwd, ["diff", "--name-only", range]));
+	},
+
+	/**
+	 * Resolves `HEAD` to a full commit id.
+	 *
+	 * @param cwd - Repository working directory.
+	 * @returns The commit id, or `null` in a repository with no commits.
+	 */
+	async head(cwd: string): Promise<string | null> {
+		const out = await git(cwd, ["rev-parse", "--verify", "-q", "HEAD"]);
+		return out !== null && out.length > 0 ? out : null;
+	},
+
+	/**
+	 * Reads the configured `user.email`. Compared, never stored.
+	 *
+	 * @param cwd - Repository working directory.
+	 * @returns The email, or `null` when unset.
+	 */
+	async userEmail(cwd: string): Promise<string | null> {
+		const out = await git(cwd, ["config", "user.email"]);
+		return out !== null && out.length > 0 ? out : null;
+	},
+
+	/**
+	 * Checks whether a commit still exists in the object store.
+	 *
+	 * @param cwd - Repository working directory.
+	 * @param sha - The commit id.
+	 * @returns `true` when the commit exists.
+	 * @throws {CliError} If the id fails the safety check.
+	 */
+	async commitExists(cwd: string, sha: string): Promise<boolean> {
+		return (await git(cwd, ["cat-file", "-e", `${assertSafeRev(sha)}^{commit}`])) !== null;
+	},
+
+	/**
+	 * Checks whether `ancestor` is an ancestor of (or equal to) `descendant`.
+	 *
+	 * @param cwd - Repository working directory.
+	 * @param ancestor - The would-be ancestor.
+	 * @param descendant - The would-be descendant.
+	 * @returns `true` when it is.
+	 * @throws {CliError} If either revision fails the safety check.
+	 */
+	async isAncestor(cwd: string, ancestor: string, descendant: string): Promise<boolean> {
+		const args = [
+			"merge-base",
+			"--is-ancestor",
+			assertSafeRev(ancestor),
+			assertSafeRev(descendant),
+		];
+		return (await git(cwd, args)) !== null;
+	},
+
+	/**
+	 * Lists working-tree changes against `HEAD`: staged, unstaged and
+	 * untracked, every file inside a new directory, paths unquoted, renames
+	 * under their new path (REQ-IDX-22).
+	 *
+	 * @param cwd - Repository working directory.
+	 * @returns One entry per changed path; empty outside git.
+	 */
+	async statusEntries(cwd: string): Promise<StatusEntry[]> {
+		return parseStatusZ(
+			await git(cwd, ["status", "--porcelain=v1", "-z", "--untracked-files=all"]),
+		);
+	},
+
+	/**
+	 * Lists files that commits on `HEAD`'s first-parent line since `base`,
+	 * excluding merges and authored by `email`, added, modified or renamed to
+	 * their present path (REQ-IDX-21).
+	 *
+	 * @param cwd - Repository working directory.
+	 * @param base - The base commit, or `null` for every commit on `HEAD`.
+	 * @param email - Author email to keep; compared case-insensitively.
+	 * @returns Repo-relative paths, unique, in first-seen order.
+	 * @throws {CliError} If `base` fails the safety check.
+	 */
+	async committedBy(cwd: string, base: string | null, email: string): Promise<string[]> {
+		const range = base === null ? "HEAD" : `${assertSafeRev(base)}..HEAD`;
+		const log = await git(cwd, [
+			"log",
+			"--first-parent",
+			"--no-merges",
+			"--format=%H%x09%ae",
+			range,
+		]);
+		const want = email.toLowerCase();
+		const shas = lines(log).flatMap((l) => {
+			const [sha, author] = l.split("\t");
+			return sha !== undefined && author?.toLowerCase() === want ? [sha] : [];
+		});
+		const seen = new Set<string>();
+		for (const sha of shas) {
+			const out = await git(cwd, [
+				...["diff-tree", "--root", "--no-commit-id", "-r", "-z", "-M"],
+				...["--name-only", "--diff-filter=ACMR", assertSafeRev(sha)],
+			]);
+			for (const p of records(out)) seen.add(p);
+		}
+		return [...seen];
+	},
+
+	/**
+	 * Says, per tracked path, whether its working-tree content differs from
+	 * `base` in anything but whitespace and blank lines (REQ-IDX-28, -29).
+	 *
+	 * Untracked files are not compared; git reports nothing for them.
+	 *
+	 * @param cwd - Repository working directory.
+	 * @param base - The base commit, or `null` to compare with the empty tree.
+	 * @param paths - Paths to ask about.
+	 * @returns Path → kind; a path absent from the map does not differ at all.
+	 * @throws {CliError} If `base` fails the safety check.
+	 */
+	async substantive(
+		cwd: string,
+		base: string | null,
+		paths: readonly string[],
+	): Promise<Map<string, DiffKind>> {
+		if (paths.length === 0) return new Map();
+		const from = base === null ? await emptyTree(cwd) : assertSafeRev(base);
+		if (from === null) return new Map();
+		const args = ["diff", "--numstat", "-z", "--no-renames", "-w", "--ignore-blank-lines", from];
+		return parseNumstatZ(await git(cwd, [...args, "--", ...paths]));
+	},
+
+	/**
+	 * Lists the paths a git attribute is set on, e.g. `linguist-generated`
+	 * (REQ-IDX-28). Reads the user's own `.gitattributes`; guesses nothing.
+	 *
+	 * @param cwd - Repository working directory.
+	 * @param paths - Paths to ask about.
+	 * @param attr - The attribute name.
+	 * @returns The paths whose attribute is `set` or `true`.
+	 */
+	async attribute(cwd: string, paths: readonly string[], attr: string): Promise<Set<string>> {
+		const set = new Set<string>();
+		for (let i = 0; i < paths.length; i += ATTR_BATCH) {
+			const batch = paths.slice(i, i + ATTR_BATCH);
+			const recs = records(await git(cwd, ["check-attr", "-z", attr, "--", ...batch]));
+			for (let j = 0; j + 2 < recs.length; j += 3) {
+				const value = recs[j + 2];
+				const p = recs[j];
+				if (p !== undefined && (value === "set" || value === "true")) set.add(p);
+			}
+		}
+		return set;
 	},
 } as const;

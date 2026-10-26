@@ -75,6 +75,11 @@ completed_chunks:             # map of chunk id -> completion date
   "1": "2026-01-01"
 max_prompt_lines: 20          # optional; NEXT_PROMPT.md line cap (5-50)
 project_name: "Rocket Shop"   # optional; overrides the detected project name
+session_base:                 # optional; where the next session starts
+  commit: "0123456789abcdef0123456789abcdef01234567"
+  dirty:
+    - path: "src/wip.ts"
+      hash: "9f2c4e1a7b3d5f60"
 ---
 
 # Session State
@@ -94,6 +99,7 @@ project_name: "Rocket Shop"   # optional; overrides the detected project name
 | `completed_chunks` | map | chunk id → ISO date. |
 | `max_prompt_lines` | number | Optional. `NEXT_PROMPT.md` line cap, 5–50. Defaults to 20; omitted from the file when default. |
 | `project_name` | string | Optional. The project name the prompt shows, 1–214 characters on one line. When absent, a tool uses the `name` in `package.json`, or else the directory name. Written only when it differs from that. |
+| `session_base` | map | Optional. Where the next session starts, recorded by `init`, `update` and `advance` in a git work tree. `commit` is `HEAD` then (40 or 64 hex characters; absent in a repository with no commits). `dirty[]` lists the files already modified or untracked then, each `{ path, hash }` with `hash` the `contentHash`, at most 200; with more, no base is written. A tool that tags files a session touched diffs against it; a tool that does not may ignore it. Absent outside git. |
 
 ### `NEXT_PROMPT.md` (required)
 

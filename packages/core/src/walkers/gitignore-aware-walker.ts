@@ -24,6 +24,33 @@ import type {
 const ALWAYS_IGNORED_DIRS = new Set(["node_modules", ".git", "dist", "build", ".session"]);
 
 /**
+ * Basenames of dependency lockfiles. Machine-written; a session that bumps a
+ * dependency touches one without working on it (REQ-IDX-27).
+ */
+export const LOCKFILE_NAMES: ReadonlySet<string> = new Set([
+	"pnpm-lock.yaml",
+	"package-lock.json",
+	"npm-shrinkwrap.json",
+	"yarn.lock",
+	"bun.lockb",
+	"bun.lock",
+	"deno.lock",
+	"Cargo.lock",
+	"go.sum",
+	"poetry.lock",
+	"Pipfile.lock",
+	"uv.lock",
+	"pdm.lock",
+	"Gemfile.lock",
+	"composer.lock",
+	"mix.lock",
+	"pubspec.lock",
+	"Podfile.lock",
+	"packages.lock.json",
+	"flake.lock",
+]);
+
+/**
  * Reads and parses a `.gitignore` file into an array of non-empty, non-comment patterns.
  *
  * @param root - The project root directory containing the `.gitignore`.
@@ -110,11 +137,11 @@ function matchesSinglePattern(relativePath: string, pattern: string): boolean {
 /**
  * Checks whether a relative path has any segment in the always-ignored set.
  *
- * @param relativePath - The relative path to check.
+ * @param relativePath - The relative path to check, with `/` or the platform separator.
  * @returns `true` if any segment is in the always-ignored list.
  */
-function isAlwaysIgnored(relativePath: string): boolean {
-	const segments = relativePath.split(path.sep);
+export function isAlwaysIgnored(relativePath: string): boolean {
+	const segments = relativePath.split(/[\\/]/);
 	return segments.some((seg) => ALWAYS_IGNORED_DIRS.has(seg));
 }
 

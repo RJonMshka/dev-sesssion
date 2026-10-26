@@ -331,8 +331,32 @@ function serializeYaml(state: SessionState): string {
 	if (state.project_name !== undefined) {
 		lines.push(`project_name: ${yamlString(state.project_name)}`);
 	}
+	lines.push(...serializeSessionBaseYaml(state.session_base));
 
 	return `${lines.join("\n")}\n`;
+}
+
+/**
+ * Serializes the session base (REQ-IDX-19). Written only when present, like
+ * `project_name`, so state from before tagging on touch saves unchanged.
+ *
+ * @param base - The recorded base, if any.
+ * @returns YAML lines; none when there is no base.
+ */
+export function serializeSessionBaseYaml(base: SessionState["session_base"]): string[] {
+	if (base === undefined) return [];
+	const lines = ["session_base:"];
+	if (base.commit !== undefined) lines.push(`  commit: ${yamlString(base.commit)}`);
+	if (base.dirty.length === 0) {
+		lines.push("  dirty: []");
+		return lines;
+	}
+	lines.push("  dirty:");
+	for (const d of base.dirty) {
+		lines.push(`    - path: ${yamlString(d.path)}`);
+		lines.push(`      hash: ${yamlString(d.hash)}`);
+	}
+	return lines;
 }
 
 /**

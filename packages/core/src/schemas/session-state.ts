@@ -10,6 +10,31 @@ import { TaskSchema } from "./task.js";
 /** Longest `project_name` accepted — npm's limit for a package name. */
 export const MAX_PROJECT_NAME_CHARS = 214;
 
+/** Most dirty files a session base records (REQ-IDX-20). */
+export const MAX_SESSION_BASE_DIRTY = 200;
+
+/**
+ * Where the next session starts (LLD-tagging.md, REQ-IDX-19). Absent outside
+ * git, past {@link MAX_SESSION_BASE_DIRTY} dirty files, and in state written
+ * before tagging on touch.
+ */
+export const SessionBaseSchema = z
+	.object({
+		/** `HEAD` at the base; absent when the repository had no commits. */
+		commit: z
+			.string()
+			.regex(/^[0-9a-f]{40}([0-9a-f]{24})?$/)
+			.optional(),
+		/** Files modified or untracked at the base, with their content hashes. */
+		dirty: z
+			.array(z.object({ path: z.string().min(1), hash: z.string().min(1) }).strict())
+			.max(MAX_SESSION_BASE_DIRTY),
+	})
+	.strict();
+
+/** A recorded session base. */
+export type SessionBaseRecord = z.infer<typeof SessionBaseSchema>;
+
 /**
  * Zod schema for SESSION_STATE.md frontmatter.
  *
@@ -60,6 +85,8 @@ export const SessionStateSchema = z
 			.max(MAX_PROJECT_NAME_CHARS)
 			.regex(/^[^\r\n]*$/, "project_name must be a single line")
 			.optional(),
+		/** Where the next session starts; `update` diffs against it (REQ-IDX-19). */
+		session_base: SessionBaseSchema.optional(),
 	})
 	.strict();
 

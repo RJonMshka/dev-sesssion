@@ -83,7 +83,7 @@ Every open item now has an LLD (2026-10-24). Build order:
 | 3 | ✅ **Done** `2e0a595` — Quote summaries in `index --show` / `--file` (SYM-7, 9) | `LLD-symbols.md` | S, `fix:` | Live provenance gap through the CLI |
 | 4 | ✅ **Done** on `feat/plan-orchestration` — Feature 13 rest: `init --plan`, skill, ORC-1..5 | `LLD-plan-authoring.md` | M | `plan check` (PLA-1..6) built; the loop needs ORC-6 first |
 | 5 | Notes decay (WF-1..6), then the workflow prompt (WF-12..22) | `LLD-workflow-prompt.md` Parts A, C | S + M | The feature aimed at correctness; A is the prerequisite the HLD named and never defined |
-| 6 | Tagging on touch, interactive init cut (IDX-19..43, DRY-7) | `LLD-tagging.md` | M–L | Feature 3's second half. Step 1 (move tagging into core, cut the 30-prompt branch) ships alone |
+| 6 | ✅ **Done** on `feat/tagging-on-touch` — Tagging on touch, interactive init cut (IDX-19..43, DRY-7) | `LLD-tagging.md` | M–L | Feature 3's second half. Step 1 (move tagging into core, cut the 30-prompt branch) ships alone |
 | 7 | ✅ **Done** on `feat/symbols` — `symbols` (SYM-1..6, 8, 10..18) | `LLD-symbols.md` | M | Independent; reads shipped unit data |
 | 8 | REQ-EVAL-6 adversarial corpus | `LLD-eval-harness.md` (deltas in `LLD-agent-tier.md`) | S–M | Designed; seeds now pass, so it is a regression lock |
 | 9 | Agent tier on DevNexus (EVAL-19..45) | `LLD-agent-tier.md` | M + paid runs | Last: it should measure the features above. Stats and harness fixes are free; a run is ~$75 cached at 6 tasks × 5 repeats |
