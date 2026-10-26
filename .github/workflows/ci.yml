@@ -71,6 +71,12 @@ jobs:
       - name: Eval — deterministic tier
         run: pnpm eval
 
+      # The adversarial corpus (REQ-EVAL-6) gates *this* build: against a
+      # release, a fixed break would stay red until the fix shipped. Packs the
+      # workspace build and installs the tarball, as eval:units does. ~60s.
+      - name: Eval — adversarial corpus
+        run: pnpm eval --local
+
       # Packs *this* build (code units are unreleased) and installs the tarball,
       # so packaging defects still reproduce. Hash fidelity over every unit,
       # Focus grounding, manifest/prompt agreement, stale detection. ~15s.

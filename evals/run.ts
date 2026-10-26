@@ -5,8 +5,10 @@
  * that need no API key. The cold-agent and judge tiers layer on top of the
  * records this produces.
  *
- * Then runs the adversarial corpus (REQ-EVAL-6) unless `--target` is given: the
- * corpus tests the CLI, not a repository.
+ * With `--local` and no `--target`, then runs the adversarial corpus
+ * (REQ-EVAL-6). It gates this build: run against a release, a fixed break would
+ * stay red until the fix shipped, and the fix cannot ship while CI is red.
+ * `--target` skips it because the corpus tests the CLI, not a repository.
  *
  * Usage: `pnpm eval [--version 2.2.0 | --local] [--target file.json] [--keep]`
  *
@@ -294,7 +296,13 @@ async function main(): Promise<void> {
 	const version = cli.version;
 
 	const rows = await runDeterministic(cli, keep, targets);
-	const adversarial = targetFile === undefined ? await runAdversarial(cli, CORPUS, keep) : [];
+	const runCorpus = local && targetFile === undefined;
+	const adversarial = runCorpus ? await runAdversarial(cli, CORPUS, keep) : [];
+	if (!runCorpus && targetFile === undefined) {
+		process.stdout.write(
+			"Adversarial corpus: skipped — it runs against this build, with --local\n\n",
+		);
+	}
 
 	const reportDir = path.join(REPO_ROOT, "evals", "report");
 	// A target file's report names a private repo's files: keep it out of the tree.
