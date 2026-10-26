@@ -17,6 +17,7 @@ export {
 export type {
 	Adapter,
 	AdapterReadFile,
+	AdapterRefreshContext,
 	AdapterSetupContext,
 	AdapterSetupResult,
 	AdapterWriteFile,

@@ -12,6 +12,7 @@
 import type {
 	Adapter,
 	AdapterConfig,
+	AdapterRefreshContext,
 	AdapterSetupContext,
 	AdapterSetupResult,
 	SessionLifecycleContext,
@@ -24,6 +25,12 @@ import {
 	MANAGED_BLOCK_START,
 } from "@dev-session/core";
 import { ClaudeBootstrapFormatter } from "./claude-bootstrap-formatter.js";
+import {
+	describePlanSkillOutcome,
+	PLAN_SKILL_PATH,
+	type PlanSkillOutcome,
+	syncPlanSkill,
+} from "./claude-skill.js";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -129,6 +136,24 @@ function extractMemorySummaries(content: string): readonly string[] {
 	return summaries;
 }
 
+/**
+ * Folds a plan-skill outcome into a setup result.
+ *
+ * @param outcome - What {@link syncPlanSkill} did.
+ * @returns The files written and the notices to show.
+ */
+function skillResult(outcome: PlanSkillOutcome): {
+	filesWritten: string[];
+	notices: string[];
+} {
+	const written = outcome === "created" || outcome === "replaced";
+	const notice = describePlanSkillOutcome(outcome);
+	return {
+		filesWritten: written ? [PLAN_SKILL_PATH] : [],
+		notices: notice === undefined ? [] : [notice],
+	};
+}
+
 // ---------------------------------------------------------------------------
 // Adapter
 // ---------------------------------------------------------------------------
@@ -146,10 +171,12 @@ export const ClaudeAdapter: Adapter = {
 	formatter: ClaudeBootstrapFormatter,
 
 	/**
-	 * Generates or updates the dev-sesssion section in CLAUDE.md.
+	 * Generates or updates the dev-sesssion section in CLAUDE.md, and writes
+	 * the plan skill when the CLI passes its version (REQ-PLA-9, 13, 14).
 	 *
 	 * @param context - Setup context with project paths and detection info.
 	 * @returns Result describing what was written.
+	 * @throws {SecurityError} If the writer refuses a path or its content.
 	 */
 	async setup(context: AdapterSetupContext): Promise<AdapterSetupResult> {
 		const projectName = context.projectInfo.project_name ?? "project";
@@ -161,10 +188,35 @@ export const ClaudeAdapter: Adapter = {
 
 		context.writeFile("CLAUDE.md", updated);
 
+		const skill =
+			context.version === undefined
+				? skillResult("absent")
+				: skillResult(syncPlanSkill(context, { version: context.version, create: true }));
+
 		const verb = existing.length > 0 ? "Updated" : "Created";
 		return {
-			filesWritten: ["CLAUDE.md"],
+			filesWritten: ["CLAUDE.md", ...skill.filesWritten],
 			summary: `${verb} CLAUDE.md with dev-sesssion workflow section`,
+			notices: skill.notices,
+		};
+	},
+
+	/**
+	 * Replaces a plan skill written by an older version. Never creates one, and
+	 * never touches a file without the managed marker (REQ-PLA-13, 14).
+	 *
+	 * @param context - Version, reader and writer.
+	 * @returns Result describing what was written.
+	 * @throws {SecurityError} If the writer refuses a path or its content.
+	 */
+	refresh(context: AdapterRefreshContext) {
+		const outcome = syncPlanSkill(context, { version: context.version, create: false });
+		// init already said a user-owned file is skipped; update runs too often to repeat it.
+		const skill = skillResult(outcome === "skipped-user-file" ? "unchanged" : outcome);
+		return {
+			filesWritten: skill.filesWritten,
+			summary: skill.notices.join("\n"),
+			notices: skill.notices,
 		};
 	},
 

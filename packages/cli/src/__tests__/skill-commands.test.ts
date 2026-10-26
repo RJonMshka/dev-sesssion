@@ -6,6 +6,7 @@
  * instead of failing an agent that follows the text.
  */
 
+import { renderPlanSkill } from "@dev-session/adapters";
 import { noPlanDirection } from "@dev-session/core";
 import type { Command } from "commander";
 import { describe, expect, it } from "vitest";
@@ -97,5 +98,17 @@ describe("init's no-plan direction", () => {
 			expect(findInvocations(text).length).toBeGreaterThanOrEqual(2);
 			expect(unresolved(text)).toEqual([]);
 		}
+	});
+});
+
+describe("the plan skill", () => {
+	it("names only commands and flags the CLI registers (REQ-PLA-12)", () => {
+		// Commands are code spans; the description names the tool in prose ("dev-sesssion splits").
+		const spans = [...renderPlanSkill("9.9.9").matchAll(/`([^`\n]+)`/g)];
+		const text = spans.map((m) => `\`${m[1] ?? ""}\``).join("\n");
+		const names = findInvocations(text).map((inv) => inv.tokens[0]);
+		// The skill drives the whole loop; a resolver that found nothing would pass vacuously.
+		for (const cmd of ["plan", "init", "status", "prompt", "advance"]) expect(names).toContain(cmd);
+		expect(unresolved(text)).toEqual([]);
 	});
 });

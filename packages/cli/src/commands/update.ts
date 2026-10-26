@@ -29,9 +29,30 @@ import {
 } from "@dev-session/core";
 import { CliError, PathValidator, type ValidatedPath } from "@dev-session/security";
 import type { Command } from "commander";
+import { readVersion } from "../read-version.js";
+import { createAdapterReadFile, createAdapterWriteFile } from "../utils/adapter-io.js";
 import { dryRunSkipWrite } from "../utils/dry-run.js";
 import { handleError } from "../utils/error-handler.js";
+import { resolveAdapter } from "../utils/resolve-adapter.js";
 import { regeneratePrompt } from "./regenerate-prompt.js";
+
+/**
+ * Brings the adapter's managed files, such as the Claude plan skill, up to
+ * this version (REQ-PLA-14). The adapter decides what it owns.
+ *
+ * @param options - The update options: working directory and adapter override.
+ * @throws {SecurityError} If the writer refuses a path or its content.
+ */
+function refreshAdapterFiles(options: UpdateOptions): void {
+	const { adapter } = resolveAdapter(options.cwd, options.adapter);
+	const result = adapter.refresh?.({
+		projectRoot: options.cwd,
+		version: readVersion(),
+		writeFile: createAdapterWriteFile(options.cwd),
+		readFile: createAdapterReadFile(options.cwd),
+	});
+	for (const notice of result?.notices ?? []) log.info(notice);
+}
 
 const execFileAsync = promisify(execFile);
 
@@ -145,6 +166,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 		);
 	} else {
 		SessionStateManager.save(sessionDir, state);
+		refreshAdapterFiles(options);
 	}
 
 	if (options.verbose) {

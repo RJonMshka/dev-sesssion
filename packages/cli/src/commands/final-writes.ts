@@ -20,6 +20,7 @@ import {
 } from "@dev-session/core";
 import type { ValidatedPath } from "@dev-session/security";
 import { AtomicWriter, CliError, PathValidator, SecretScanner } from "@dev-session/security";
+import { readVersion } from "../read-version.js";
 import { createAdapterReadFile, createAdapterWriteFile } from "../utils/adapter-io.js";
 import { dryRunGitignorePatch, dryRunWrite } from "../utils/dry-run.js";
 import { resolveAdapter } from "../utils/resolve-adapter.js";
@@ -179,11 +180,13 @@ export async function runFinalWrites(
 			isReinit: false,
 			writeFile: createAdapterWriteFile(options.cwd),
 			readFile: createAdapterReadFile(options.cwd),
+			version: readVersion(),
 		});
 
 		if (options.verbose) {
 			log.info(`Adapter setup: ${setupResult.summary}`);
 		}
+		for (const notice of setupResult.notices ?? []) log.info(notice);
 	}
 
 	// --- 3b. Write NEXT_PROMPT.md + manifest, from the ai-index init just built (REQ-RUN-10) ---

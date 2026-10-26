@@ -278,6 +278,15 @@ template, so tests can import it. Destination:
 `CLAUDE.md` managed block from LLD-first-run. A file without the marker belongs
 to the user and is never touched.
 
+*Built 2026-10-26 on `feat/plan-orchestration`. `setup` writes the skill when the
+CLI passes its version (`AdapterSetupContext.version`, optional, so third-party
+callers without one write nothing). `update` reaches it through a new optional
+`Adapter.refresh` hook, which replaces a managed file and never creates one.
+Ownership notices travel as `AdapterSetupResult.notices` and are always shown;
+`refresh` doesn't repeat the "skipped" notice on every update. The e2e test
+found that the adapter writer couldn't create `.claude/skills/dev-sesssion/`;
+`createAdapterWriteFile` now creates the parent directory.*
+
 ### `advance --json` and non-TTY (REQ-ORC-1, 2)
 
 `runAdvance` already returns `AdvanceResult`. The command handler prints it when
@@ -356,6 +365,7 @@ should stay meaningful.
 | REQ-PLA-9, 10, 11 | `packages/adapters/src/__tests__/claude-skill.test.ts`: over generated text | unit |
 | REQ-PLA-12 | `packages/cli/src/__tests__/skill-commands.test.ts`: generated text vs `createProgram()` | unit |
 | REQ-PLA-13, 14 | `claude-adapter` setup tests with a user-owned file and an old-marker file | unit |
+| REQ-PLA-9, 13, 14 | `tests/e2e/plan-skill.e2e.test.ts`: init writes the skill with the CLI's version; a user file survives init and update; update replaces an old marker and creates nothing | e2e |
 | REQ-ORC-1 | `tests/e2e/lifecycle.e2e.test.ts`: `advance --json` mid-plan and at last chunk | e2e |
 | REQ-ORC-2 | same: execa with `stdin: "pipe"`, incomplete tasks, no `--yes` → non-zero, state unchanged | e2e |
 | REQ-ORC-3 | `tests/e2e/first-run.e2e.test.ts`: planless fixture with `-y` exits 0, stdout names `plan check` and `--plan` and the placeholder; commands resolve against `createProgram()` | e2e |
