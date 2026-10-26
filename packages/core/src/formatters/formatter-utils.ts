@@ -277,6 +277,60 @@ function fitText(text: string, render: (t: string) => string, max: number): stri
 	return cut(lo);
 }
 
+/** Prefix of every note line in a generated prompt. */
+export const NOTE_PREFIX = "Note:";
+
+/** Opens a note quoted from a repository file (REQ-PROV-1). */
+export const QUOTED_NOTE_PREFIX = "Quoted from ";
+
+/** Opens a note the Claude adapter lifts from `.claude/MEMORY.md`. */
+export const MEMORY_NOTE_PREFIX = "[memory] ";
+
+/** The two whole-note shapes 2.4.x wrote to record progress (REQ-WF-3). */
+const PROGRESS_NOTE_RES: readonly RegExp[] = [
+	/^Session initialized on \d{4}-\d{2}-\d{2}$/,
+	/^Completed: Chunks [\d., -]+\. See DONE_LOG\.md for details\.$/,
+];
+
+/**
+ * Whether a note is in a shape the tool wrote to record progress (REQ-WF-3).
+ * The match is on the whole note, so an owner's note that merely starts
+ * `Completed:` is not one.
+ *
+ * @param note - A note from `SESSION_STATE.md`.
+ * @returns True for `Session initialized on <date>` or `Completed: Chunks <ids>. …`.
+ */
+export function isProgressNote(note: string): boolean {
+	return PROGRESS_NOTE_RES.some((re) => re.test(note));
+}
+
+/**
+ * Whether a note was derived from a file the agent can read — quoted from a
+ * repository file, or lifted from memory (REQ-WF-2).
+ *
+ * @param note - A note from `SESSION_STATE.md`.
+ * @returns True when the note starts with {@link QUOTED_NOTE_PREFIX} or {@link MEMORY_NOTE_PREFIX}.
+ */
+export function isDerivedNote(note: string): boolean {
+	return note.startsWith(QUOTED_NOTE_PREFIX) || note.startsWith(MEMORY_NOTE_PREFIX);
+}
+
+/**
+ * The notes a prompt shows (REQ-WF-1..3): progress notes dropped, the owner's
+ * notes ahead of derived ones, and within each group the newest first.
+ * Notes are stored in the order added, so newest is last.
+ *
+ * @param notes - Notes in the order they were added.
+ * @param max - How many to return at most.
+ * @returns Up to `max` notes, in the order to show them.
+ */
+export function selectNotes(notes: readonly string[], max: number): string[] {
+	const newestFirst = notes.filter((n) => !isProgressNote(n)).reverse();
+	const owner = newestFirst.filter((n) => !isDerivedNote(n));
+	const derived = newestFirst.filter(isDerivedNote);
+	return [...owner, ...derived].slice(0, Math.max(0, max));
+}
+
 /**
  * Renders text lifted from a repository file as an attributed quotation
  * (REQ-PROV-1), capped at {@link MAX_NOTE_CHARS} (REQ-PROV-4).
@@ -298,7 +352,9 @@ export function formatQuotedNote(opts: {
 	const { sourceFile, section, text } = opts;
 	const render = (s: string | undefined, t: string): string => {
 		const head =
-			s === undefined ? `Quoted from ${sourceFile}` : `Quoted from ${sourceFile} § ${quoteText(s)}`;
+			s === undefined
+				? `${QUOTED_NOTE_PREFIX}${sourceFile}`
+				: `${QUOTED_NOTE_PREFIX}${sourceFile} § ${quoteText(s)}`;
 		return t.length === 0 ? head : `${head}: ${quoteText(t)}`;
 	};
 
@@ -309,7 +365,7 @@ export function formatQuotedNote(opts: {
 	const heading =
 		section === undefined ? null : fitText(section, (s) => render(s, placeholder), MAX_NOTE_CHARS);
 	if (heading !== null) return render(heading, placeholder);
-	return `Quoted from ${sourceFile}`.slice(0, MAX_NOTE_CHARS);
+	return `${QUOTED_NOTE_PREFIX}${sourceFile}`.slice(0, MAX_NOTE_CHARS);
 }
 
 /**

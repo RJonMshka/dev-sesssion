@@ -23,6 +23,7 @@ import {
 	DEFAULT_MAX_PROMPT_LINES,
 	MANAGED_BLOCK_END,
 	MANAGED_BLOCK_START,
+	MEMORY_NOTE_PREFIX,
 } from "@dev-session/core";
 import { ClaudeBootstrapFormatter } from "./claude-bootstrap-formatter.js";
 import {
@@ -242,12 +243,12 @@ export const ClaudeAdapter: Adapter = {
 		}
 
 		// Avoid duplicating memory notes if already injected
-		const existingMemoryNotes = state.notes.filter((n) => n.startsWith("[memory] "));
+		const existingMemoryNotes = state.notes.filter((n) => n.startsWith(MEMORY_NOTE_PREFIX));
 		if (existingMemoryNotes.length > 0) {
 			return state;
 		}
 
-		const memoryNotes = summaries.slice(0, 5).map((s) => `[memory] ${s}`);
+		const memoryNotes = summaries.slice(0, 5).map((s) => `${MEMORY_NOTE_PREFIX}${s}`);
 
 		return {
 			...state,

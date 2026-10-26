@@ -93,11 +93,20 @@ function listChunkFiles(sessionDir: ValidatedPath): readonly { name: string; chu
  *
  * @param chunk - The plan chunk to summarize.
  * @param completionDate - ISO 8601 date string for the completion timestamp.
+ * @param notes - The owner's notes from this chunk, listed under `Notes:` when any (REQ-WF-5).
  * @returns The formatted summary string.
  */
-function buildArchiveSummary(chunk: PlanChunk, completionDate: string): string {
+function buildArchiveSummary(
+	chunk: PlanChunk,
+	completionDate: string,
+	notes: readonly string[],
+): string {
 	const taskCount = chunk.tasks.length;
-	return `## Chunk ${String(chunk.chunk_id)} — ${chunk.title}\nCompleted: ${completionDate}\nTasks: ${String(taskCount)}\n\n`;
+	const head = `## Chunk ${String(chunk.chunk_id)} — ${chunk.title}\nCompleted: ${completionDate}\nTasks: ${String(taskCount)}\n`;
+	if (notes.length === 0) return `${head}\n`;
+	// A continuation line is indented, so a note with a line break stays one item.
+	const items = notes.map((n) => `- ${n.replace(/\r?\n/g, "\n  ")}`);
+	return `${head}Notes:\n${items.join("\n")}\n\n`;
 }
 
 /** Status rank for merging the two files that record a task: done > in-progress > todo. */
@@ -310,13 +319,14 @@ export const PlanChunkManager = {
 	 *
 	 * @param sessionDir - A validated path to the `.session/` directory.
 	 * @param chunk - The completed plan chunk to archive.
+	 * @param notes - The owner's notes from this chunk, recorded in its entry (REQ-WF-5).
 	 * @throws {CliError} If the write operation fails.
 	 */
-	archive(sessionDir: ValidatedPath, chunk: PlanChunk): void {
+	archive(sessionDir: ValidatedPath, chunk: PlanChunk, notes: readonly string[] = []): void {
 		const logPath = path.join(sessionDir, DONE_LOG_FILENAME) as ValidatedPath;
 		const existing = readExistingLog(logPath);
 		const completionDate = new Date().toISOString().slice(0, 10);
-		const summary = buildArchiveSummary(chunk, completionDate);
+		const summary = buildArchiveSummary(chunk, completionDate, notes);
 		const content = existing + summary;
 
 		try {

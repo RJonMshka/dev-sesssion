@@ -265,8 +265,9 @@ dev-sesssion advance
 ```
 
 This:
-1. Archives the completed chunk to `DONE_LOG.md` (so you have a record)
-2. Compacts the session state (cleans up old notes)
+1. Archives the completed chunk to `DONE_LOG.md` (so you have a record), with
+   the notes you added during it. Notes quoted from `CLAUDE.md` stay
+2. Clears those notes from the session state, so the next chunk starts fresh
 3. Advances `active_chunk` to the next number
 4. Regenerates `NEXT_PROMPT.md` for the new chunk
 
@@ -434,7 +435,7 @@ You've completed all your planned chunks. This is a good problem to have! You ha
 
 **Q: How do I add notes without marking tasks done?**
 
-Run `dev-sesssion update`, press Enter through the task checklist (select nothing), and type your note in the notes prompt. The note will be saved to `SESSION_STATE.md` and included in the next `NEXT_PROMPT.md`.
+Run `dev-sesssion update`, press Enter through the task checklist (select nothing), and type your note in the notes prompt. The note will be saved to `SESSION_STATE.md` and included in the next `NEXT_PROMPT.md`, which shows your two newest notes. When you `advance`, your notes move into that chunk's `DONE_LOG.md` entry; a note that should outlive its chunk belongs in `CLAUDE.md`.
 
 ---
 

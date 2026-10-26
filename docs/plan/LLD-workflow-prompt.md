@@ -144,6 +144,17 @@ the agent recorded.
 
 ### Part A — Notes decay
 
+*Built 2026-10-26 on `feat/workflow-prompt`. `selectNotes`, `isProgressNote`
+and `isDerivedNote` in `formatter-utils.ts`; `compact` now only drops
+progress notes; `takeChunkNotes` splits them at `advance`. Three departures
+from the test plan: REQ-WF-6 is tested at e2e (captured 2.4.x notes saved
+with core's writer, then the real `advance`) rather than integration; the
+REQ-WF-1..3 replay adds its owner note on chunk 3, because REQ-WF-5 moves a
+chunk-1 note into `DONE_LOG.md` before chunk 3; and `advance` reports the
+moved-note count as a log line, not in `advance --json`, whose shape
+`docs/commands.md` documents. The `notes` correction in `PROTOCOL.md`
+(*User decision 2*) lands here rather than with `workflow`.*
+
 **REQ-WF-1** — When the session holds more notes than the prompt shows, the
 prompt shall show the most recently added notes, newest first.
 

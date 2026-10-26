@@ -256,7 +256,8 @@ function buildInitialState(activeChunk: PlanChunk, projectName: string, cwd: str
 		})),
 		last_worked_files: [],
 		max_prompt_lines: MAX_PROMPT_LINES,
-		notes: [`Session initialized on ${nowDate}`],
+		// No progress note: the prompt's Resume line says it (REQ-WF-4).
+		notes: [],
 		completed_chunks: {},
 		...(typedName.length > 0 && typedName !== detectProjectName(cwd)
 			? { project_name: typedName }

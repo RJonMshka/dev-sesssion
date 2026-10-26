@@ -30,6 +30,8 @@ import {
 	formatRefList,
 	getPendingTasks,
 	mergeContextFiles,
+	NOTE_PREFIX,
+	selectNotes,
 	trimToMaxLines,
 } from "@dev-session/core";
 
@@ -152,11 +154,9 @@ export const WindsurfBootstrapFormatter: BootstrapFormatter = {
 		}
 
 		// -- Notes section (up to 3 lines) --
-		if (state.notes.length > 0) {
-			const notesToShow = state.notes.slice(0, DEFAULT_MAX_NOTES);
-			for (const note of notesToShow) {
-				lines.push(`Note: ${note}`);
-			}
+		// Owner's notes first, newest first, progress notes hidden (REQ-WF-1..3).
+		for (const note of selectNotes(state.notes, DEFAULT_MAX_NOTES)) {
+			lines.push(`${NOTE_PREFIX} ${note}`);
 		}
 
 		// Trim to max lines

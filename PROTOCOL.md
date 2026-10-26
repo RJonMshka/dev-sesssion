@@ -67,7 +67,7 @@ last_updated: "2026-06-17"    # ISO date (YYYY-MM-DD)
 tasks:                        # tasks for the active chunk
   - text: "Implement X"
     status: done              # one of: todo | in-progress | done
-notes:                        # rolling notes, newest-relevant first
+notes:                        # in the order added; a tool showing some shows the most recent
   - "Gotcha: CliError renders to stdout via clack, not stderr."
 last_worked_files:            # files touched most recently
   - packages/cli/src/commands/init.ts
@@ -89,7 +89,7 @@ project_name: "Rocket Shop"   # optional; overrides the detected project name
 | `session_id` | string | Opaque; identifies the working session. |
 | `last_updated` | string | `YYYY-MM-DD`. |
 | `tasks[]` | list | `{ text, status }`; `status ∈ {todo, in-progress, done}`. Optional ISO-8601 `added_at` / `completed_at`. Replaced by the new chunk's tasks on advance. A task's status is the higher of what this list and `PLAN_<n>.md` record for the same exact text — `done` > `in-progress` > `todo` — so recording status here is enough, and `PLAN_<n>.md` need not be rewritten. |
-| `notes[]` | list of string | Durable gotchas/decisions. Trim aggressively. A note copied from a repository file is written as an attributed quotation, e.g. `Quoted from CLAUDE.md § "Setup step": "…"`, so a reader can tell it from the owner's own notes. |
+| `notes[]` | list of string | Durable gotchas/decisions. Trim aggressively. A note copied from a repository file is written as an attributed quotation, e.g. `Quoted from CLAUDE.md § "Setup step": "…"`, so a reader can tell it from the owner's own notes. Stored in the order added; a tool that shows only some shows the most recent, the owner's ahead of quoted ones. |
 | `last_worked_files[]` | list of string | Repo-relative paths. |
 | `completed_chunks` | map | chunk id → ISO date. |
 | `max_prompt_lines` | number | Optional. `NEXT_PROMPT.md` line cap, 5–50. Defaults to 20; omitted from the file when default. |

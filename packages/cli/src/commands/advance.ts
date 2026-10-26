@@ -1,7 +1,7 @@
 /**
  * `dev-sesssion advance` command.
  *
- * Archives the current chunk, compacts session state, advances to the
+ * Archives the current chunk with the owner's notes, advances to the
  * next chunk, and regenerates NEXT_PROMPT.md. Warns if not all tasks in
  * the active chunk are done, prompting for confirmation to force-advance.
  *
@@ -156,8 +156,11 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 		};
 	}
 
-	// Step 3: Archive the completed chunk
+	// Step 3: Archive the completed chunk, with the owner's notes from it. Derived
+	// notes stay in state and progress notes are dropped (REQ-WF-5, 6).
 	const dryRun = options.dryRun === true;
+	const taken = SessionStateManager.takeChunkNotes(state);
+	state = taken.state;
 	if (dryRun) {
 		dryRunSkipWrite(
 			path.join(sessionDir, DONE_LOG_FILENAME),
@@ -165,18 +168,17 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 			`archive chunk ${String(currentChunkId)}`,
 		);
 	} else {
-		PlanChunkManager.archive(sessionDir, currentChunk);
+		PlanChunkManager.archive(sessionDir, currentChunk, taken.archived);
 	}
 
+	if (taken.archived.length > 0) {
+		const count = taken.archived.length;
+		log.info(
+			`${dryRun ? "Would move" : "Moved"} ${String(count)} note${count === 1 ? "" : "s"} to chunk ${String(currentChunkId)}'s ${DONE_LOG_FILENAME} entry.`,
+		);
+	}
 	if (options.verbose) {
 		log.info(`Archived chunk ${String(currentChunkId)} to DONE_LOG.md`);
-	}
-
-	// Step 4: Compact session state
-	state = SessionStateManager.compact(state);
-
-	if (options.verbose) {
-		log.info("Compacted session state.");
 	}
 
 	// Step 5: Advance to next chunk

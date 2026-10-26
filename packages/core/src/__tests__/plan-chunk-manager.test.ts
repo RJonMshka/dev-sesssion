@@ -238,6 +238,22 @@ describe("PlanChunkManager", () => {
 			expect(content).toContain("# Done Log");
 			expect(content).toContain("## Chunk 2 — Security");
 		});
+
+		it("lists the notes it is given under the chunk's entry (REQ-WF-5)", () => {
+			const chunk: PlanChunk = { chunk_id: 3, title: "Polish", depends_on: [], tasks: [] };
+
+			PlanChunkManager.archive(tmpDir as ValidatedPath, chunk, ["Blocker: cycle", "Kept a.ts"]);
+
+			const content = fs.readFileSync(path.join(tmpDir, "DONE_LOG.md"), "utf-8");
+			const entry = content.slice(content.indexOf("## Chunk 3 — Polish"));
+			expect(entry).toMatch(/Notes:\n- Blocker: cycle\n- Kept a\.ts\n/);
+		});
+
+		it("writes no Notes list when given none (REQ-WF-5)", () => {
+			const chunk: PlanChunk = { chunk_id: 4, title: "Ship", depends_on: [], tasks: [] };
+			PlanChunkManager.archive(tmpDir as ValidatedPath, chunk, []);
+			expect(fs.readFileSync(path.join(tmpDir, "DONE_LOG.md"), "utf-8")).not.toContain("Notes:");
+		});
 	});
 });
 
