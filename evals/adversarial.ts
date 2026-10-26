@@ -14,7 +14,7 @@
  * Known gaps, left to other tests: `read_file_layer` (MCP, not a file —
  * `tests/provenance.integration.test.ts`), notes added through interactive
  * `update` or MCP `add_note` (no non-interactive CLI path), deeply nested YAML
- * frontmatter, and `compact` egress (needs an API key).
+ * frontmatter. Egress is gone: no command sends data (LLD-offline.md).
  *
  * @module
  */

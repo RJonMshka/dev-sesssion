@@ -10,7 +10,7 @@
 
 import { Command } from "commander";
 import { registerAdvanceCommand } from "./commands/advance.js";
-import { registerCompactCommand } from "./commands/compact.js";
+import { registerCompactRemovedCommand } from "./commands/compact-removed.js";
 import { registerExportCommand } from "./commands/export.js";
 import { registerHealthCommand } from "./commands/health.js";
 import { registerImportCommand } from "./commands/import.js";
@@ -74,7 +74,7 @@ export function createProgram(): Command {
 	registerPreviewCommand(program);
 	registerTrimCommand(program);
 	registerLintContextCommand(program);
-	registerCompactCommand(program);
+	registerCompactRemovedCommand(program);
 	registerMemoryCommand(program);
 	registerMcpCommand(program);
 	registerPlanCommand(program);

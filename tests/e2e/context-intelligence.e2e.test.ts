@@ -1,6 +1,6 @@
 /**
  * E2E tests for chunk 11 — Context Intelligence commands:
- * preview, trim, lint-context, compact.
+ * preview, trim, lint-context. (`compact` was removed in 3.0 — see offline.e2e.test.ts.)
  */
 
 import * as fs from "node:fs";
@@ -273,54 +273,5 @@ describe("dev-sesssion lint-context", () => {
 		expect(p.passed).toBe(true);
 		expect(p.summary.total).toBe(0);
 		expect(p.findings).toEqual([]);
-	});
-});
-
-// ---------------------------------------------------------------------------
-// compact
-// ---------------------------------------------------------------------------
-
-describe("dev-sesssion compact", () => {
-	beforeEach(async () => {
-		await initProject(tmpDir);
-	});
-
-	it("exits non-zero when ANTHROPIC_API_KEY is not set", async () => {
-		const result = await runCli(["compact", "CLAUDE.md", "--cwd", tmpDir], {
-			env: { ANTHROPIC_API_KEY: "" },
-		});
-		expect(result.exitCode).not.toBe(0);
-	});
-
-	it("--dry-run with fake API key starts the process but fails at API call", async () => {
-		// With a fake key, the API call will fail — that's expected.
-		// We just verify the command is registered and reaches the API call phase.
-		const result = await runCli(
-			["compact", ".session/SESSION_STATE.md", "--dry-run", "--cwd", tmpDir],
-			{ env: { ANTHROPIC_API_KEY: "sk-ant-fake-key-for-dry-run-test" } },
-		);
-		// Either fails at API call (non-zero) or succeeds — either way command is registered
-		// The important thing: it should not fail with "unknown command"
-		expect(result.stdout).not.toContain("unknown command");
-		expect(result.stderr).not.toContain("unknown command");
-	});
-
-	it("exits non-zero when file does not exist", async () => {
-		const result = await runCli(["compact", "nonexistent-file.md", "--cwd", tmpDir], {
-			env: { ANTHROPIC_API_KEY: "sk-ant-fake" },
-		});
-		expect(result.exitCode).not.toBe(0);
-	});
-
-	it("exits non-zero when no .session/ exists", async () => {
-		const emptyDir = fs.mkdtempSync(path.join(os.tmpdir(), "no-session-"));
-		try {
-			const result = await runCli(["compact", "CLAUDE.md", "--cwd", emptyDir], {
-				env: { ANTHROPIC_API_KEY: "sk-ant-fake" },
-			});
-			expect(result.exitCode).not.toBe(0);
-		} finally {
-			fs.rmSync(emptyDir, { recursive: true, force: true });
-		}
 	});
 });

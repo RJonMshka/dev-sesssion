@@ -299,7 +299,7 @@ Every command, flag, exit code and JSON shape is in
 | `index add` / `index audit` | A new file should be known, or old entries went stale |
 | `health` | Something feels off — a linter for the session files |
 | `verify` | You want to know whether the session state is *true*, per git |
-| `preview` / `trim` / `lint-context` / `compact` | Tuning what the context actually costs |
+| `preview` / `trim` / `lint-context` | Tuning what the context actually costs |
 | `import` / `export` | Reusing rules you already wrote for another tool |
 | `memory` | Reviewing how past sessions actually used their context |
 | `mcp` | Serving session state to a tool over MCP instead of pasting |

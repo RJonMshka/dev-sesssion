@@ -736,66 +736,11 @@ they rewrite session state, and an orchestrator runs them through the CLI
 
 ---
 
-## dev-sesssion compact
+## dev-sesssion compact (removed in 3.0)
 
-Use an AI model to compress a context file, reducing its token count while preserving meaning.
-
-```bash
-dev-sesssion compact <file> [--model <id>] [--allow-secrets] [--dry-run] [--yes]
-```
-
-**Arguments:**
-
-| Argument | Description |
-|---|---|
-| `<file>` | Path to the file to compact (relative to project root) |
-
-**Options:**
-
-| Flag | Description |
-|---|---|
-| `--model <id>` | Model to use (default: `claude-haiku-4-5-20251001`) |
-| `--allow-secrets` | Send the file even if the pre-flight secret scan flags it |
-| `--dry-run` | Print compacted content to stdout without writing (global flag) |
-| `--yes` | Skip confirmation prompt |
-
-**Requires** `ANTHROPIC_API_KEY` environment variable.
-
-**What it does:**
-
-1. Reads the target file and counts its tokens
-2. Scans the content for secrets and refuses to send if any match (see below)
-3. Calls the Haiku model with a compaction system prompt
-4. Shows before/after token and line counts
-5. Prompts for confirmation (unless `--yes` or `--dry-run`)
-6. Creates a timestamped backup at `.session/backups/<filename>.<timestamp>`
-7. Writes the compacted content atomically
-8. Updates `token_cost` in `FILE_INDEX.md` for the file
-
-**Pre-flight secret scan:**
-
-`compact` is the only command that sends data over the network, so the file
-content is run through `SecretScanner` *before* the API call. If anything
-matches, the command aborts and prints each finding as a line number, a pattern
-name, and a redacted value — the secret itself is never echoed. The file is not
-sent and nothing is written.
-
-Pass `--allow-secrets` to downgrade the refusal to a warning and send anyway —
-use it only when the matches are known false positives.
-
-**Example:**
-
-```bash
-# See what the compacted version would look like (no writes)
-dev-sesssion compact docs/architecture.md --dry-run
-
-# Compact with a specific model, skip confirmation
-dev-sesssion compact .session/SESSION_STATE.md --yes
-
-# Use a different model
-dev-sesssion compact CLAUDE.md --model claude-haiku-4-5-20251001
-```
-
-Backups are never auto-deleted. Run `dev-sesssion advance` or remove `.session/backups/` manually to clean them up.
+`compact` sent a context file to the Anthropic API with a key of its own. It
+was removed: dev-sesssion calls no model and makes no network request. Ask the
+agent in your harness to shorten the file, then run `dev-sesssion update`.
+Running `compact` now exits 1 and says so.
 
 Exits non-zero if `ANTHROPIC_API_KEY` is unset, the file does not exist, or the API call fails.

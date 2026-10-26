@@ -49,6 +49,7 @@ measures (feature 6).
 | 11 | Prompt context | `LLD-prompt-context.md` | The agent saw a chunk's checkboxes but not its goal or steps, and the load line hid files past six |
 | 12 | Files a chunk will create | `LLD-new-files.md` | A phase whose files do not exist yet loads nothing for them — not even the code they sit beside |
 | 13 | Plan authoring and orchestration | `LLD-plan-authoring.md` | An agent cannot check a plan it wrote without running `init`, and a harness driving `advance` either hangs on a prompt or skips work |
+| 14 | No network, no API key | `LLD-offline.md` | `compact` needed its own API key and was the one command that sent data off the machine, in a tool used from inside a harness that already has a model |
 
 ### Status (2026-10-24)
 
