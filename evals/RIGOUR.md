@@ -269,10 +269,10 @@ fork. They win if they influence what the developer's agent does.
 | Class | Concrete attempt | Status |
 |---|---|---|
 | **Instruction injection** | The two paths above | **Mitigated** (`LLD-context-provenance.md`). Both paths, plain doc-comment summaries, and string-literal unit ids are now quoted, attributed, capped, or restricted. The inputs are permanent fixtures in `tests/fixtures/provenance/` |
-| **Context eviction** | 30 files annotated to look critical, pushing real files out of the capped load list | Untested. The list is capped, so eviction is silent by construction |
-| **Path traversal** | A FILE_INDEX row naming `../../.ssh/id_rsa` | Untested. `PathValidator` should reject — **assert it, do not assume it** |
-| **Resource exhaustion** | Deeply nested YAML frontmatter, a 10MB plan, a 50k-line index | Untested. Should error cleanly, not hang or OOM |
-| **Secret laundering** | A secret in an `@ai-summary`, or in a note added via `update` | Untested. Does `WriteGuard` scan *generated* content, or only source files? |
+| **Context eviction** | 30 files annotated to look critical, pushing real files out of the capped load list | **Holds** (corpus `padded-file-index`). Thirty committed `FILE_INDEX.md` rows tagged to the chunk land on the summaries line; the plan-named file stays on `Load full:`. Annotations do not tag files to chunks at all |
+| **Path traversal** | A FILE_INDEX row naming `../../.ssh/id_rsa` | **Broken** (corpus `file-index-row-outside-root`). The row reaches the prompt as `Load full: @../outside.txt`; contents do not leak, but the agent is told to read outside the project. `symbols ../outside.txt` and the plan's file matcher do reject it |
+| **Resource exhaustion** | Deeply nested YAML frontmatter, a 10MB plan, a 50k-line index | **10 MB plan holds** (corpus `ten-megabyte-plan`): `init` refuses with the 12,000-character cap message in ~13 s. Nested frontmatter and a large index are untested |
+| **Secret laundering** | A secret in an `@ai-summary`, or in a note added via `update` | **Broken** for summaries (corpus `token-in-ai-summary`): `index` writes the token into `ai-index.yaml` — `WriteGuard` scans it but is in warn mode, and `index` prints no warning — and `symbols` prints it. Notes are untested: no non-interactive CLI path adds one |
 | **Egress** | A secret in a file passed to `compact` | `guardEgress()` is implemented for this; verify it holds |
 
 The mitigation for the confirmed class is not filtering — an instruction filter

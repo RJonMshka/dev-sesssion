@@ -5,6 +5,9 @@
  * that need no API key. The cold-agent and judge tiers layer on top of the
  * records this produces.
  *
+ * Then runs the adversarial corpus (REQ-EVAL-6) unless `--target` is given: the
+ * corpus tests the CLI, not a repository.
+ *
  * Usage: `pnpm eval [--version 2.2.0 | --local] [--target file.json] [--keep]`
  *
  * @module
@@ -13,6 +16,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
+import { CORPUS } from "./adversarial.js";
 import {
 	checkGrounding,
 	declaredFromAdapterFile,
@@ -28,6 +32,7 @@ import {
 	scoreRecall,
 } from "./checks/recall.js";
 import { collectSessionMetrics } from "./checks/session-metrics.js";
+import { runAdversarial } from "./harness/adversarial-runner.js";
 import { readDefaultVersion } from "./harness/default-version.js";
 import {
 	type InstalledCli,
@@ -289,6 +294,7 @@ async function main(): Promise<void> {
 	const version = cli.version;
 
 	const rows = await runDeterministic(cli, keep, targets);
+	const adversarial = targetFile === undefined ? await runAdversarial(cli, CORPUS, keep) : [];
 
 	const reportDir = path.join(REPO_ROOT, "evals", "report");
 	// A target file's report names a private repo's files: keep it out of the tree.
@@ -301,7 +307,7 @@ async function main(): Promise<void> {
 					`deterministic-${version}-${targets[0]?.id ?? "target"}.json`,
 				);
 	await fs.mkdir(path.dirname(out), { recursive: true });
-	await fs.writeFile(out, `${JSON.stringify({ version, rows }, null, 2)}\n`, "utf8");
+	await fs.writeFile(out, `${JSON.stringify({ version, rows, adversarial }, null, 2)}\n`, "utf8");
 
 	const failures = rows.filter(
 		(r) =>
@@ -315,12 +321,21 @@ async function main(): Promise<void> {
 	process.stdout.write(
 		`${String(rows.length - failures.length)}/${String(rows.length)} runs clean\n`,
 	);
+	const attacks = adversarial.filter((r) => r.failures.length > 0);
+	if (adversarial.length > 0) {
+		process.stdout.write(
+			`${String(adversarial.length - attacks.length)}/${String(adversarial.length)} adversarial cases clean\n`,
+		);
+	}
 
 	// A reported failure has to be an exit code, or CI cannot gate on this tier —
 	// it previously printed the failure count and exited 0.
-	if (failures.length > 0) {
+	if (failures.length > 0 || attacks.length > 0) {
 		for (const r of failures) {
 			process.stderr.write(`FAIL ${r.target}/${r.ablation}\n`);
+		}
+		for (const r of attacks) {
+			process.stderr.write(`FAIL adversarial/${r.id}\n`);
 		}
 		process.exitCode = 1;
 	}

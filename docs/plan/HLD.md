@@ -85,7 +85,7 @@ Every open item now has an LLD (2026-10-24). Build order:
 | 5 | ✅ **Done** on `feat/workflow-prompt` — Notes decay (WF-1..6), then the workflow prompt (WF-12..22) | `LLD-workflow-prompt.md` Parts A, C | S + M | The feature aimed at correctness; A is the prerequisite the HLD named and never defined |
 | 6 | ✅ **Done** on `feat/tagging-on-touch` — Tagging on touch, interactive init cut (IDX-19..43, DRY-7) | `LLD-tagging.md` | M–L | Feature 3's second half. Step 1 (move tagging into core, cut the 30-prompt branch) ships alone |
 | 7 | ✅ **Done** on `feat/symbols` — `symbols` (SYM-1..6, 8, 10..18) | `LLD-symbols.md` | M | Independent; reads shipped unit data |
-| 8 | REQ-EVAL-6 adversarial corpus | `LLD-eval-harness.md` (deltas in `LLD-agent-tier.md`) | S–M | Designed; seeds now pass, so it is a regression lock |
+| 8 | ✅ **Built** — REQ-EVAL-6 adversarial corpus; 6/8 clean, two breaks found (traversal, secret) | `LLD-eval-harness.md` (deltas in `LLD-agent-tier.md`) | S–M | Designed; seeds now pass, so it is a regression lock |
 | 9 | Agent tier on DevNexus (EVAL-19..45) | `LLD-agent-tier.md` | M + paid runs | Last: it should measure the features above. Stats and harness fixes are free; a run is ~$75 cached at 6 tasks × 5 repeats |
 
 Steps 1–3 are bug fixes found while planning, and ship first as `fix:` commits.
@@ -101,7 +101,11 @@ one `formatWorkLines` helper.
 `feat/symbols` and `feat/tagging-on-touch` (stacked, off
 `feat/plan-orchestration`); merged into `feat/workflow-prompt` the same day,
 keeping both sides of the schema, protocol and barrel additions
-(`workflow` and `session_base` in `SESSION_STATE.md`). Step 8 is next.
+(`workflow` and `session_base` in `SESSION_STATE.md`). Step 8 built 2026-10-26:
+the corpus found two breaks present since 2.4.2 — a `FILE_INDEX.md` row
+outside the root reaches `Load full:`, and a secret in a doc comment is
+copied into `ai-index.yaml` without warning. Both need a requirement and a
+fix before `pnpm eval` passes again.
 
 ---
 

@@ -238,7 +238,7 @@ gating (`docs/releasing.md`).
 | REQ-EVAL-3 | unit | A prompt naming one path twice across two load lines reports it once |
 | REQ-EVAL-4 | unit | `Load: a.ts, +11 more` declares `a.ts` only |
 | REQ-EVAL-5 | unit | Modified, added, and deleted gate files each restore and report |
-| REQ-EVAL-6 | integration | Each corpus case through the real CLI; assert planted text appears only attributed |
+| REQ-EVAL-6 | eval + unit | Each corpus case through the installed CLI in `pnpm eval` (`evals/adversarial.ts`); the attribution matcher pinned against captured generator output (`evals/__tests__/attribution.test.ts`) |
 | REQ-EVAL-7 | e2e | A deliberately failing case makes `pnpm eval` exit non-zero |
 | REQ-EVAL-8 | e2e | The deterministic tier completes with `ANTHROPIC_API_KEY` unset |
 | REQ-EVAL-9 | eval | `pnpm eval:units` installs from the packed tarball and reports the installed version as `local` |
@@ -276,7 +276,7 @@ cannot catch that inversion is not testing the thing that matters.
 | REQ-EVAL-3, REQ-EVAL-4, REQ-EVAL-5 | **Passed on the first run.** The behaviour already existed; these tests are regression locks, not fixes. Recorded here per [METHOD.md](../METHOD.md) rather than dressed up as changes |
 | REQ-EVAL-7 | **Failed first.** `run.ts` computed a failure count, printed it, and exited 0 |
 | REQ-EVAL-8 | Passed — verified with `ANTHROPIC_API_KEY` unset |
-| REQ-EVAL-6 | **Not built.** The adversarial corpus is the remaining slice |
+| REQ-EVAL-6 | Built 2026-10-26 (`evals/adversarial.ts`, eight cases), with the deltas in LLD-agent-tier.md. The matcher's tests **failed first** on a missing module, and 7 of 10 go red when the attribution check is inverted. The four injection rows pass, as expected: they lock fixed paths. Eviction and exhaustion pass. **Two cases fail, on the workspace build and on 2.4.2 alike:** a committed `FILE_INDEX.md` row naming `../outside.txt` puts `@../outside.txt` on the prompt's `Load full:` line (the plan's file matcher rejects `..`; index rows are not checked), and an `@ai-summary` holding a token-shaped secret is copied into `ai-index.yaml` and printed by `symbols`, with no warning — `WriteGuard` runs in warn mode and `index` shows nothing. Each needs a requirement and a fix; until then `pnpm eval` exits 1 |
 | REQ-EVAL-10..17 | **Failed first** — every test failed on a missing module before the module existed. Then `pnpm eval --target` on DevNexus with 2.4.2: prompt recall 0/11, tag recall 0% on all eight scoreable chunks, run reported FAIL where it was previously clean. Benchmark: "99.8% saved — 620× smaller" became "n/a — the context names 0 files"; baseline fell 202K → 141K tokens with the lockfile out; plan-only went 0 → 5,318 tokens once `docs/PLAN.md` counted. The two built-in fixtures still report savings (17 and 27 context files), and `pnpm eval` stays 2/2 clean, so CI is unaffected |
 
 The DevNexus run is the failing test for the product fix that follows it: the
