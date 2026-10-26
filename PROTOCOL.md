@@ -139,7 +139,9 @@ last_updated: "2026-06-17"
 The `## Always Include` group (chunk tag `0`) is loaded in every session; each
 `## Chunk <n>` group is loaded only when that chunk is active. Grouping is by
 heading — rows under any other heading are ignored. A file needed by two chunks
-appears under both.
+appears under both. Paths are relative to the project root and stay inside it:
+a conforming tool ignores a row whose path is absolute or, once normalized,
+starts with `..`, since the file may arrive in a pull request.
 
 Indexes larger than 500 entries are paginated into `FILE_INDEX_1.md`,
 `FILE_INDEX_2.md`, … alongside the root file.

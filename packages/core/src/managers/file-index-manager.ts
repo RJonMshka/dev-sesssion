@@ -298,7 +298,9 @@ function parseFileIndex(content: string, relativePath: string): FileIndexEntry[]
 
 		if (isTableDataRow(trimmed) && currentChunkTag !== undefined) {
 			const parsed = parseTableRow(trimmed, relativePath, i + 1);
-			if (parsed !== undefined) {
+			// A committed row can point anywhere; one outside the root is dropped,
+			// not thrown on, so a planted row cannot make the session unloadable.
+			if (parsed !== undefined && !leavesRoot(parsed.filepath)) {
 				addParsedEntry(entries, parsed.filepath, parsed.purpose, currentChunkTag);
 			}
 		}
@@ -402,6 +404,24 @@ function parseTableRow(
 	}
 
 	return { filepath, purpose };
+}
+
+/**
+ * Whether a row's path points outside the project root (REQ-PROV-13): absolute,
+ * drive-lettered, or starting with `..` once normalized. Lexical, as the plan's
+ * file matcher is; a symlink pointing out is not caught here.
+ *
+ * @param filepath - The path as written in the row.
+ * @returns True when the row must be dropped.
+ */
+function leavesRoot(filepath: string): boolean {
+	const norm = path.posix.normalize(filepath.replace(/\\/g, "/"));
+	return (
+		path.posix.isAbsolute(norm) ||
+		/^[A-Za-z]:/.test(norm) ||
+		norm === ".." ||
+		norm.startsWith("../")
+	);
 }
 
 /**
