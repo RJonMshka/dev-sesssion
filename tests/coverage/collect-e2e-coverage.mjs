@@ -33,6 +33,34 @@ function run(cmd, args, env) {
 	}
 }
 
+/**
+ * Rewrite each raw V8 dump in `dir` to hold only the CLI bundle's coverage,
+ * and drop `source-map-cache` from every dump but the first that has it.
+ * Dumps with no CLI coverage are deleted.
+ */
+function pruneDumps(dir) {
+	const isCli = (url) => url.includes("/packages/cli/dist/");
+	let keptMapCache = false;
+	for (const name of fs.readdirSync(dir)) {
+		const file = path.join(dir, name);
+		const dump = JSON.parse(fs.readFileSync(file, "utf8"));
+		const result = dump.result.filter((entry) => isCli(entry.url));
+		if (result.length === 0) {
+			fs.rmSync(file);
+			continue;
+		}
+		const pruned = { result, timestamp: dump.timestamp };
+		const cache = dump["source-map-cache"];
+		if (cache !== undefined && !keptMapCache) {
+			pruned["source-map-cache"] = Object.fromEntries(
+				Object.entries(cache).filter(([url]) => isCli(url)),
+			);
+			keptMapCache = true;
+		}
+		fs.writeFileSync(file, JSON.stringify(pruned));
+	}
+}
+
 fs.rmSync(RAW_DIR, { recursive: true, force: true });
 fs.rmSync(OUT_DIR, { recursive: true, force: true });
 fs.mkdirSync(RAW_DIR, { recursive: true });
@@ -43,9 +71,14 @@ run(path.join(BIN, "vitest"), ["run", "--project", "e2e", "--coverage=false"], {
 	NODE_V8_COVERAGE: RAW_DIR,
 });
 
-// 2. Remap raw dumps to source and emit istanbul json for the merge step.
-//    Remapping every CLI-subprocess dump through the bundle sourcemap is
-//    memory-hungry as the e2e suite grows — give c8 a generous heap.
+// 2. Prune the dumps. Each CLI process writes its own copy of the bundle's
+//    ~16 MB sourcemap into `source-map-cache`, plus coverage for every Node
+//    internal and dependency it loaded. c8 holds every dump in memory, so a few
+//    hundred dumps ran out of an 8 GB heap. Keep only the CLI bundle's entries,
+//    and the sourcemap in a single dump — c8 merges the caches by URL.
+pruneDumps(RAW_DIR);
+
+// 3. Remap raw dumps to source and emit istanbul json for the merge step.
 run(
 	path.join(BIN, "c8"),
 	[
