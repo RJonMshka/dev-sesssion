@@ -37,7 +37,7 @@ dev-sesssion init [options]
    it says where it looked and how to write one, check it with `plan check`,
    and pass it with `--plan`. Under `--yes` it still exits 0 with one
    placeholder chunk, and says so
-3. Walks the codebase to generate `FILE_INDEX.md`. With `--yes`, a file is tagged
+3. Walks the codebase to generate `FILE_INDEX.md`. A file is tagged
    to a chunk only when the plan names it for that chunk — by path
    (`src/utils.ts`) or by a basename no other file shares (`utils.ts`) — either
    in one of the chunk's unfinished tasks, or elsewhere in its section: a fenced
@@ -45,7 +45,9 @@ dev-sesssion init [options]
    containing `/`. Brace groups expand (`layout/{Sidebar,Header}.tsx`); globs and
    directories are skipped; a chunk whose tasks are all done tags nothing. Files
    the plan never names are left out of `FILE_INDEX.md`; the ai-index still
-   reaches them. Without `--yes`, it asks per directory
+   reaches them. Tagging is the same with or without `--yes` and asks no
+   question: a file is never tagged because of the directory it is in. Tag a
+   file by hand with `index add`
    - Each chunk's `PLAN_N.md` keeps the paths it named (`files`) and the rest of
      its section — goal, numbered steps, file list — as `brief`. The prompt points
      at it with a `Plan:` line. Checkboxes remain the tracked tasks

@@ -194,7 +194,6 @@ export async function runInit(options: InitOptions): Promise<void> {
 
 	// Phase 4: FILE_INDEX generation (migration path C)
 	const generateOpts: Parameters<typeof generateIndex>[2] = {
-		yes: options.yes,
 		dryRun: options.dryRun,
 		verbose: options.verbose,
 		cwd: options.cwd,

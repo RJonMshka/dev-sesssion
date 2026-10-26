@@ -64,6 +64,7 @@ export type {
 } from "./calculators/layer-resolver.js";
 export { LayerResolver } from "./calculators/layer-resolver.js";
 export { type NeighbourInput, NewFiles } from "./calculators/new-files.js";
+export { inferPurpose, PlanTags } from "./calculators/plan-tags.js";
 export type {
 	DeclarationGroup,
 	FocusExplanation,
