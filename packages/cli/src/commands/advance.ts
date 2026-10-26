@@ -32,6 +32,7 @@ import { dryRunSkipWrite } from "../utils/dry-run.js";
 import { handleError } from "../utils/error-handler.js";
 import { withStdoutOnStderr, writeJson } from "../utils/json-output.js";
 import { regeneratePrompt } from "./regenerate-prompt.js";
+import { withSessionBase } from "./touch-tagging.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -188,6 +189,9 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 		...PlanChunkManager.advance(state, nextChunk.chunk_id),
 		tasks: [...nextChunk.tasks],
 	};
+	// A fresh base, and no tags: a completed chunk loads nothing, and tagging
+	// the next one would guess that work carries over (REQ-IDX-19, -41).
+	state = await withSessionBase(state, options.cwd);
 	if (dryRun) {
 		dryRunSkipWrite(
 			path.join(sessionDir, "SESSION_STATE.md"),

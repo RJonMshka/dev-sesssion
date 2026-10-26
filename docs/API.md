@@ -419,6 +419,14 @@ and revisions are shape-checked before use.
 | `fileAtRev` | `(cwd, rev, filepath) => Promise<string \| null>` | File contents at a revision, or `null` if absent |
 | `isTracked` | `(cwd, filepath) => Promise<boolean>` | Whether git tracks the path |
 | `changedBetween` | `(cwd, from, to) => Promise<string[]>` | Paths changed in `from..to` |
+| `head` | `(cwd) => Promise<string \| null>` | `HEAD`'s commit id, or `null` with no commits |
+| `userEmail` | `(cwd) => Promise<string \| null>` | Configured `user.email` |
+| `commitExists` | `(cwd, sha) => Promise<boolean>` | Whether a commit is still in the object store |
+| `isAncestor` | `(cwd, a, b) => Promise<boolean>` | Whether `a` is an ancestor of `b` |
+| `statusEntries` | `(cwd) => Promise<StatusEntry[]>` | `status -z --untracked-files=all`: unquoted paths, files inside new directories, renames under the new path |
+| `committedBy` | `(cwd, base, email) => Promise<string[]>` | Files added, modified or renamed by first-parent, non-merge commits since `base` by `email` |
+| `substantive` | `(cwd, base, paths) => Promise<Map<string, DiffKind>>` | Per tracked path: `changed`, `blank` (whitespace only) or `binary` against `base` (or the empty tree) |
+| `attribute` | `(cwd, paths, attr) => Promise<Set<string>>` | Paths a git attribute is set on, e.g. `linguist-generated` |
 
 ```ts
 interface GitCommit {
@@ -430,6 +438,47 @@ interface GitCommit {
 
 `fileAtRev` and `changedBetween` throw `CliError` if a revision contains
 characters outside `[A-Za-z0-9._/^~@{}-]`.
+
+---
+
+## Tagging on touch
+
+Behind `update`'s tagging of the files a session changed (LLD-tagging.md).
+
+| Export | Signature | Description |
+|---|---|---|
+| `SessionBase.capture` | `(cwd) => Promise<SessionBaseRecord \| null>` | `HEAD` plus each dirty file's `contentHash`; `null` outside git or past 200 dirty files |
+| `TouchDetector.detect` | `(cwd, base) => Promise<TouchObservation>` | Files touched since the base, with whether each exists, is substantive/blank/binary, and is generated. `stopped` says why nothing was looked at |
+| `TouchTagger.decide` | `(input) => TouchDecision` | Pure. Tags survivors to the active chunk and to open chunks that name them; counts the rest per `SkipReason` |
+| `FileIndexManager.tag` | `(entries, filepath, chunks, purpose) => FileIndexEntry[]` | Adds chunk tags, keeping an existing row's purpose and cost |
+| `PlanTags.fromPlan` | `(files, chunks, alwaysInclude) => FileIndexEntry[]` | The tags `init` writes: each walked file the plan names, to every chunk naming it |
+| `inferPurpose` | `(path) => string` | A short purpose for a new `FILE_INDEX.md` row |
+| `isAlwaysIgnored`, `LOCKFILE_NAMES` | | The walker's always-ignored directories and the lockfile basenames |
+
+---
+
+## SymbolQuery
+
+What the ai-index holds for a file or a name, behind `dev-sesssion symbols`.
+Pure over a loaded `AiIndex`, apart from reading each reported file to compare
+its hash. `SessionManager.symbolsForFile(path)` and `symbolsByName(name)` load
+the index and validate the path for you.
+
+| Member | Signature | Description |
+|---|---|---|
+| `file` | `(index, key, projectRoot) => SymbolFileReport \| null` | Cost, module summary, exports by line, units by line (`null` when not recorded). `null` when the file has no entry |
+| `name` | `(index, name, projectRoot) => SymbolNameReport` | Every unit whose id or leaf member name equals `name`, with `focusable`, `evidence` and the report's `ambiguous` and `codeShaped` |
+| `renderText` | `(report) => string[]` | Text lines; summaries quoted with `formatQuotedSummary`, non-path-shaped paths with `quoteText` |
+
+`Freshness` is `"current" | "stale" | "removed" | "unknown"`.
+
+`UnitFocusResolver.explain(index, name)` returns the declarations a name
+matches, each with its usage evidence, and the refs a task naming it in
+backticks would focus (or `"ambiguous"`). It shares its decision code with
+`resolve`, so `symbols` and the prompt cannot disagree.
+
+`PATH_SHAPED` is the pattern a path must match to be printed bare outside a
+quotation.
 
 ---
 

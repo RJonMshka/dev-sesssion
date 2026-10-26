@@ -52,7 +52,7 @@ const CLAUDE_CONFIG: AdapterConfig = {
 	name: "claude",
 	display_name: "Claude Code",
 	detect_files: ["CLAUDE.md", ".claude"],
-	output_files: ["CLAUDE.md"],
+	output_files: ["CLAUDE.md", PLAN_SKILL_PATH],
 	config_version: 1,
 };
 

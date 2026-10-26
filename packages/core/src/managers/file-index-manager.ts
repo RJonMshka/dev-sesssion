@@ -189,6 +189,35 @@ export const FileIndexManager = {
 	},
 
 	/**
+	 * Adds chunk tags to a file, keeping its purpose, token cost and other tags
+	 * (REQ-IDX-34). Unlike {@link add}, an existing row is never rewritten
+	 * beyond its tags, so `save` leaves every other line as it was.
+	 *
+	 * @param entries - The existing file index entries.
+	 * @param filepath - The file to tag.
+	 * @param chunks - Chunk ids to add.
+	 * @param purpose - Purpose for a new entry; ignored for an existing one.
+	 * @returns A new array; the existing entry object when nothing changed.
+	 */
+	tag(
+		entries: readonly FileIndexEntry[],
+		filepath: string,
+		chunks: readonly number[],
+		purpose: string,
+	): FileIndexEntry[] {
+		const at = entries.findIndex((e) => e.filepath === filepath);
+		if (at === -1) {
+			return [...entries, { filepath, chunk_tags: mergeChunkTags([], chunks), purpose }];
+		}
+		const existing = entries[at] as FileIndexEntry;
+		const merged = mergeChunkTags(existing.chunk_tags, chunks);
+		if (merged.length === existing.chunk_tags.length) return [...entries];
+		const result = [...entries];
+		result[at] = { ...existing, chunk_tags: merged };
+		return result;
+	},
+
+	/**
 	 * Audits the file index against the filesystem.
 	 *
 	 * Checks for:

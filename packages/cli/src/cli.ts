@@ -24,6 +24,7 @@ import { registerPlanCommand } from "./commands/plan.js";
 import { registerPreviewCommand } from "./commands/preview.js";
 import { registerPromptCommand } from "./commands/prompt.js";
 import { registerStatusCommand } from "./commands/status.js";
+import { registerSymbolsCommand } from "./commands/symbols.js";
 import { registerTrimCommand } from "./commands/trim.js";
 import { registerUpdateCommand } from "./commands/update.js";
 import { registerVerifyCommand } from "./commands/verify.js";
@@ -65,6 +66,7 @@ export function createProgram(): Command {
 	registerAdvanceCommand(program);
 	registerPromptCommand(program);
 	registerIndexCommand(program);
+	registerSymbolsCommand(program);
 	registerHealthCommand(program);
 	registerVerifyCommand(program);
 	registerImportCommand(program);

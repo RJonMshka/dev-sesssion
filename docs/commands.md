@@ -37,7 +37,7 @@ dev-sesssion init [options]
    it says where it looked and how to write one, check it with `plan check`,
    and pass it with `--plan`. Under `--yes` it still exits 0 with one
    placeholder chunk, and says so
-3. Walks the codebase to generate `FILE_INDEX.md`. With `--yes`, a file is tagged
+3. Walks the codebase to generate `FILE_INDEX.md`. A file is tagged
    to a chunk only when the plan names it for that chunk — by path
    (`src/utils.ts`) or by a basename no other file shares (`utils.ts`) — either
    in one of the chunk's unfinished tasks, or elsewhere in its section: a fenced
@@ -45,7 +45,9 @@ dev-sesssion init [options]
    containing `/`. Brace groups expand (`layout/{Sidebar,Header}.tsx`); globs and
    directories are skipped; a chunk whose tasks are all done tags nothing. Files
    the plan never names are left out of `FILE_INDEX.md`; the ai-index still
-   reaches them. Without `--yes`, it asks per directory
+   reaches them. Tagging is the same with or without `--yes` and asks no
+   question: a file is never tagged because of the directory it is in. Tag a
+   file by hand with `index add`
    - Each chunk's `PLAN_N.md` keeps the paths it named (`files`) and the rest of
      its section — goal, numbered steps, file list — as `brief`. The prompt points
      at it with a `Plan:` line. Checkboxes remain the tracked tasks
@@ -167,10 +169,11 @@ A `memory` object with session-log aggregates is included when
 
 ## dev-sesssion update
 
-Interactively mark tasks done and add session notes.
+Interactively mark tasks done and add session notes, and tag the files the
+session changed.
 
 ```bash
-dev-sesssion update
+dev-sesssion update [--no-tag]
 ```
 
 **What it does:**
@@ -178,9 +181,40 @@ dev-sesssion update
 1. Shows the current task list with checkboxes
 2. Lets you mark tasks done or in-progress
 3. Prompts for optional session notes
-4. Detects git-modified files and suggests adding them to the index
-5. Regenerates `NEXT_PROMPT.md` for the next session
+4. Tags the files this session changed to the active chunk (below)
+5. Regenerates `NEXT_PROMPT.md` for the next session, loading the files just tagged
 6. Scans written content for secrets
+
+**Tagging what the session touched.** In a git repository, `init`, `update`
+and `advance` record a session base in `SESSION_STATE.md`: `HEAD` and the files
+already dirty. The next `update` tags each file changed since then to the active
+chunk, and also to any open chunk whose tasks or file list name it. A file
+counts as changed if your own commits since the base changed it, or the working
+tree has it modified, staged or untracked. "Your own" means the author email
+matches `git config user.email`. Commits from a `pull` or a merge do not count,
+and with no `user.email` set, no commit counts.
+
+A file is not tagged when it:
+
+- is a deletion, under `.session/`, `node_modules/`, `dist/` or `build/`, or
+  always-included;
+- was written by dev-sesssion (`CLAUDE.md` and the other adapter files,
+  `.gitignore`, `.gitattributes`);
+- is a lockfile, binary, or marked `linguist-generated` in `.gitattributes`;
+- changed only in whitespace, or was changed and changed back;
+- has characters in its path other than letters, digits and `. _ - + @ /`;
+- was already dirty at the base and has not changed since.
+
+If more than 20 files remain, `update` treats the session as a sweep (a rename,
+a formatter run, a dependency bump) and tags none of them. If every task in the
+active chunk is done, it tags nothing. The report names each file tagged and
+counts the rest by reason.
+
+Without `--yes`, `update` asks once, with every file preselected. `--no-tag`
+skips tagging and still moves the base, so the files are not offered again.
+Under `--dry-run` it prints what it would tag and writes nothing. `advance`
+records a new base and tags nothing. The first `update` after upgrading has no
+base yet: it tags nothing, says `no-base`, and records one.
 
 ---
 
@@ -284,6 +318,58 @@ dev-sesssion index audit [--fix]
 ```
 
 Finds FILE_INDEX entries whose files no longer exist. Use `--fix` to remove them automatically.
+
+---
+
+## dev-sesssion symbols
+
+Shows what the ai-index holds — the data prompts are built from — and whether
+that record still matches the code. Reads only: it writes nothing and does not
+regenerate the prompt.
+
+```bash
+dev-sesssion symbols <path> [--json]
+dev-sesssion symbols --name <name> [--json]
+```
+
+`symbols <path>` prints the file's token cost and module summary, each export's
+signature and line, and each code unit's id, kind, line range, token cost and
+share of the file. Summaries come from doc comments in the file, so they are
+printed as quotations (`quoted: "…"`).
+
+```
+src/utils.ts · 1,468 tokens · current
+quoted: "Request parsing helpers."
+Exports
+  L12  export function parseBody(req: Request): Body — quoted: "Parses a JSON body."
+Units
+  parseBody          function  L10-48    210 tok  14%  exported
+  normalizeHeaders   function  L50-61     58 tok   4%
+```
+
+`symbols --name <name>` lists every unit whose id, or member name after the
+last `.`, is exactly `<name>` (no substring or fuzzy matching), as
+`path#id:start-end`. `would focus` marks the declarations a task naming
+`` `<name>` `` would focus. The decision comes from the same code the prompt
+uses. When a name is declared more than once, each declaration shows its usage
+evidence. If none or too many have evidence, the name is ambiguous and focuses
+nothing. A plain word such as `helper` counts in a task only between backticks,
+and the output says so. A prompt focuses at most 5 units across all its tasks,
+so a unit marked `would focus` can still be crowded out by other tasks.
+
+Each file is checked against the hash recorded when it was indexed:
+
+| Mark | Meaning |
+|---|---|
+| `current` | The file matches its record |
+| `STALE — run dev-sesssion index` | The file changed since indexing |
+| `removed since indexing` | The file no longer exists |
+| `freshness unknown` | The index predates file hashes |
+
+Exit codes: `0` when a report prints, stale or not; `1` when `--name` matches
+nothing, when there is no index or `.session/`, when the file is not indexed,
+or when the path is outside the project. `--json` prints one JSON document with
+`freshness` on every file; summaries stay raw strings there.
 
 ---
 

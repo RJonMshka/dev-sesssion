@@ -70,12 +70,14 @@ export {
 	ProjectInfoSchema,
 	ProjectType,
 } from "./project-info.js";
-export type { SessionState } from "./session-state.js";
+export type { SessionBaseRecord, SessionState } from "./session-state.js";
 // Session state
 export {
 	MAX_PROJECT_NAME_CHARS,
+	MAX_SESSION_BASE_DIRTY,
 	MAX_WORKFLOW_STEP_CHARS,
 	MAX_WORKFLOW_STEPS,
+	SessionBaseSchema,
 	SessionStateSchema,
 } from "./session-state.js";
 export type { Task, TaskStatusValue } from "./task.js";

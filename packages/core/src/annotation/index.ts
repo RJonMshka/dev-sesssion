@@ -14,6 +14,15 @@ export type { FileAnnotations, LayerHint, SymbolAnnotations } from "./annotation
 export { AnnotationParser } from "./annotation-parser.js";
 export { AutoExtractor } from "./auto-extractor.js";
 export type {
+	Freshness,
+	SymbolExportRow,
+	SymbolFileReport,
+	SymbolMatch,
+	SymbolNameReport,
+	SymbolUnitRow,
+} from "./symbol-query.js";
+export { SymbolQuery } from "./symbol-query.js";
+export type {
 	AiIndex,
 	FileEntry,
 	ParsedFile,

@@ -569,3 +569,42 @@ LLD-file-index.md does for REQ-IDX-18.
   in this feature.
 - **`init` re-runs.** Reinitializing rebuilds `FILE_INDEX.md` from the plan.
   Tags learned from touch are lost, as hand tags are today.
+
+---
+
+## What actually happened
+
+Built 2026-10-26 on `feat/tagging-on-touch` (HLD build order step 6), in two
+commits: step 1 (REQ-IDX-42, -43) shipped alone, as the HLD table said.
+
+- **REQ-IDX-42's equivalence test changed shape.** Once tagging ignored `yes`,
+  nothing read the option, so it left `generateIndex`'s signature (Design said
+  it stays only if something reads it). The test now asserts that the old
+  call, with a mocked `select` answering "chunk 1", gets the plan's tags and
+  never calls `select`. It and REQ-IDX-43's test failed against the old
+  interactive branch first. `PlanTags.fromPlan`'s own unit test is the lock on
+  the move, as planned.
+- **`substantive` does not cover untracked files.** `git diff <base>` reports
+  nothing for a file git does not track, so `TouchDetector` applies git's own
+  two tests in process: a NUL byte in the first 8,000 bytes means binary, and
+  nothing but whitespace means blank.
+- **`committedBy` is two calls, not one.** `log --format=%H%x09%ae` finds the
+  commits, and `diff-tree -r -z -M --name-only --diff-filter=ACMR` per commit
+  gives their paths. Parsing `--name-only -z` interleaved with formats was
+  fragile, and a session has few commits.
+- **Paths with control characters stay out of the base.** They could not
+  round-trip through the hand-rolled YAML, and REQ-IDX-26 would never tag them.
+- **The plan skill was being tagged.** The first manual run tagged
+  `.claude/skills/dev-sesssion/SKILL.md`, which `init` writes. REQ-IDX-25's
+  "instruction file of each registered adapter" came from `output_files`, and
+  the Claude adapter listed only `CLAUDE.md`. It now lists the skill too, and
+  the REQ-IDX-36 e2e asserts the skill is not tagged. Nothing else reads
+  `output_files`.
+- **Tests run against an empty global git config** (`GIT_CONFIG_GLOBAL`). A
+  developer's `~/.gitconfig` supplied a `user.email` after the test unset the
+  local one, so REQ-IDX-21's "unset" case passed for the wrong reason, or
+  failed, depending on the machine.
+- REQ-IDX-35 passed on first run, because `tag` already existed when the test
+  was written. A throwaway copy that used `add` instead failed, which shows the
+  test catches the rewrite it targets.
+- REQ-IDX-38 (the interactive prompt) has no automated test, as planned.

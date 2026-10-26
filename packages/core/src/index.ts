@@ -28,13 +28,19 @@ export type {
 	AiIndex,
 	FileAnnotations,
 	FileEntry,
+	Freshness,
 	LayerHint,
 	ParsedFile,
 	ParsedSymbol,
 	ParsedUnit,
 	SymbolAnnotations,
 	SymbolEntry,
+	SymbolExportRow,
+	SymbolFileReport,
+	SymbolMatch,
+	SymbolNameReport,
 	SymbolSurface,
+	SymbolUnitRow,
 	UnitEntry,
 	UnitKind,
 } from "./annotation/index.js";
@@ -45,6 +51,7 @@ export {
 	AiIndexManager,
 	AnnotationParser,
 	AutoExtractor,
+	SymbolQuery,
 } from "./annotation/index.js";
 // Calculators
 export { ContextBudgetCalculator } from "./calculators/context-budget-calculator.js";
@@ -57,7 +64,24 @@ export type {
 } from "./calculators/layer-resolver.js";
 export { LayerResolver } from "./calculators/layer-resolver.js";
 export { type NeighbourInput, NewFiles } from "./calculators/new-files.js";
+export { inferPurpose, PlanTags } from "./calculators/plan-tags.js";
 export type {
+	SkipReason,
+	StopReason,
+	TouchCandidate,
+	TouchDecision,
+	TouchDecisionInput,
+	TouchObservation,
+} from "./calculators/touch-tags.js";
+export {
+	MAX_TOUCH_TAGS,
+	SessionBase,
+	TouchDetector,
+	TouchTagger,
+} from "./calculators/touch-tags.js";
+export type {
+	DeclarationGroup,
+	FocusExplanation,
 	FocusedUnit,
 	UnitFocusInput,
 	UnitFocusResult,
@@ -118,6 +142,7 @@ export {
 	NEW_FILES_PREFIX,
 	NEXT_PREFIX,
 	NOTE_PREFIX,
+	PATH_SHAPED,
 	PLAN_PREFIX,
 	QUOTED_LABEL,
 	QUOTED_NOTE_PREFIX,
@@ -130,7 +155,7 @@ export {
 // Bootstrap formatters
 export { PlainTextFormatter } from "./formatters/plain-text-formatter.js";
 // Git-backed verification and replay scoring
-export type { GitCommit } from "./git/git-reader.js";
+export type { DiffKind, GitCommit, StatusEntry } from "./git/git-reader.js";
 export { GitReader } from "./git/git-reader.js";
 // Importers
 export type { MergedNotes } from "./importers/claude-md-notes.js";
@@ -166,7 +191,10 @@ export type {
 export { SessionManager } from "./managers/session-manager.js";
 export { SessionMemoryManager } from "./managers/session-memory-manager.js";
 // Managers
-export { SessionStateManager } from "./managers/session-state-manager.js";
+export {
+	SessionStateManager,
+	serializeSessionBaseYaml,
+} from "./managers/session-state-manager.js";
 // Trim overrides
 export { TrimOverridesManager } from "./managers/trim-overrides-manager.js";
 // Parsers
@@ -225,6 +253,7 @@ export type {
 	PlanChunk,
 	ProjectInfo,
 	ProjectTypeValue,
+	SessionBaseRecord,
 	SessionState,
 	StalenessReport,
 	Task,
@@ -283,4 +312,8 @@ export type {
 } from "./verifiers/session-verifier.js";
 export { SessionVerifier, VerifySeverity } from "./verifiers/session-verifier.js";
 // Walkers
-export { GitignoreAwareWalker } from "./walkers/gitignore-aware-walker.js";
+export {
+	GitignoreAwareWalker,
+	isAlwaysIgnored,
+	LOCKFILE_NAMES,
+} from "./walkers/gitignore-aware-walker.js";
