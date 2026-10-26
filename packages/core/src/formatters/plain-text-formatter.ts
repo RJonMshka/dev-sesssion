@@ -19,8 +19,6 @@ import type { AiIndex } from "../annotation/types.js";
 import type { FileIndexEntry } from "../schemas/index.js";
 import type { BootstrapContext, BootstrapFormatter } from "./bootstrap-formatter.js";
 import {
-	DEFAULT_MAX_NEXT_TASKS,
-	DEFAULT_MAX_NOTES,
 	DEFAULT_MAX_PROMPT_LINES,
 	formatBudgetLine,
 	formatChunkProgress,
@@ -29,10 +27,8 @@ import {
 	formatNewFilesLine,
 	formatPlanLine,
 	formatRefList,
-	getPendingTasks,
+	formatWorkLines,
 	mergeContextFiles,
-	NOTE_PREFIX,
-	selectNotes,
 	trimToMaxLines,
 } from "./formatter-utils.js";
 
@@ -133,26 +129,9 @@ export const PlainTextFormatter: BootstrapFormatter = {
 			lines.push(`Last touched: ${lastFiles}`);
 		}
 
-		// -- Next tasks section (up to 5 lines) --
-		const pending = getPendingTasks(chunk);
-		if (pending.length > 0) {
-			lines.push("Next:");
-			const shown = pending.slice(0, DEFAULT_MAX_NEXT_TASKS);
-			for (const task of shown) {
-				const prefix = task.status === "in-progress" ? "[WIP]" : "[ ]";
-				lines.push(`  ${prefix} ${task.text}`);
-			}
-			const remaining = pending.length - shown.length;
-			if (remaining > 0) {
-				lines.push(`  (+${String(remaining)} more tasks)`);
-			}
-		}
-
-		// -- Notes section (up to 3 lines) --
-		// Owner's notes first, newest first, progress notes hidden (REQ-WF-1..3).
-		for (const note of selectNotes(state.notes, DEFAULT_MAX_NOTES)) {
-			lines.push(`${NOTE_PREFIX} ${note}`);
-		}
+		// Position, tasks, workflow, exit line and notes: one helper for every
+		// formatter, fitted to the line cap (REQ-WF-12..20).
+		lines.push(...formatWorkLines(context, lines.length));
 
 		// Trim to max lines
 		const trimmed = trimToMaxLines(lines, context.maxPromptLines ?? DEFAULT_MAX_PROMPT_LINES);

@@ -10,6 +10,12 @@ import { TaskSchema } from "./task.js";
 /** Longest `project_name` accepted — npm's limit for a package name. */
 export const MAX_PROJECT_NAME_CHARS = 214;
 
+/** Most steps a `workflow` may hold (REQ-WF-18). */
+export const MAX_WORKFLOW_STEPS = 7;
+
+/** Longest one `workflow` step may be (REQ-WF-18). */
+export const MAX_WORKFLOW_STEP_CHARS = 120;
+
 /**
  * Zod schema for SESSION_STATE.md frontmatter.
  *
@@ -59,6 +65,22 @@ export const SessionStateSchema = z
 			.min(1)
 			.max(MAX_PROJECT_NAME_CHARS)
 			.regex(/^[^\r\n]*$/, "project_name must be a single line")
+			.optional(),
+		/**
+		 * The owner's steps for working each task, shown on the prompt's
+		 * `Each task:` line (LLD-workflow-prompt.md, REQ-WF-16, -18). Each step
+		 * is one line, so it cannot become prompt structure. Set by hand.
+		 */
+		workflow: z
+			.array(
+				z
+					.string()
+					.min(1)
+					.max(MAX_WORKFLOW_STEP_CHARS)
+					.regex(/^[^\r\n]*$/, "a workflow step must be a single line"),
+			)
+			.min(1)
+			.max(MAX_WORKFLOW_STEPS)
 			.optional(),
 	})
 	.strict();

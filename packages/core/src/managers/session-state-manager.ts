@@ -314,6 +314,10 @@ function serializeYaml(state: SessionState): string {
 	if (state.project_name !== undefined) {
 		lines.push(`project_name: ${yamlString(state.project_name)}`);
 	}
+	// Guarded on the type, as above: a hand-built state may omit it (REQ-WF-18).
+	if (Array.isArray(state.workflow)) {
+		lines.push(...serializeStringArrayYaml("workflow", state.workflow));
+	}
 
 	return `${lines.join("\n")}\n`;
 }

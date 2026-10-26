@@ -72,7 +72,12 @@ export {
 } from "./project-info.js";
 export type { SessionState } from "./session-state.js";
 // Session state
-export { MAX_PROJECT_NAME_CHARS, SessionStateSchema } from "./session-state.js";
+export {
+	MAX_PROJECT_NAME_CHARS,
+	MAX_WORKFLOW_STEP_CHARS,
+	MAX_WORKFLOW_STEPS,
+	SessionStateSchema,
+} from "./session-state.js";
 export type { Task, TaskStatusValue } from "./task.js";
 // Task
 export { TaskSchema, TaskStatus, TaskStatusSchema } from "./task.js";

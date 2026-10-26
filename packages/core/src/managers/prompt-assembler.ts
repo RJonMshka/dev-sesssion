@@ -202,6 +202,8 @@ export const PromptAssembler = {
 			],
 			projectName: input.projectName,
 			maxPromptLines: shown.max_prompt_lines,
+			// Resolved here, not by formatters, so a later per-chunk workflow changes one place.
+			...(shown.workflow !== undefined ? { workflow: shown.workflow } : {}),
 			...(input.absent !== undefined && input.absent.length > 0 ? { newFiles: input.absent } : {}),
 			...(index !== null ? { resolvedLayers: plan.layers, focusUnits: plan.focus } : {}),
 		};

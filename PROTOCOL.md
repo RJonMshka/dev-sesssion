@@ -75,6 +75,9 @@ completed_chunks:             # map of chunk id -> completion date
   "1": "2026-01-01"
 max_prompt_lines: 20          # optional; NEXT_PROMPT.md line cap (5-50)
 project_name: "Rocket Shop"   # optional; overrides the detected project name
+workflow:                     # optional; the owner's steps for each task
+  - "Write a failing test"
+  - "Make it pass"
 ---
 
 # Session State
@@ -94,6 +97,7 @@ project_name: "Rocket Shop"   # optional; overrides the detected project name
 | `completed_chunks` | map | chunk id → ISO date. |
 | `max_prompt_lines` | number | Optional. `NEXT_PROMPT.md` line cap, 5–50. Defaults to 20; omitted from the file when default. |
 | `project_name` | string | Optional. The project name the prompt shows, 1–214 characters on one line. When absent, a tool uses the `name` in `package.json`, or else the directory name. Written only when it differs from that. |
+| `workflow[]` | list of string | Optional. The owner's steps for working each task, in order: 1–7 steps, each 1–120 characters on one line. A tool may render them in its prompt; none checks or tracks them. Omitted from the file when absent. |
 
 ### `NEXT_PROMPT.md` (required)
 

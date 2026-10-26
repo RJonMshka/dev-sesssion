@@ -46,9 +46,10 @@ Load: @src/api/users.ts, @src/api/middleware.ts, @src/schemas/user.ts
 Do NOT read: **/__tests__/**, **/dist/**
 Resume: 1/3 tasks done Chunks 1-2 done.
 Last touched: @src/api/users.ts
-Next:
+Next (task 2 of 3):
   [ ] Implement /users endpoint
   [ ] Add request validation
+Done when: all 3 tasks are done (2 left) — then stop.
 ```
 
 Excludes use "Do NOT read" rather than "load" to match Claude Code's terminology.
@@ -75,9 +76,10 @@ Budget: ~2180/4000 tokens [OK]
 Load: src/api/users.ts, src/api/middleware.ts, src/schemas/user.ts
 Exclude: **/__tests__/**, **/dist/**
 Resume: 1/3 tasks done Chunks 1-2 done.
-Next:
+Next (task 2 of 3):
   [ ] Implement /users endpoint
   [ ] Add request validation
+Done when: all 3 tasks are done (2 left) — then stop.
 ```
 
 **Setup (on init):**
@@ -101,9 +103,10 @@ Budget: ~2180/4000 tokens [OK]
 Load: src/api/users.ts, src/api/middleware.ts, src/schemas/user.ts
 Ignore: **/__tests__/**, **/dist/**
 Resume: 1/3 tasks done Chunks 1-2 done.
-Next:
+Next (task 2 of 3):
   [ ] Implement /users endpoint
   [ ] Add request validation
+Done when: all 3 tasks are done (2 left) — then stop.
 ```
 
 **Setup (on init):**
@@ -127,9 +130,10 @@ Budget: ~2180/4000 tokens [OK]
 Load: src/api/users.ts, src/api/middleware.ts, src/schemas/user.ts
 Ignore: **/__tests__/**, **/dist/**
 Resume: 1/3 tasks done Chunks 1-2 done.
-Next:
+Next (task 2 of 3):
   [ ] Implement /users endpoint
   [ ] Add request validation
+Done when: all 3 tasks are done (2 left) — then stop.
 ```
 
 **Setup (on init):**
@@ -143,7 +147,11 @@ Writes a `# dev-sesssion:start` … `# dev-sesssion:end` section in `.windsurfru
 Whatever the syntax, all four formatters emit the same sections in the same order —
 header (`Project`, `Active chunk`, `Budget`), context (`Load` / `Load full` +
 `Summaries` when an ai-index exists, then the exclude line), resume
-(`Resume`, `Last touched`), `Next:` tasks, then `Note:` lines.
+(`Resume`, `Last touched`), then the tail: `Next (task k of n):` and the
+pending tasks, an optional `Each task:` line, `Done when:` (or `Chunk done:`), and
+`Note:` lines. Built-in formatters render the tail with `formatWorkLines` from
+`@dev-session/core`, which fits it to the line cap; a custom formatter should
+call it too.
 
 Two rules bind every formatter, built-in or custom:
 

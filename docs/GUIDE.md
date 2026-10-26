@@ -158,12 +158,19 @@ Load: CLAUDE.md, src/billing/stripe.ts, src/users/subscription.ts
 Do NOT read: src/auth/**, dist/
 Resume: 4/7 tasks done Chunks 1-2 done.
 Last touched: src/billing/webhooks.ts
-Next:
+Next (task 5 of 7):
   [ ] POST /billing/upgrade endpoint
   [ ] Prorate calculation logic
   [ ] Tests for upgrade/downgrade
+Done when: all 7 tasks are done (3 left) — then stop.
 Note: decided to use Prisma instead of Knex
 ```
+
+`Next (task 5 of 7)` is the current task's place in the chunk: the first task
+in progress, or else the first not started, listed first. `Done when:` tells
+the agent where the session ends. Once every task is done, both are replaced by
+`Chunk done: … the next step is \`dev-sesssion advance\`.` The prompt shows your
+two newest notes, yours ahead of any quoted from `CLAUDE.md`.
 
 `Plan:` points at the active chunk's plan file when its section in your plan
 has more than checkboxes — the goal, numbered steps and file list are kept
@@ -368,6 +375,28 @@ state file is parsed.
 Every command that touches the prompt reads the same setting: `init`, `update`, and
 `advance` trim and validate against it, and both `dev-sesssion status` and
 `dev-sesssion health` warn against it rather than against the default.
+
+### Steps for every task
+
+To have the prompt remind the agent how you work each task, add `workflow` to
+the `SESSION_STATE.md` frontmatter: 1 to 7 steps, each one line of at most 120
+characters.
+
+```yaml
+workflow:
+  - "Write a failing test"
+  - "Make it pass"
+  - "Run the full suite"
+```
+
+The prompt then carries one line after the task list:
+
+```
+Each task: 1. Write a failing test 2. Make it pass 3. Run the full suite
+```
+
+The tool does not check the steps or track which one the agent is on. A
+malformed value fails when the state file is parsed, and `health` reports it.
 
 ### Scriptable JSON output
 

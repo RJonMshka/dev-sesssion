@@ -65,6 +65,11 @@ export interface BootstrapContext {
 	 * by `NextPromptWriter.write()`.
 	 */
 	readonly maxPromptLines?: number;
+	/**
+	 * The owner's per-task steps (REQ-WF-16), rendered by `formatWorkLines`.
+	 * Optional, so a third-party formatter that ignores it is still valid.
+	 */
+	readonly workflow?: readonly string[];
 }
 
 /**

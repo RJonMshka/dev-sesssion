@@ -217,6 +217,21 @@ tasks, with their status as REQ-WF-7 and REQ-WF-8 decide it.
 
 ### Part C — The workflow-shaped prompt
 
+*Built 2026-10-26 on `feat/workflow-prompt`. `formatWorkLines` and
+`orderPendingTasks` in `formatter-utils.ts` render the tail for all five
+formatters; `PromptAssembler` passes `state.workflow` as
+`BootstrapContext.workflow`. Departures from the design: `MAX_WORKFLOW_STEPS`
+and `MAX_WORKFLOW_STEP_CHARS` live in `schemas/session-state.ts`, beside the
+schema that enforces them, not in `formatter-utils.ts`; REQ-WF-19's drop order
+ends with the workflow line, after `+N more`, a place the design left open; a
+one-task chunk reads `the 1 task is done`. REQ-WF-14 is tested over every
+status vector up to length 5 rather than random ones. Passed before any code,
+so the behaviour already held: REQ-WF-17, REQ-WF-22, the zero-task half of
+REQ-WF-15, and the "absent" cases of REQ-WF-18. Added beyond the test plan:
+`tests/e2e/workflow-prompt.e2e.test.ts`, which is the only test of the
+assembler wiring (it failed with that line removed). The deterministic eval
+checks under "Measuring it" are not built yet; `pnpm eval --local` is clean.*
+
 **REQ-WF-12** — Where the active chunk has a pending task, the prompt shall
 give the current task's position as `task <k> of <n>`. Here `k` is the current
 task's 1-based place in the chunk's task list and `n` is the number of tasks.

@@ -85,9 +85,11 @@ export { ProjectDetector } from "./detectors/project-detector.js";
 export type { BootstrapContext, BootstrapFormatter } from "./formatters/bootstrap-formatter.js";
 // Formatter utilities (shared across all formatter implementations)
 export {
+	CHUNK_DONE_PREFIX,
 	DEFAULT_MAX_NEXT_TASKS,
 	DEFAULT_MAX_NOTES,
 	DEFAULT_MAX_PROMPT_LINES,
+	DONE_WHEN_PREFIX,
 	FILE_LOAD_PREFIXES,
 	FOCUS_PREFIX,
 	formatBudgetLine,
@@ -101,6 +103,7 @@ export {
 	formatQuotedSummary,
 	formatRefList,
 	formatUnitRef,
+	formatWorkLines,
 	getPendingTasks,
 	isDerivedNote,
 	isProgressNote,
@@ -113,6 +116,7 @@ export {
 	MEMORY_NOTE_PREFIX,
 	mergeContextFiles,
 	NEW_FILES_PREFIX,
+	NEXT_PREFIX,
 	NOTE_PREFIX,
 	PLAN_PREFIX,
 	QUOTED_LABEL,
@@ -121,6 +125,7 @@ export {
 	SUMMARIES_PREFIX,
 	selectNotes,
 	trimToMaxLines,
+	WORKFLOW_PREFIX,
 } from "./formatters/formatter-utils.js";
 // Bootstrap formatters
 export { PlainTextFormatter } from "./formatters/plain-text-formatter.js";
@@ -249,6 +254,8 @@ export {
 	MAX_PROJECT_NAME_CHARS,
 	MAX_PROMPT_CHARS,
 	MAX_PROMPT_LINES,
+	MAX_WORKFLOW_STEP_CHARS,
+	MAX_WORKFLOW_STEPS,
 	ManifestEntrySchema,
 	MIN_CONFIGURABLE_PROMPT_LINES,
 	NextPromptSchema,

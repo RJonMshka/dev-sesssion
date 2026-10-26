@@ -12,6 +12,7 @@ import type { ResolvedFileLayer } from "../calculators/layer-resolver.js";
 import type { FocusedUnit } from "../calculators/unit-focus.js";
 import type { ContextBudget } from "../schemas/context-budget.js";
 import type { FileIndexEntry, PlanChunk, SessionState, Task } from "../schemas/index.js";
+import type { BootstrapContext } from "./bootstrap-formatter.js";
 
 /** Maximum pending tasks to show in the "Next" section by default. */
 export const DEFAULT_MAX_NEXT_TASKS = 4;
@@ -329,6 +330,123 @@ export function selectNotes(notes: readonly string[], max: number): string[] {
 	const owner = newestFirst.filter((n) => !isDerivedNote(n));
 	const derived = newestFirst.filter(isDerivedNote);
 	return [...owner, ...derived].slice(0, Math.max(0, max));
+}
+
+/** Opens the pending-task header: `Next (task 3 of 8):` (REQ-WF-12). */
+export const NEXT_PREFIX = "Next";
+
+/** Opens the line saying when the chunk is done (REQ-WF-14). */
+export const DONE_WHEN_PREFIX = "Done when:";
+
+/** Opens the line shown once every task is done (REQ-WF-15). */
+export const CHUNK_DONE_PREFIX = "Chunk done:";
+
+/** Opens the owner's per-task steps (REQ-WF-16). */
+export const WORKFLOW_PREFIX = "Each task:";
+
+/**
+ * Pending tasks in the order the prompt lists them (REQ-WF-13): the current
+ * task first — the first in-progress task in plan order, else the first todo
+ * — then the rest in plan order.
+ *
+ * @param chunk - The active chunk.
+ * @returns The pending tasks, current first; empty when none are pending.
+ */
+export function orderPendingTasks(chunk: PlanChunk): readonly Task[] {
+	const pending = getPendingTasks(chunk);
+	const current = pending.find((t) => t.status === "in-progress") ?? pending[0];
+	if (current === undefined) return [];
+	return [current, ...pending.filter((t) => t !== current)];
+}
+
+/** What the tail shows; `formatWorkLines` shrinks it to fit the line cap. */
+interface WorkLayout {
+	readonly pending: readonly Task[];
+	shown: number;
+	notes: readonly string[];
+	more: boolean;
+	workflow: boolean;
+}
+
+/** `all 3 tasks are done`, or `the 1 task is done`. */
+function allDone(n: number): string {
+	return n === 1 ? "the 1 task is done" : `all ${String(n)} tasks are done`;
+}
+
+/**
+ * Renders the tail for a chunk with pending tasks.
+ *
+ * @param context - The bootstrap context.
+ * @param layout - What to show.
+ * @returns The tail lines.
+ */
+function renderWork(context: BootstrapContext, layout: WorkLayout): string[] {
+	const { tasks } = context.chunk;
+	const current = layout.pending[0] as Task;
+	const hidden = layout.pending.length - layout.shown;
+	const steps = layout.workflow ? (context.workflow ?? []) : [];
+	const left = tasks.filter((t) => t.status !== "done").length;
+	return [
+		`${NEXT_PREFIX} (task ${String(tasks.indexOf(current) + 1)} of ${String(tasks.length)}):`,
+		...layout.pending
+			.slice(0, layout.shown)
+			.map((t) => `  ${t.status === "in-progress" ? "[WIP]" : "[ ]"} ${t.text}`),
+		...(hidden > 0 && layout.more ? [`  (+${String(hidden)} more tasks)`] : []),
+		...(steps.length > 0
+			? [`${WORKFLOW_PREFIX} ${steps.map((s, i) => `${String(i + 1)}. ${s}`).join(" ")}`]
+			: []),
+		`${DONE_WHEN_PREFIX} ${allDone(tasks.length)} (${String(left)} left) — then stop.`,
+		...layout.notes.map((n) => `${NOTE_PREFIX} ${n}`),
+	];
+}
+
+/**
+ * The prompt's tail, after the `Resume` lines: the position and pending
+ * tasks, the owner's workflow, the exit line, and notes (REQ-WF-12..17).
+ * Every shipped formatter renders its tail here (REQ-WF-20).
+ *
+ * When the tail would push the prompt past its line cap, it drops tasks after
+ * the current one (counted into `+N more`), then the last shown notes, then
+ * the `+N more` line, then the workflow line (REQ-WF-19). What still does not
+ * fit is left to {@link trimToMaxLines}.
+ *
+ * @param context - The bootstrap context.
+ * @param linesUsed - Lines the formatter has already written.
+ * @param maxTasks - Most pending tasks to list.
+ * @param maxNotes - Most notes to show.
+ * @returns The tail lines.
+ */
+export function formatWorkLines(
+	context: BootstrapContext,
+	linesUsed: number,
+	maxTasks: number = DEFAULT_MAX_NEXT_TASKS,
+	maxNotes: number = DEFAULT_MAX_NOTES,
+): string[] {
+	const room = (context.maxPromptLines ?? DEFAULT_MAX_PROMPT_LINES) - linesUsed;
+	const pending = orderPendingTasks(context.chunk);
+	const notes = selectNotes(context.state.notes, maxNotes);
+	if (pending.length === 0) {
+		const n = context.chunk.tasks.length;
+		const head =
+			n > 0
+				? [`${CHUNK_DONE_PREFIX} ${allDone(n)} — the next step is \`dev-sesssion advance\`.`]
+				: [];
+		const kept = notes.slice(0, Math.max(0, room - head.length));
+		return [...head, ...kept.map((note) => `${NOTE_PREFIX} ${note}`)];
+	}
+	const layout: WorkLayout = {
+		pending,
+		shown: Math.max(1, Math.min(maxTasks, pending.length)),
+		notes,
+		more: true,
+		workflow: true,
+	};
+	const over = (): boolean => renderWork(context, layout).length > room;
+	while (over() && layout.shown > 1) layout.shown--;
+	while (over() && layout.notes.length > 0) layout.notes = layout.notes.slice(0, -1);
+	if (over()) layout.more = false;
+	if (over()) layout.workflow = false;
+	return renderWork(context, layout);
 }
 
 /**

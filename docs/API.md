@@ -78,6 +78,7 @@ interface BootstrapContext {
   projectName: string;
   resolvedLayers?: ResolvedFileLayer[];  // layered loading, when an ai-index exists
   maxPromptLines?: number;               // line cap; defaults to DEFAULT_MAX_PROMPT_LINES (20)
+  workflow?: string[];                   // the owner's per-task steps, from SESSION_STATE.md
 }
 ```
 
@@ -191,6 +192,8 @@ NextPromptWriter.write(sessionDir, content, state.max_prompt_lines);
 | `MIN_CONFIGURABLE_PROMPT_LINES` | `5` | Lower bound for `max_prompt_lines`. |
 | `MAX_CONFIGURABLE_PROMPT_LINES` | `50` | Upper bound for `max_prompt_lines`. |
 | `DEFAULT_MAX_PROMPT_LINES` | `20` | Fallback used by formatters when `ctx.maxPromptLines` is absent. |
+| `formatWorkLines` | `(context: BootstrapContext, linesUsed: number) => string[]` | The prompt's tail: `Next (task k of n):` and the pending tasks, `Each task:`, `Done when:` or `Chunk done:`, and notes. Fits what is left of the cap by dropping later tasks, then notes, before `trimToMaxLines` has to. |
+| `selectNotes` | `(notes: readonly string[], max: number) => string[]` | The notes a prompt shows: progress notes hidden, the owner's ahead of quoted and `[memory]` notes, newest first. |
 | `trimToMaxLines` | `(lines: readonly string[], maxLines: number) => readonly string[]` | Trims to the cap. Truncation is never silent: when lines are dropped the final slot carries `[N more lines trimmed — see .session/SESSION_STATE.md]`. |
 
 `max_prompt_lines` is an optional `SESSION_STATE.md` frontmatter field
