@@ -153,9 +153,12 @@ describe("the first prompt", () => {
 	});
 
 	it("is still written when the ai-index cannot be saved (REQ-RUN-11)", async () => {
+		// --strict refuses an index holding a secret. A doc comment's secret is
+		// now redacted at extraction (REQ-PROV-14), so the secret is in a file
+		// name, which the index keys on.
 		fs.writeFileSync(
-			path.join(tmpDir, "src", "upload.ts"),
-			"/**\n * Uses key AKIAIOSFODNN7EXAMPLE for the bucket.\n */\nexport function upload(): void {}\n",
+			path.join(tmpDir, "src", "AKIAIOSFODNN7EXAMPLE.ts"),
+			"export function upload(): void {}\n",
 		);
 
 		const r = await runCli(["init", "--yes", "--strict", "--cwd", tmpDir]);

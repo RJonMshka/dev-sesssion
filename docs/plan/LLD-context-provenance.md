@@ -170,6 +170,24 @@ form.
 break, then the quotation shall escape it, so that the quotation stays on one
 line and only the tool can close it.
 
+### Found by the adversarial corpus (2026-10-26)
+
+`pnpm eval`'s corpus (REQ-EVAL-6, `evals/adversarial.ts`) found two more
+paths, both present since 2.4.2. A pull request can commit `.session/` as
+easily as a source file.
+
+**REQ-PROV-13** — If a `FILE_INDEX.md` row names a path that is absolute, or
+whose normalized form starts with `..`, then the file index loader shall drop
+the row.
+
+**REQ-PROV-14** — When an extracted module summary, export summary or export
+signature contains text the secret scanner matches, the extractor shall
+replace each match with its redacted form.
+
+**REQ-PROV-15** — When `init`, `index` or `index --file` redacts a secret, the
+command shall warn, naming each project-relative file and the pattern, and
+not the value.
+
 ---
 
 ## Design
@@ -323,6 +341,34 @@ needs; no new error type.
 
 ---
 
+### Paths and secrets from the corpus (REQ-PROV-13..15)
+
+**Rows outside the root are dropped where they are parsed.** The plan's file
+matcher already rejects `..` and absolute paths (`file-refs.ts`); index rows
+were never checked, so `Load full: @../outside.txt` reached the prompt. The
+check is lexical, in `parseFileIndex`, so every reader — prompt, `status`,
+`health`, budget — sees the same rows. Dropping rather than throwing matches
+how rows under an unmappable heading are handled: a planted row must not make
+the session unloadable. A symlink inside the root that points out is not
+caught by a lexical check, and is out of scope here.
+
+**Secrets are redacted at extraction.** `AutoExtractor.extractFile` is the one
+place summaries and signatures enter the index: `init`, `index`, and
+`index --file` all read its output, and `ai-index.yaml`, `symbols` and the MCP
+tools read what they wrote. Redacting there covers every reader at once.
+`WriteGuard` stays as it is: it scans the serialized file and warns, but its
+warning was discarded by `AiIndexManager.save`, and blocking the whole index
+for one doc comment is the wrong default.
+
+- `SecretScanner.redact(text)` (security) returns the text with each match
+  replaced by the same mask `scan` reports (first four characters, then
+  asterisks), and the pattern names. The AWS secret-key pattern masks its
+  captured value only.
+- `ParsedFile.secrets` (optional, in-memory only) lists the patterns redacted.
+  `ai-index.yaml` does not change shape, so `PROTOCOL.md` does not change.
+- `AiIndexBuilder.fromDirectory` takes an optional `onSecret(relPath,
+  patterns)` callback, so `init` and `index` can warn without a second scan.
+
 ## Test plan
 
 | Requirement | Level | Test |
@@ -342,6 +388,12 @@ needs; no new error type.
 | REQ-PROV-10 | unit | `deserialize` drops a unit row whose id carries a space or newline |
 | REQ-PROV-11 | unit | `merge` replaces a section's old-form note, keeps a hand-written one |
 | REQ-PROV-12 | unit | A quote, backslash and newline in quoted text stay escaped on one line |
+| REQ-PROV-13 | unit | `FileIndexManager.load` drops `../x.ts`, `a/../../x.ts` and `/etc/hosts` rows; keeps `a/../b.ts`, which stays inside, as written, and every in-root row |
+| REQ-PROV-13 | eval | Corpus `file-index-row-outside-root`: no prompt reference leaves the root |
+| REQ-PROV-14 | unit | `SecretScanner.redact` masks every match on a line, keeps the rest; AWS secret key masks only the value |
+| REQ-PROV-14 | unit | `extractFile` on a file whose `@ai-summary`, module summary and signature hold a token yields none of it, and lists the pattern |
+| REQ-PROV-14 | eval | Corpus `token-in-ai-summary`: the token is in neither `ai-index.yaml` nor `symbols` output |
+| REQ-PROV-15 | e2e | `index` on such a file warns with the file and pattern; stdout and stderr hold no token |
 
 The adversarial inputs become permanent fixtures under
 `tests/fixtures/provenance/`. Per [METHOD.md](../METHOD.md), each test is named
@@ -459,3 +511,21 @@ severity. A prompt over both caps gets one issue for each.
 developer's own words, and REQ-PROV-5 stops an oversized one at the writer.
 `importFromClaude` was already longer than 30 lines before this change, and
 this change does not lengthen it.
+
+### REQ-PROV-13..15 (2026-10-26)
+
+Built on `feat/workflow-prompt`, from two breaks the adversarial corpus found.
+Every new test **failed first**: `redact` and `secrets` did not exist, the
+index loader kept all four planted rows, and `init` / `index` printed nothing.
+
+- **One existing test had relied on the bug.** REQ-RUN-11's e2e forced an
+  ai-index save failure with a secret in a doc comment under `--strict`. That
+  secret is now redacted, so the save succeeded. The trigger is now a
+  secret-shaped *file name*: paths key the index and are not redacted. This
+  is also the remaining laundering route — a file name — and `--strict` still
+  refuses it.
+- **`--strict` no longer blocks a doc-comment secret.** It masks it, as the
+  default does. What `--strict` protects — no secret written — still holds.
+- `pnpm eval --local`: the corpus went 6/8 → 8/8. The published 2.4.2 stays
+  6/8 until a release carries this.
+

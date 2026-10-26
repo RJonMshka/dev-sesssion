@@ -220,3 +220,33 @@ describe("SecretScanner", () => {
 		});
 	});
 });
+
+describe("SecretScanner.redact (REQ-PROV-14)", () => {
+	const token = `ghp_${"Ab3".repeat(12)}`;
+
+	it("masks every match on a line and keeps the rest (REQ-PROV-14)", () => {
+		const out = SecretScanner.redact(`use ${token} then ${token} to deploy`);
+		expect(out.text).not.toContain(token);
+		expect(out.text).toMatch(/^use ghp_\*+ then ghp_\*+ to deploy$/);
+		expect(out.patterns).toEqual(["GitHub PAT (classic)"]);
+	});
+
+	it("masks the same way scan reports (REQ-PROV-14)", () => {
+		const scanned = SecretScanner.scan(token)[0]?.redacted;
+		expect(SecretScanner.redact(token).text).toBe(scanned);
+	});
+
+	it("masks only the captured value of an AWS secret key (REQ-PROV-14)", () => {
+		const value = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY";
+		const out = SecretScanner.redact(`aws_secret_access_key = ${value}`);
+		expect(out.text).toMatch(/^aws_secret_access_key = wJal\*+$/);
+		expect(out.patterns).toEqual(["AWS Secret Key"]);
+	});
+
+	it("returns clean text unchanged with no patterns (REQ-PROV-14)", () => {
+		expect(SecretScanner.redact("Parses a JSON body.")).toEqual({
+			text: "Parses a JSON body.",
+			patterns: [],
+		});
+	});
+});

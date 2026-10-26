@@ -16,7 +16,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { ValidatedPath } from "@dev-session/security";
-import { ParseError } from "@dev-session/security";
+import { ParseError, SecretScanner } from "@dev-session/security";
 import type { TSESTree } from "@typescript-eslint/typescript-estree";
 import { parse } from "@typescript-eslint/typescript-estree";
 import { TokenCounter } from "../counters/token-counter.js";
@@ -106,7 +106,7 @@ export class AutoExtractor {
 				errorOnUnknownASTType: false,
 			});
 
-			return {
+			return redactSecrets({
 				path: filePath,
 				moduleSummary: extractModuleSummary(ast),
 				exports: extractExports(ast, source),
@@ -114,7 +114,7 @@ export class AutoExtractor {
 				tokenCostAccurate: false,
 				...unitsWithUsage(ast, source, filePath),
 				hash: contentHash(source),
-			};
+			});
 		} catch {
 			// Parse error (e.g., syntax error in the file) — emit warning and continue
 			console.warn(`[AutoExtractor] Parse error in ${path.basename(filePath)}, skipping`);
@@ -456,6 +456,36 @@ function makeSymbol(
 		line,
 		tags: overrides.tags,
 	};
+}
+
+/**
+ * Masks secrets in the text extraction lifts from the file (REQ-PROV-14).
+ *
+ * Summaries and signatures are the only free text in a {@link ParsedFile};
+ * unit ids are name-shaped by construction (REQ-PROV-9). Everything that reads
+ * the index — `ai-index.yaml`, `symbols`, the MCP tools — reads this output, so
+ * masking here covers them all.
+ *
+ * @param file - A freshly extracted file.
+ * @returns The file with each secret masked, and `secrets` set when any was.
+ */
+function redactSecrets(file: ParsedFile): ParsedFile {
+	const found = new Set<string>();
+	const clean = (text: string): string => {
+		const out = SecretScanner.redact(text);
+		for (const p of out.patterns) found.add(p);
+		return out.text;
+	};
+	const redacted: ParsedFile = {
+		...file,
+		moduleSummary: clean(file.moduleSummary),
+		exports: file.exports.map((sym) => ({
+			...sym,
+			summary: clean(sym.summary),
+			signature: clean(sym.signature),
+		})),
+	};
+	return found.size === 0 ? file : { ...redacted, secrets: [...found] };
 }
 
 /**

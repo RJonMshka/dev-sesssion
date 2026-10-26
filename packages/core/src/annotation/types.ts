@@ -107,6 +107,11 @@ export interface ParsedFile {
 	readonly imports: readonly ParsedImport[];
 	/** `local.prop` accesses through imported bindings, sorted and unique. */
 	readonly memberRefs: readonly string[];
+	/**
+	 * Secret patterns redacted from the summaries and signatures above
+	 * (REQ-PROV-14). In memory only; absent when nothing was redacted.
+	 */
+	readonly secrets?: readonly string[];
 }
 
 // ---------------------------------------------------------------------------

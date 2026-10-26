@@ -40,6 +40,7 @@ import { type DetectionResult, describePlanFile, runDetection } from "./detect.j
 import { runFinalWrites } from "./final-writes.js";
 import { generateIndex } from "./generate-index.js";
 import { scaffoldPlan } from "./scaffold-plan.js";
+import { secretWarnings } from "./secret-warning.js";
 import { splitPlan } from "./split-plan.js";
 
 /** Options passed from commander to the init action. */
@@ -250,10 +251,11 @@ async function buildInitIndex(
 	s.start("Building ai-index...");
 	try {
 		const root = PathValidator.safeResolvePath(".", options.cwd);
-		const index = await AiIndexBuilder.fromDirectory(
-			root,
-			options.maxFiles !== undefined ? { maxFiles: options.maxFiles } : undefined,
-		);
+		const secrets = secretWarnings();
+		const index = await AiIndexBuilder.fromDirectory(root, {
+			...(options.maxFiles !== undefined ? { maxFiles: options.maxFiles } : {}),
+			onSecret: secrets.onSecret,
+		});
 		const { fileCount } = AiIndexManager.stats(index);
 		if (options.dryRun) {
 			s.stop(`[dry-run] Would write ai-index.yaml: ${String(fileCount)} files.`);
@@ -261,6 +263,7 @@ async function buildInitIndex(
 			AiIndexManager.save(sessionDir, index, options.strict);
 			s.stop(`Built ai-index: ${String(fileCount)} file${fileCount === 1 ? "" : "s"}.`);
 		}
+		secrets.report();
 		return index;
 	} catch (cause: unknown) {
 		s.stop("ai-index not written.");

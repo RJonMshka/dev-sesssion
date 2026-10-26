@@ -35,6 +35,7 @@ import { CliError, PathValidator, type ValidatedPath } from "@dev-session/securi
 import type { Command } from "commander";
 import { handleError } from "../utils/error-handler.js";
 import { refreshExistingPrompt } from "./regenerate-prompt.js";
+import { secretWarnings, warnSecret } from "./secret-warning.js";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -126,9 +127,12 @@ export async function runIndex(options: IndexRegenOptions): Promise<void> {
 	s.start("Scanning TypeScript/JS files…");
 
 	let scanned: AiIndex;
+	const secrets = secretWarnings();
 	try {
 		// Same builder as init, so the two cannot drift (REQ-RUN-10).
-		scanned = await AiIndexBuilder.fromDirectory(PathValidator.safeResolvePath(".", options.cwd));
+		scanned = await AiIndexBuilder.fromDirectory(PathValidator.safeResolvePath(".", options.cwd), {
+			onSecret: secrets.onSecret,
+		});
 	} catch (cause: unknown) {
 		s.stop("Scan failed.");
 		throw new CliError({
@@ -138,6 +142,7 @@ export async function runIndex(options: IndexRegenOptions): Promise<void> {
 	}
 
 	s.stop(`Scanned ${String(Object.keys(scanned.files).length)} files.`);
+	secrets.report();
 
 	const existingIndex = AiIndexManager.load(sessionDir);
 	const builtIndex =
@@ -226,6 +231,7 @@ async function runIndexFile(
 		);
 	}
 	log.message(`  Token cost: ~${String(parsed.tokenCost)} tokens`);
+	if (parsed.secrets !== undefined) warnSecret(path.relative(cwd, absPath), parsed.secrets);
 
 	// Also save to existing index if it exists
 	const existingIndex = AiIndexManager.load(sessionDir);
