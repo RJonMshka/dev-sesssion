@@ -167,6 +167,8 @@ describe("TouchDetector.detect — what touched means", () => {
 		try {
 			git(["clone", "-q", cwd, other.path]);
 			git(["config", "user.email", "teammate@example.com"], other.path);
+			// A clone has no user.name; CI runners have no account name to fall back on.
+			git(["config", "user.name", "Teammate"], other.path);
 			git(["config", "commit.gpgsign", "false"], other.path);
 			const o = await observe(() => {
 				write("src/team.ts", "export const t = 1;\n", other.path);
