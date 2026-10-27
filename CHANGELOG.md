@@ -1,3 +1,52 @@
+## [3.0.0](https://github.com/RJonMshka/dev-sesssion/compare/v2.4.2...v3.0.0) (2026-10-27)
+
+### ⚠ BREAKING CHANGES
+
+* the `compact` command is removed. Ask the agent in your
+harness to shorten the file, then run `dev-sesssion update`.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+
+### Features
+
+* **advance:** --json output, and refuse to prompt without a TTY ([c96308d](https://github.com/RJonMshka/dev-sesssion/commit/c96308d4e624ce5adcb351db4d2502d941db1b94))
+* **index:** index the script blocks of .vue and .svelte components ([84e646a](https://github.com/RJonMshka/dev-sesssion/commit/84e646a9d7cb7925fd7adbf7f93db61485c2cd7c))
+* **init:** --plan <file> reads a named plan instead of PLAN.md ([133b653](https://github.com/RJonMshka/dev-sesssion/commit/133b6539b044799281c3422430cf367aaeebefa7))
+* **init:** say what to do when there is no plan ([a7d9903](https://github.com/RJonMshka/dev-sesssion/commit/a7d9903088615cc924eb83daa9e26af63aca3d2e))
+* **init:** start a session mid-plan with --chunk ([b74010f](https://github.com/RJonMshka/dev-sesssion/commit/b74010f2f27ad345d668c8f2e562b537ff7cfbd8))
+* **init:** tag from the plan with or without --yes, and ask nothing ([4c756d6](https://github.com/RJonMshka/dev-sesssion/commit/4c756d6f1b5e5ccce18548b5641d45b052fe20a5))
+* **init:** tag the files a plan names outside its tasks ([a630e4a](https://github.com/RJonMshka/dev-sesssion/commit/a630e4a6475a37e90e8a40c8a2afb8e5108b7849))
+* **init:** write the plan skill for Claude Code, and refresh it on update ([cb00e10](https://github.com/RJonMshka/dev-sesssion/commit/cb00e10de26912077e93b6be44feaed69ce10e82))
+* **mcp:** check_plan, a read-only tool that checks a plan file ([954ee32](https://github.com/RJonMshka/dev-sesssion/commit/954ee329765e3a726bbe10c7ecd49e95edf3dd98))
+* **notes:** show the newest owner notes, and archive them at advance ([8b6e0a3](https://github.com/RJonMshka/dev-sesssion/commit/8b6e0a3080b7c28fac3de58bc1a973d4f95d53c4))
+* **plan:** plan check reports whether a plan will parse ([189f72e](https://github.com/RJonMshka/dev-sesssion/commit/189f72eb9786d543187c9f99eb99ea1a227f0c16))
+* **prompt:** files a chunk will create ([df29c01](https://github.com/RJonMshka/dev-sesssion/commit/df29c01eaa6efd0843d4f03c2d70c9402a329134))
+* **prompt:** give the agent the chunk's goal and steps, and every file ([4908221](https://github.com/RJonMshka/dev-sesssion/commit/490822152c27161b53780eb60c19ba06f1059134))
+* **prompt:** say which task is current and when the chunk is done ([709df0e](https://github.com/RJonMshka/dev-sesssion/commit/709df0e13d878bc749522bb9b416334340011fc9))
+* remove compact; dev-sesssion calls no model and needs no API key ([8ba5142](https://github.com/RJonMshka/dev-sesssion/commit/8ba5142026cb329238526a5ab1a622481f3406ac))
+* **skill:** the plan skill's text, and ownership-aware sync ([248e9d8](https://github.com/RJonMshka/dev-sesssion/commit/248e9d84da87c482d36df29b073cc25f33e7f1ee))
+* **symbols:** show what the ai-index holds for a file or a name ([f2f60c7](https://github.com/RJonMshka/dev-sesssion/commit/f2f60c7357d379386293dc674cfaded2842f04e0))
+* **update:** tag the files a session changed to the active chunk ([602bc3f](https://github.com/RJonMshka/dev-sesssion/commit/602bc3f3bdd1304bccfc65d114a5520a33c544d0))
+
+### Bug Fixes
+
+* **advance:** advance in plan order, across fractional ids and gaps ([1901b2a](https://github.com/RJonMshka/dev-sesssion/commit/1901b2a310bd58111be0c311158f0cb57e576fa2))
+* **budget:** judge the chunk, not the files every chunk loads ([d91ac90](https://github.com/RJonMshka/dev-sesssion/commit/d91ac902390f09c16a5340f061adab4f4ee56692))
+* **budget:** report one measured budget from every command ([48e4722](https://github.com/RJonMshka/dev-sesssion/commit/48e47224897212c7426c6dacb3ff52ab49b58408))
+* **health:** judge the budget the prompt is charged ([3e2595f](https://github.com/RJonMshka/dev-sesssion/commit/3e2595f1eebc019287612d007182b720d53e6946))
+* **import:** quote prose from CLAUDE.md, not tables and code blocks ([1c73bec](https://github.com/RJonMshka/dev-sesssion/commit/1c73bec84fc70ee60b67d2c9aac72cc8acd38bb9))
+* **index:** drop FILE_INDEX rows that point outside the project ([e9b81fc](https://github.com/RJonMshka/dev-sesssion/commit/e9b81fc455e9cd5cfa0d82afbf2f2bb0dbdada84))
+* **index:** quote doc-comment summaries in index --show and --file ([2e0a595](https://github.com/RJonMshka/dev-sesssion/commit/2e0a595ba0c201ff9c79744a065069f4f22d3c51))
+* **index:** redact secrets in doc comments, and say so ([aab9022](https://github.com/RJonMshka/dev-sesssion/commit/aab9022fd48a977de6479a68d10497061f5a41d5))
+* **session:** marking a task done reaches the prompt and status ([c57608f](https://github.com/RJonMshka/dev-sesssion/commit/c57608fd6f4a846cd92784bd742e6ae56cc04ea7))
+
+### Documentation
+
+* describe plan-named files, briefs, --chunk and one budget ([7f95cc6](https://github.com/RJonMshka/dev-sesssion/commit/7f95cc620d97bf57eebdfd7a21a873b31e084e18))
+* **plan:** LLD for plan authoring and harness orchestration ([ef40841](https://github.com/RJonMshka/dev-sesssion/commit/ef40841b6d2a88c6d46325d0aaf68ced3f8ddec7))
+* **plan:** LLDs for every open item, and a build order ([7a5d6d4](https://github.com/RJonMshka/dev-sesssion/commit/7a5d6d4bb951ab981e3f64f4cc140bf3535ce319))
+* **plan:** mark build-order steps 1–3 done ([71cbd23](https://github.com/RJonMshka/dev-sesssion/commit/71cbd23b1e2382ed09442393ed37c0cd28e98e69))
+
 ## [2.4.2](https://github.com/RJonMshka/dev-sesssion/compare/v2.4.1...v2.4.2) (2026-10-20)
 
 ### Bug Fixes
