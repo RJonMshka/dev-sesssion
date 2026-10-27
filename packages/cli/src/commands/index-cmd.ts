@@ -27,6 +27,7 @@ import {
 	AutoExtractor,
 	type FileIndexEntry,
 	FileIndexManager,
+	formatQuotedSummary,
 	PlanChunkManager,
 	SessionStateManager,
 } from "@dev-session/core";
@@ -34,6 +35,7 @@ import { CliError, PathValidator, type ValidatedPath } from "@dev-session/securi
 import type { Command } from "commander";
 import { handleError } from "../utils/error-handler.js";
 import { refreshExistingPrompt } from "./regenerate-prompt.js";
+import { secretWarnings, warnSecret } from "./secret-warning.js";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -125,9 +127,12 @@ export async function runIndex(options: IndexRegenOptions): Promise<void> {
 	s.start("Scanning TypeScript/JS files…");
 
 	let scanned: AiIndex;
+	const secrets = secretWarnings();
 	try {
 		// Same builder as init, so the two cannot drift (REQ-RUN-10).
-		scanned = await AiIndexBuilder.fromDirectory(PathValidator.safeResolvePath(".", options.cwd));
+		scanned = await AiIndexBuilder.fromDirectory(PathValidator.safeResolvePath(".", options.cwd), {
+			onSecret: secrets.onSecret,
+		});
 	} catch (cause: unknown) {
 		s.stop("Scan failed.");
 		throw new CliError({
@@ -137,6 +142,7 @@ export async function runIndex(options: IndexRegenOptions): Promise<void> {
 	}
 
 	s.stop(`Scanned ${String(Object.keys(scanned.files).length)} files.`);
+	secrets.report();
 
 	const existingIndex = AiIndexManager.load(sessionDir);
 	const builtIndex =
@@ -216,12 +222,16 @@ async function runIndexFile(
 	const parsed = extractor.extractFile(validatedPath);
 
 	log.info(`File: ${path.relative(cwd, absPath)}`);
-	log.message(`  Module summary: ${parsed.moduleSummary || "(none)"}`);
+	// Doc-comment text is repository text: quoted, never tool speech (REQ-SYM-9).
+	log.message(`  Module summary: ${quotedOrNone(parsed.moduleSummary, "(none)")}`);
 	log.message(`  Exports: ${String(parsed.exports.length)}`);
 	for (const sym of parsed.exports) {
-		log.message(`    ${sym.name} (line ${String(sym.line)}): ${sym.summary || "(no summary)"}`);
+		log.message(
+			`    ${sym.name} (line ${String(sym.line)}): ${quotedOrNone(sym.summary, "(no summary)")}`,
+		);
 	}
 	log.message(`  Token cost: ~${String(parsed.tokenCost)} tokens`);
+	if (parsed.secrets !== undefined) warnSecret(path.relative(cwd, absPath), parsed.secrets);
 
 	// Also save to existing index if it exists
 	const existingIndex = AiIndexManager.load(sessionDir);
@@ -230,6 +240,17 @@ async function runIndexFile(
 		const relPath = path.relative(projectRoot, absPath).replace(/\\/g, "/");
 		log.info(`Would update index entry: ${relPath}`);
 	}
+}
+
+/**
+ * A doc-comment summary as a quotation (REQ-SYM-9), or the placeholder when empty.
+ *
+ * @param summary - The summary, possibly empty.
+ * @param none - What to print when there is none.
+ * @returns The quoted summary or `none`.
+ */
+function quotedOrNone(summary: string | undefined, none: string): string {
+	return summary ? formatQuotedSummary(summary) : none;
 }
 
 /**
@@ -255,14 +276,16 @@ function runIndexShow(filePath: string, sessionDir: ValidatedPath): void {
 	}
 
 	log.info(`Index entry: ${filePath}`);
-	log.message(`  Module summary: ${entry.module_summary || "(none)"}`);
+	log.message(`  Module summary: ${quotedOrNone(entry.module_summary, "(none)")}`);
 	log.message(`  Layer default: ${String(entry.layer_default)}`);
 	log.message(
 		`  Token cost: ${String(entry.token_cost)} (${entry.token_cost_accurate ? "accurate" : "heuristic"})`,
 	);
 	log.message(`  Public symbols: ${String(Object.keys(entry.exports).length)}`);
 	for (const [name, sym] of Object.entries(entry.exports)) {
-		log.message(`    ${name} (line ${String(sym.line)}): ${sym.summary || "(no summary)"}`);
+		log.message(
+			`    ${name} (line ${String(sym.line)}): ${quotedOrNone(sym.summary, "(no summary)")}`,
+		);
 	}
 }
 

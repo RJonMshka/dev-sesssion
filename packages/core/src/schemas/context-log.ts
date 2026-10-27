@@ -23,8 +23,8 @@ export const ContextLogEntrySchema = z.object({
 	session_id: z.string().min(1),
 	/** ISO 8601 datetime when this entry was recorded. */
 	timestamp: z.string().min(1),
-	/** The active chunk ID at the time of the entry. */
-	active_chunk: z.number().int().nonnegative(),
+	/** The active chunk ID at the time of the entry; fractional like `SessionState.active_chunk`. */
+	active_chunk: z.number().nonnegative(),
 	/** Relative paths of files loaded into context for this session. */
 	files_loaded: z.array(z.string()),
 	/** Approximate total token cost of the context at the time of logging. */

@@ -1,3 +1,4 @@
+import { MAX_REF_LINE_CHARS } from "@dev-session/core";
 import { describe, expect, it } from "vitest";
 import { OpencodeBootstrapFormatter } from "../opencode-bootstrap-formatter.js";
 import { makeBudget, makeChunk, makeContext, makeFiles, makeState } from "./test-helpers.js";
@@ -26,10 +27,15 @@ describe("OpencodeBootstrapFormatter", () => {
 			expect(result).not.toContain("@");
 		});
 
-		it("truncates long file lists with count", () => {
-			const files = makeFiles(10);
-			const result = OpencodeBootstrapFormatter.formatFilesToLoad(files);
-			expect(result).toContain("+4 more");
+		it("names every file that fits on the line (REQ-PCX-7)", () => {
+			const result = OpencodeBootstrapFormatter.formatFilesToLoad(makeFiles(10));
+			expect(result).not.toContain("more");
+		});
+
+		it("counts the files a too-long line leaves out (REQ-PCX-7)", () => {
+			const result = OpencodeBootstrapFormatter.formatFilesToLoad(makeFiles(200));
+			expect(result.length).toBeLessThanOrEqual(MAX_REF_LINE_CHARS);
+			expect(result).toMatch(/, \+\d+ more$/);
 		});
 	});
 

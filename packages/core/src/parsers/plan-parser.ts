@@ -184,6 +184,19 @@ export const PlanParser = {
 		if (chunk.est_sessions !== undefined) {
 			lines.push(`est_sessions: ${chunk.est_sessions}`);
 		}
+		// REQ-IDX-16 — only when the plan named files, so older readers of a
+		// plan without them see an unchanged file.
+		if (chunk.files !== undefined && chunk.files.length > 0) {
+			lines.push("files:");
+			for (const file of chunk.files) lines.push(`  - ${JSON.stringify(file)}`);
+		}
+		// REQ-PCX-4 — a literal block, readable as the markdown it is. The `2`
+		// fixes the indentation so a first line starting with spaces still
+		// parses; `-` strips the trailing newline.
+		if (chunk.brief !== undefined && chunk.brief.length > 0) {
+			lines.push("brief: |2-");
+			for (const line of chunk.brief.split("\n")) lines.push(line === "" ? "" : `  ${line}`);
+		}
 		if (chunk.tasks.length > 0) {
 			lines.push("tasks:");
 			for (const task of chunk.tasks) {
@@ -223,6 +236,13 @@ export const PlanParser = {
 			for (const task of chunk.tasks) {
 				lines.push(formatTask(task));
 			}
+			lines.push("");
+		}
+
+		if (chunk.files !== undefined && chunk.files.length > 0) {
+			lines.push("### Files");
+			lines.push("");
+			for (const file of chunk.files) lines.push(`- \`${file}\``);
 			lines.push("");
 		}
 

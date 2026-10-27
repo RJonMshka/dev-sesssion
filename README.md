@@ -190,7 +190,7 @@ Detects pnpm, npm, Yarn, Nx, and Turborepo workspaces.
 - **Atomic writes** — all writes go `.tmp` → `rename()`. No partial files ever reach disk.
 - **Path validation** — every external file path goes through `PathValidator.safeResolvePath()`. Path traversal attacks are rejected at the boundary.
 - **Safe YAML** — uses `@11ty/gray-matter` with the JS engine disabled. No `eval()` RCE possible.
-- **Egress scanning** — `compact` is the only command that sends data over the network, and it scans the file for secrets *before* the API call. It refuses to send on a match, printing only redacted values.
+- **No network** — dev-sesssion calls no model and sends nothing over the network. It needs no API key: the agent in your harness does the AI work, on the subscription you already have.
 
 ---
 

@@ -24,16 +24,23 @@ import {
 	spinner,
 } from "@clack/prompts";
 import type { AiIndex, PlanChunk } from "@dev-session/core";
-import { AiIndexBuilder, AiIndexManager, ProjectDetector } from "@dev-session/core";
+import {
+	AiIndexBuilder,
+	AiIndexManager,
+	noPlanDirection,
+	PlanChunkManager,
+	ProjectDetector,
+} from "@dev-session/core";
 import type { ValidatedPath } from "@dev-session/security";
 import { CliError, ParseError, PathValidator, SecurityError } from "@dev-session/security";
 import type { Command } from "commander";
 import { dryRunMkdir } from "../utils/dry-run.js";
 import { handleError } from "../utils/error-handler.js";
-import { runDetection } from "./detect.js";
+import { type DetectionResult, describePlanFile, runDetection } from "./detect.js";
 import { runFinalWrites } from "./final-writes.js";
 import { generateIndex } from "./generate-index.js";
 import { scaffoldPlan } from "./scaffold-plan.js";
+import { secretWarnings } from "./secret-warning.js";
 import { splitPlan } from "./split-plan.js";
 
 /** Options passed from commander to the init action. */
@@ -60,6 +67,10 @@ export interface InitOptions {
 	 * When undefined, all discovered files are indexed.
 	 */
 	readonly maxFiles?: number;
+	/** The chunk to start at (`--chunk`); asked for interactively when absent (REQ-RUN-27, -31). */
+	readonly chunk?: number;
+	/** The plan file to ingest (`--plan`), relative to `cwd`; replaces the PLAN.md search (REQ-PLA-7). */
+	readonly plan?: string;
 }
 
 /**
@@ -81,7 +92,8 @@ export async function runInit(options: InitOptions): Promise<void> {
 	const projectInfo = ProjectDetector.detect(options.cwd);
 	s.stop("Project detected.");
 
-	const detection = runDetection(options.cwd, projectInfo);
+	// Validated before anything is written, so a bad --plan leaves no .session/.
+	const detection = withPlanOption(runDetection(options.cwd, projectInfo), options);
 
 	if (options.verbose) {
 		log.info(`Project root: ${options.cwd}`);
@@ -159,7 +171,9 @@ export async function runInit(options: InitOptions): Promise<void> {
 		}
 	} else {
 		// Migration path B: interactive scaffolding
-		log.info("No PLAN.md found. Starting interactive setup.");
+		// Say what was looked for and what to do next; under --yes, also that the
+		// placeholder chunk below is not real work (REQ-ORC-3).
+		log.warn(noPlanDirection({ placeholder: options.yes }));
 		const scaffoldResult = await scaffoldPlan(sessionDir, options, projectName);
 		chunks = scaffoldResult.chunks;
 		projectName = scaffoldResult.projectName;
@@ -172,15 +186,21 @@ export async function runInit(options: InitOptions): Promise<void> {
 		});
 	}
 
+	// Phase 3b: where the session starts. Checked before anything else is
+	// written, so a bad --chunk leaves no SESSION_STATE.md (REQ-RUN-30).
+	const startChunk = options.chunk ?? (await askStartChunk(chunks, options.yes));
+	const { completedIds } = PlanChunkManager.startAt(chunks, startChunk);
+	// Chunks behind the user tag nothing (REQ-RUN-29).
+	const openChunks = chunks.filter((c) => !completedIds.includes(c.chunk_id));
+
 	// Phase 4: FILE_INDEX generation (migration path C)
 	const generateOpts: Parameters<typeof generateIndex>[2] = {
-		yes: options.yes,
 		dryRun: options.dryRun,
 		verbose: options.verbose,
 		cwd: options.cwd,
 		...(options.maxFiles !== undefined ? { maxFiles: options.maxFiles } : {}),
 	};
-	const indexResult = await generateIndex(sessionDir, chunks, generateOpts);
+	const indexResult = await generateIndex(sessionDir, openChunks, generateOpts);
 
 	// Phase 4b: ai-index, so the first prompt can focus units (REQ-RUN-10)
 	const aiIndex = await buildInitIndex(sessionDir, options);
@@ -190,6 +210,7 @@ export async function runInit(options: InitOptions): Promise<void> {
 		...options,
 		teamMode,
 		index: aiIndex,
+		...(startChunk !== undefined ? { startChunk } : {}),
 	});
 
 	// Summary
@@ -230,10 +251,11 @@ async function buildInitIndex(
 	s.start("Building ai-index...");
 	try {
 		const root = PathValidator.safeResolvePath(".", options.cwd);
-		const index = await AiIndexBuilder.fromDirectory(
-			root,
-			options.maxFiles !== undefined ? { maxFiles: options.maxFiles } : undefined,
-		);
+		const secrets = secretWarnings();
+		const index = await AiIndexBuilder.fromDirectory(root, {
+			...(options.maxFiles !== undefined ? { maxFiles: options.maxFiles } : {}),
+			onSecret: secrets.onSecret,
+		});
 		const { fileCount } = AiIndexManager.stats(index);
 		if (options.dryRun) {
 			s.stop(`[dry-run] Would write ai-index.yaml: ${String(fileCount)} files.`);
@@ -241,6 +263,7 @@ async function buildInitIndex(
 			AiIndexManager.save(sessionDir, index, options.strict);
 			s.stop(`Built ai-index: ${String(fileCount)} file${fileCount === 1 ? "" : "s"}.`);
 		}
+		secrets.report();
 		return index;
 	} catch (cause: unknown) {
 		s.stop("ai-index not written.");
@@ -263,6 +286,29 @@ function safeReason(cause: unknown): string {
 	const ours =
 		cause instanceof SecurityError || cause instanceof ParseError || cause instanceof CliError;
 	return ours ? cause.message : "extraction failed";
+}
+
+/**
+ * Applies `--plan`: the named file replaces whatever the PLAN.md search found.
+ * The detector itself is unchanged (REQ-PLA-7).
+ *
+ * @param detection - What the default search found.
+ * @param options - Init options; `plan` is the user's path, relative to `cwd`.
+ * @returns The detection, with `plan` describing the named file when given.
+ * @throws {SecurityError} If the path escapes the project root (REQ-PLA-8).
+ * @throws {CliError} If the file cannot be read.
+ */
+function withPlanOption(detection: DetectionResult, options: InitOptions): DetectionResult {
+	if (options.plan === undefined) return detection;
+	const resolved = PathValidator.safeResolvePath(options.plan, options.cwd);
+	const plan = describePlanFile(options.cwd, path.relative(path.resolve(options.cwd), resolved));
+	if (plan === undefined) {
+		throw new CliError({
+			message: `Cannot read plan file: ${options.plan}`,
+			suggestion: "Pass --plan a file path relative to the project root.",
+		});
+	}
+	return { ...detection, plan };
 }
 
 /**
@@ -328,6 +374,35 @@ function ensureSessionDir(options: InitOptions): ValidatedPath {
 }
 
 /**
+ * Asks which chunk to start at, when there is a choice to make (REQ-RUN-31).
+ *
+ * @param chunks - The plan's chunks.
+ * @param yes - Whether prompts are skipped.
+ * @returns The chosen id, or `undefined` for the default (lowest-numbered).
+ * @throws {CliError} If the user cancels.
+ */
+async function askStartChunk(
+	chunks: readonly PlanChunk[],
+	yes: boolean,
+): Promise<number | undefined> {
+	if (yes || chunks.length < 2) return undefined;
+	const ordered = [...chunks].sort((a, b) => a.chunk_id - b.chunk_id);
+	const choice = await select({
+		message: "Which chunk are you starting at? Earlier chunks are recorded as completed.",
+		options: ordered.map((c) => ({
+			value: c.chunk_id,
+			label: `${String(c.chunk_id)}. ${c.title}`,
+		})),
+		initialValue: ordered[0]?.chunk_id,
+	});
+	if (isCancel(choice)) {
+		cancel("Init cancelled.");
+		throw new CliError({ message: "Init cancelled." });
+	}
+	return choice;
+}
+
+/**
  * Register the `init` command on a Commander program.
  *
  * @param program - The root Commander program
@@ -341,7 +416,9 @@ export function registerInitCommand(program: Command): void {
 			"--max-files <n>",
 			"Cap the number of files indexed (useful for large repos)",
 			undefined,
-		);
+		)
+		.option("--chunk <id>", "Start at this chunk; lower-numbered chunks are recorded as completed")
+		.option("--plan <file>", "Read this plan file instead of looking for PLAN.md or docs/PLAN.md");
 
 	cmd.action(async () => {
 		const globalOpts = program.opts<{
@@ -353,7 +430,19 @@ export function registerInitCommand(program: Command): void {
 			adapter?: string;
 		}>();
 
-		const cmdOpts = cmd.opts<{ team: boolean; maxFiles?: string }>();
+		const cmdOpts = cmd.opts<{
+			team: boolean;
+			maxFiles?: string;
+			chunk?: string;
+			plan?: string;
+		}>();
+		const chunk = cmdOpts.chunk !== undefined ? Number.parseFloat(cmdOpts.chunk) : undefined;
+		if (chunk !== undefined && Number.isNaN(chunk)) {
+			handleError(
+				new CliError({ message: `--chunk expects a chunk id, got "${cmdOpts.chunk ?? ""}"` }),
+			);
+			return;
+		}
 		const maxFiles =
 			cmdOpts.maxFiles !== undefined ? Number.parseInt(cmdOpts.maxFiles, 10) : undefined;
 
@@ -366,6 +455,8 @@ export function registerInitCommand(program: Command): void {
 			...(globalOpts.adapter !== undefined ? { adapter: globalOpts.adapter } : {}),
 			teamMode: cmdOpts.team,
 			...(maxFiles !== undefined && !Number.isNaN(maxFiles) ? { maxFiles } : {}),
+			...(chunk !== undefined ? { chunk } : {}),
+			...(cmdOpts.plan !== undefined ? { plan: cmdOpts.plan } : {}),
 		};
 
 		try {

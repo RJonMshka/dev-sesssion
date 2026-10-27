@@ -23,6 +23,17 @@ export const PlanChunkSchema = z
 		est_sessions: z.number().int().min(1).optional(),
 		/** The list of tasks within this chunk. */
 		tasks: z.array(TaskSchema).default([]),
+		/**
+		 * Repository paths the chunk's plan section names outside its tasks, such
+		 * as a "Key Files" block (LLD-file-index.md, REQ-IDX-12). Optional:
+		 * absent means the plan named none, and older files stay valid.
+		 */
+		files: z.array(z.string().min(1)).optional(),
+		/**
+		 * The chunk's plan section without its task lines — goal, steps, file
+		 * list — as the plan wrote it (LLD-prompt-context.md, REQ-PCX-1).
+		 */
+		brief: z.string().min(1).optional(),
 	})
 	.strict();
 

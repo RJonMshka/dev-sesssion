@@ -23,6 +23,7 @@ import {
 	ContextManifest,
 	type FileIndexEntry,
 	FileIndexManager,
+	NewFiles,
 	NextPromptWriter,
 	type PlanChunk,
 	PlanChunkManager,
@@ -130,12 +131,23 @@ export function loadAssembleInput(sessionDir: ValidatedPath, options: LoadOption
 		readFile: createAdapterReadFile(options.cwd),
 	};
 
+	const chunk = options.chunk ?? PlanChunkManager.loadActive(sessionDir, state);
+	// FILE_INDEX.md stores no costs, and init's own always-include entries
+	// have none either; measure every entry so all commands charge the same
+	// real sizes (REQ-BUD-4). Entries that already carry a cost keep it.
+	const entries = FileIndexManager.withMeasuredCosts(
+		options.entries ?? FileIndexManager.load(sessionDir),
+		options.cwd,
+	);
+	const index = options.index !== undefined ? options.index : AiIndexManager.load(sessionDir);
 	return {
 		state,
-		chunk: options.chunk ?? PlanChunkManager.loadActive(sessionDir, state),
+		chunk,
+		// Plan-named paths not on disk yet (LLD-new-files.md, REQ-NEW-1).
+		absent: NewFiles.absent(chunk, options.cwd, entries, index),
 		allChunks: options.allChunks ?? PlanChunkManager.loadAll(sessionDir),
-		entries: options.entries ?? FileIndexManager.load(sessionDir),
-		index: options.index !== undefined ? options.index : AiIndexManager.load(sessionDir),
+		entries,
+		index,
 		formatter: adapter.formatter,
 		// The name typed at init, when it differed from the detected one (REQ-RUN-21).
 		projectName: state.project_name ?? detectProjectName(options.cwd),

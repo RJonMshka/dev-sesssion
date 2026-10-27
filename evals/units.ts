@@ -140,15 +140,16 @@ const TARGETS: readonly UnitTarget[] = [
 			},
 			{
 				id: "proven-duplicates",
-				// Private constants in two files, each read in its own file.
-				tasks: ["Raise MAX_FILES_TO_SHOW to 8"],
+				// Private constants in two files, each read in its own file. Was
+				// MAX_FILES_TO_SHOW until LLD-prompt-context.md removed those copies.
+				tasks: ["Change BYTES_PER_TOKEN to 3.5"],
 				expect: [
-					"src/formatters/plain-text-formatter.ts#MAX_FILES_TO_SHOW",
-					"src/managers/next-prompt-writer.ts#MAX_FILES_TO_SHOW",
+					"src/calculators/context-budget-calculator.ts#BYTES_PER_TOKEN",
+					"src/counters/token-counter.ts#BYTES_PER_TOKEN",
 				],
 				contested: [
-					"src/formatters/plain-text-formatter.ts#MAX_FILES_TO_SHOW",
-					"src/managers/next-prompt-writer.ts#MAX_FILES_TO_SHOW",
+					"src/calculators/context-budget-calculator.ts#BYTES_PER_TOKEN",
+					"src/counters/token-counter.ts#BYTES_PER_TOKEN",
 				],
 			},
 			{

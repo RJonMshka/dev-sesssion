@@ -111,15 +111,26 @@ export const AiIndexBuilder = {
 	 * extraction the way `init --max-files` caps the file index (REQ-RUN-12).
 	 *
 	 * @param root - Validated absolute path to the project root.
-	 * @param opts - Optional extraction cap.
+	 * @param opts - Optional extraction cap, and `onSecret`, called once per file
+	 *   whose summaries or signatures had a secret redacted (REQ-PROV-15).
 	 * @returns A freshly built `AiIndex`.
 	 * @throws {ParseError} If the directory cannot be walked.
 	 */
-	async fromDirectory(root: ValidatedPath, opts?: { maxFiles?: number }): Promise<AiIndex> {
+	async fromDirectory(
+		root: ValidatedPath,
+		opts?: {
+			maxFiles?: number;
+			onSecret?: (relPath: string, patterns: readonly string[]) => void;
+		},
+	): Promise<AiIndex> {
 		const files = await new AutoExtractor().extractDirectory(
 			root,
 			opts?.maxFiles !== undefined ? { maxFiles: opts.maxFiles } : undefined,
 		);
+		for (const file of files) {
+			if (file.secrets !== undefined)
+				opts?.onSecret?.(toRelativePath(file.path, root), file.secrets);
+		}
 		return AiIndexBuilder.build(files, root);
 	},
 

@@ -91,7 +91,10 @@ export function printReport(results: BenchmarkResult[]): void {
 		);
 		console.log(`├${"─".repeat(WIDTH - 2)}┤`);
 
-		const savedLine = `  Saved: ${fmt(r.savings.tokensSaved)} tokens  (${r.savings.percentSaved.toFixed(1)}% — ${r.savings.ratio} smaller)`;
+		// A context naming no files is empty, not compressed (REQ-EVAL-15).
+		const savedLine = r.savings.applicable
+			? `  Saved: ${fmt(r.savings.tokensSaved)} tokens  (${r.savings.percentSaved.toFixed(1)}% — ${r.savings.ratio} smaller)`
+			: "  Saved: n/a — the context names 0 files; nothing was compressed";
 		console.log(`│${savedLine.padEnd(WIDTH - 2)}│`);
 
 		const cmdLine = `  Commands: status ${cmdStatus(r.commands.statusOk)}  health ${cmdStatus(r.commands.healthOk)}  prompt ${cmdStatus(r.commands.promptOk)}  export ${cmdStatus(r.commands.exportClaudeOk)}`;
@@ -123,13 +126,14 @@ export function printReport(results: BenchmarkResult[]): void {
 	// Summary row if multiple targets
 	if (results.length > 1) {
 		const successful = results.filter((r) => !r.error);
+		const applicable = successful.filter((r) => r.savings.applicable);
 		const avgSaved =
-			successful.length > 0
-				? successful.reduce((s, r) => s + r.savings.percentSaved, 0) / successful.length
+			applicable.length > 0
+				? applicable.reduce((s, r) => s + r.savings.percentSaved, 0) / applicable.length
 				: 0;
 		console.log(sep("─"));
 		console.log(
-			`  ${successful.length}/${results.length} targets succeeded  |  avg savings: ${avgSaved.toFixed(1)}%`,
+			`  ${successful.length}/${results.length} targets succeeded  |  avg savings: ${avgSaved.toFixed(1)}% over ${applicable.length} with a non-empty context`,
 		);
 		console.log();
 	}
@@ -157,6 +161,7 @@ export function buildJsonReport(results: BenchmarkResult[]): unknown {
 			tokens_saved: r.savings.tokensSaved,
 			percent_saved: Number(r.savings.percentSaved.toFixed(2)),
 			ratio: r.savings.ratio,
+			applicable: r.savings.applicable,
 		},
 		commands: r.commands,
 		initialized: r.initialized,

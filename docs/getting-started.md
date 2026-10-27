@@ -43,6 +43,10 @@ The wizard walks you through:
 4. **File index** — walks your codebase and builds an annotated `FILE_INDEX.md`
 5. **Final writes** — creates `SESSION_STATE.md`, `NEXT_PROMPT.md`, and `ROUTINES.md`
 
+**Already partway through your plan?** Start at the chunk you are on:
+`dev-sesssion init --chunk 8`. Earlier chunks are recorded as completed. The
+interactive wizard asks the same question.
+
 ---
 
 ## The .session/ directory

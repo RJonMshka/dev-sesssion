@@ -13,10 +13,14 @@ import * as path from "node:path";
 
 import type { ValidatedPath } from "@dev-session/security";
 
-import { ContextBudgetCalculator } from "../calculators/context-budget-calculator.js";
+import { AiIndexManager } from "../annotation/ai-index-manager.js";
+import { NewFiles } from "../calculators/new-files.js";
+import { formatOverBudgetMessage } from "../formatters/formatter-utils.js";
 import { FILE_INDEX_PAGE_SIZE, FileIndexManager } from "../managers/file-index-manager.js";
 import { PlanChunkManager } from "../managers/plan-chunk-manager.js";
+import { PromptAssembler } from "../managers/prompt-assembler.js";
 import { SessionStateManager } from "../managers/session-state-manager.js";
+import { TrimOverridesManager } from "../managers/trim-overrides-manager.js";
 import type { FileIndexEntry, PlanChunk, SessionState } from "../schemas/index.js";
 import {
 	countPromptChars,
@@ -262,7 +266,7 @@ function checkFileIndex(sessionDir: ValidatedPath, state: SessionState): IndexCh
 	extraChecks++;
 	const chunk = safeLoad(() => PlanChunkManager.loadActive(sessionDir, state));
 	if (chunk !== null) {
-		issues.push(...checkBudget(state, chunk, entries, alwaysInclude));
+		issues.push(...checkBudget(sessionDir, state, chunk, entries));
 		issues.push(...checkTaskCompletion(chunk));
 	}
 
@@ -270,30 +274,40 @@ function checkFileIndex(sessionDir: ValidatedPath, state: SessionState): IndexCh
 }
 
 /**
- * Check whether the context budget is exceeded.
+ * Check whether the context budget is exceeded — by the budget the prompt is
+ * charged (LLD-budget.md, REQ-BUD-5): measured file costs, the ai-index's
+ * layers, trim exclusions. A separate estimate here said "healthy" while the
+ * prompt said [OVER].
  *
+ * @param sessionDir - Validated path to .session/
  * @param state - Session state
  * @param chunk - Active plan chunk
  * @param entries - All FILE_INDEX entries
- * @param alwaysInclude - Always-include entries
  * @returns Array of issues
  */
 function checkBudget(
+	sessionDir: ValidatedPath,
 	state: SessionState,
 	chunk: PlanChunk,
 	entries: readonly FileIndexEntry[],
-	alwaysInclude: readonly FileIndexEntry[],
 ): HealthIssue[] {
-	const chunkFiles = FileIndexManager.queryByChunk(entries, state.active_chunk);
-	const budget = ContextBudgetCalculator.estimate(state, chunk, chunkFiles, alwaysInclude);
+	const projectRoot = path.dirname(sessionDir);
+	const index = safeLoad(() => AiIndexManager.load(sessionDir)) ?? null;
+	const { budget } = PromptAssembler.charge({
+		state,
+		chunk,
+		// The prompt charges the code beside absent files; so must this (REQ-NEW-5).
+		absent: NewFiles.absent(chunk, projectRoot, entries, index),
+		entries: FileIndexManager.withMeasuredCosts(entries, projectRoot),
+		index,
+		excluded:
+			safeLoad(() =>
+				TrimOverridesManager.getExcludedPaths(TrimOverridesManager.load(sessionDir)),
+			) ?? [],
+	});
 	if (!budget.overBudget) return [];
 	return [
-		makeIssue(
-			HealthSeverity.WARNING,
-			"BUDGET_EXCEEDED",
-			`Context budget exceeded: ~${String(budget.totalTokens)} / ${String(budget.budgetCap)} tokens — remove large files or split the chunk`,
-			false,
-		),
+		makeIssue(HealthSeverity.WARNING, "BUDGET_EXCEEDED", formatOverBudgetMessage(budget), false),
 	];
 }
 

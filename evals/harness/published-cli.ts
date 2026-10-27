@@ -24,14 +24,22 @@ export interface CliResult {
 	readonly stdout: string;
 	readonly stderr: string;
 	readonly exitCode: number;
+	/** True when the run was killed for exceeding its timeout. */
+	readonly timedOut?: boolean;
+}
+
+/** Options for one run. */
+export interface RunOptions {
+	/** Kill the process after this many milliseconds; no limit when absent. */
+	readonly timeoutMs?: number;
 }
 
 /** A CLI installed at a pinned version. */
 export interface InstalledCli {
 	readonly version: string;
 	readonly binPath: string;
-	/** Runs the CLI in `cwd`; never rejects on a non-zero exit. */
-	run(args: readonly string[], cwd: string): Promise<CliResult>;
+	/** Runs the CLI in `cwd`; never rejects on a non-zero exit or a timeout. */
+	run(args: readonly string[], cwd: string, opts?: RunOptions): Promise<CliResult>;
 }
 
 /**
@@ -104,20 +112,28 @@ async function installIntoPrefix(spec: string, version: string): Promise<Install
 	return {
 		version,
 		binPath,
-		async run(args: readonly string[], cwd: string): Promise<CliResult> {
+		async run(args: readonly string[], cwd: string, opts?: RunOptions): Promise<CliResult> {
 			try {
 				const { stdout, stderr } = await execFileAsync(binPath, [...args], {
 					cwd,
 					maxBuffer: 32 * 1024 * 1024,
+					...(opts?.timeoutMs === undefined ? {} : { timeout: opts.timeoutMs }),
 					env: { ...process.env, NO_COLOR: "1", FORCE_COLOR: "0", CI: "1" },
 				});
 				return { stdout, stderr, exitCode: 0 };
 			} catch (err: unknown) {
-				const e = err as { stdout?: string; stderr?: string; code?: number; message?: string };
+				const e = err as {
+					stdout?: string;
+					stderr?: string;
+					code?: number;
+					killed?: boolean;
+					message?: string;
+				};
 				return {
 					stdout: e.stdout ?? "",
 					stderr: e.stderr ?? e.message ?? "",
 					exitCode: typeof e.code === "number" ? e.code : 1,
+					timedOut: e.killed === true,
 				};
 			}
 		},

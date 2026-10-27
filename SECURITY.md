@@ -38,7 +38,7 @@ dev-sesssion follows these security principles by design:
 1. **No JavaScript execution in frontmatter** — uses `@11ty/gray-matter` (safe fork) instead of upstream `gray-matter`
 2. **Path traversal prevention** — all external paths validated through `PathValidator.safeResolvePath()` with boundary checks
 3. **Atomic file writes** — all writes go through `AtomicWriter` (write to `.tmp`, then `rename()`)
-4. **Secret scanning** — regex-based scanning runs before every file write via `WriteGuard`, and before the one network upload the tool performs (see *Data handling* below)
+4. **Secret scanning** — regex-based scanning runs before every file write via `WriteGuard`, and secrets found in doc comments are masked before they reach the ai-index
 5. **No shell interpolation** — uses `execFile()` exclusively, never `exec()` with user-supplied data
 6. **Prototype pollution prevention** — `Object.create(null)` for objects built from parsed data
 7. **Strict schema validation** — Zod schemas with `.strict()` on all parse boundaries
@@ -49,21 +49,12 @@ dev-sesssion follows these security principles by design:
 dev-sesssion is a local tool. It reads and writes files under the project root
 and does not phone home, collect telemetry, or transmit session state anywhere.
 
-**`dev-sesssion compact <file>` is the only command that performs network
-egress.** It sends the target file's contents to the Anthropic API for
-compaction, and it runs only when the user invokes it with `ANTHROPIC_API_KEY`
-set.
-
-Because `WriteGuard` protects content on its way to *disk* and not on its way
-out over the *network*, `compact` runs `SecretScanner` over the file content as
-a pre-flight check, before the API call:
-
-- If any pattern matches, the command **refuses to send the file** and exits
-  with a `CliError`. Nothing is uploaded and nothing is written.
-- Findings are reported as a line number, the matching pattern's name, and a
-  **redacted** value. The secret itself is never printed.
-- `--allow-secrets` downgrades the refusal to a warning for known false
-  positives. It is opt-in per invocation and never implied by `--yes`.
+**No command performs network egress.** dev-sesssion calls no model and needs
+no API key; it is used from inside an agent harness or a terminal, and the
+harness's agent does any AI work. Until 3.0, `compact <file>` sent a file to
+the Anthropic API; it was removed (`docs/plan/LLD-offline.md`), and the
+published package depends on no model provider's SDK. The MCP server speaks
+over stdio only.
 
 Git access (`dev-sesssion verify`, replay scoring) is read-only and local: every
 git call goes through `execFile` with an argument array, and revision strings are

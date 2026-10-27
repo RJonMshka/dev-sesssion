@@ -72,7 +72,7 @@ export interface UnitFocusResult {
 }
 
 /** One unit in the lookup table. */
-interface Candidate {
+export interface Candidate {
 	readonly filepath: string;
 	readonly id: string;
 	/** Id without a `~n` repeat suffix — siblings share it. */
@@ -103,7 +103,7 @@ const QUALIFIED_RE = /^[A-Za-z_$#][\w$#]*(?:\.[A-Za-z_$#][\w$#]*)?$/;
  * @param name - The identifier, possibly dotted.
  * @returns `true` for dotted names, inner capitals, `_`, `$` or digits.
  */
-function isCodeShaped(name: string): boolean {
+export function isCodeShaped(name: string): boolean {
 	return name.includes(".") || /.[A-Z]/.test(name) || /[_$\d]/.test(name);
 }
 
@@ -283,6 +283,54 @@ function toFocused(c: Candidate, task: string, evidence?: string): FocusedUnit {
 }
 
 /**
+ * Focuses the declarations one mentioned name resolves to, or records it as
+ * ambiguous. `resolve` and `explain` both run this, so a name focuses the same
+ * units whichever asks.
+ *
+ * @param table - The lookup table.
+ * @param name - A mentioned name.
+ * @param task - The task text that mentioned it.
+ * @param focused - Focused units so far, by ref; added to.
+ * @param ambiguous - Ambiguous names so far; added to.
+ */
+function focusName(
+	table: NameTable,
+	name: string,
+	task: string,
+	focused: Map<string, FocusedUnit>,
+	ambiguous: Set<string>,
+): void {
+	const chosen = choose(table, name);
+	if (chosen === "ambiguous") {
+		ambiguous.add(name);
+		return;
+	}
+	for (const { group, evidence } of chosen) {
+		const siblings = [...group].sort((a, b) => a.unit.start - b.unit.start);
+		for (const c of siblings) {
+			const unit = toFocused(c, task, evidence);
+			if (!focused.has(unit.ref)) focused.set(unit.ref, unit);
+		}
+	}
+}
+
+/** One declaration of a name, as {@link UnitFocusResolver.explain} reports it. */
+export interface DeclarationGroup {
+	/** Sibling units of the declaration (`pick`, `pick~2`), in source order. */
+	readonly candidates: readonly Candidate[];
+	/** Usage evidence, or `null` when the code provably uses it nowhere. */
+	readonly evidence: string | null;
+}
+
+/** Result of {@link UnitFocusResolver.explain}. */
+export interface FocusExplanation {
+	/** Every declaration the name matches, in lookup order. */
+	readonly groups: readonly DeclarationGroup[];
+	/** Refs a task naming the name in backticks would focus, or `"ambiguous"`. */
+	readonly chosen: ReadonlySet<string> | "ambiguous";
+}
+
+/**
  * Resolves the units named by active tasks.
  */
 export const UnitFocusResolver = {
@@ -301,18 +349,7 @@ export const UnitFocusResolver = {
 		for (const task of input.tasks) {
 			if (task.status === "done") continue;
 			for (const name of mentions(task.text)) {
-				const chosen = choose(table, name);
-				if (chosen === "ambiguous") {
-					ambiguous.add(name);
-					continue;
-				}
-				for (const { group, evidence } of chosen) {
-					const siblings = [...group].sort((a, b) => a.unit.start - b.unit.start);
-					for (const c of siblings) {
-						const unit = toFocused(c, task.text, evidence);
-						if (!focused.has(unit.ref)) focused.set(unit.ref, unit);
-					}
-				}
+				focusName(table, name, task.text, focused, ambiguous);
 			}
 		}
 
@@ -320,5 +357,29 @@ export const UnitFocusResolver = {
 			focused: [...focused.values()].slice(0, MAX_FOCUS_UNITS),
 			ambiguous: [...ambiguous],
 		};
+	},
+
+	/**
+	 * Explains how one name resolves: every declaration it matches, each one's
+	 * evidence, and what a single active task naming it in backticks would
+	 * focus (REQ-SYM-3, -4). Shares every decision with {@link resolve}.
+	 *
+	 * @param index - The ai-index.
+	 * @param name - The name, as a person would write it between backticks.
+	 * @returns The declarations and the focus outcome.
+	 */
+	explain(index: AiIndex, name: string): FocusExplanation {
+		const table = buildTable(index);
+		const groups = lookup(table, name).map((group) => ({
+			candidates: [...group].sort((a, b) => a.unit.start - b.unit.start),
+			evidence: evidenceFor(table, group),
+		}));
+		const focused = new Map<string, FocusedUnit>();
+		const ambiguous = new Set<string>();
+		const task = `\`${name}\``;
+		for (const mention of mentions(task)) focusName(table, mention, task, focused, ambiguous);
+		if (ambiguous.size > 0) return { groups, chosen: "ambiguous" };
+		const refs = [...focused.keys()].slice(0, MAX_FOCUS_UNITS);
+		return { groups, chosen: new Set(refs) };
 	},
 } as const;

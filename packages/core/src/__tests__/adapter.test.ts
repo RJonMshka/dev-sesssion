@@ -181,6 +181,7 @@ describe("Adapter interface", () => {
 				chunkFiles: [],
 				budget: {
 					totalTokens: 500,
+					cappedTokens: 450,
 					breakdown: {
 						sessionState: 100,
 						planChunk: 200,
@@ -207,6 +208,7 @@ describe("Adapter interface", () => {
 				chunkFiles: [],
 				budget: {
 					totalTokens: 500,
+					cappedTokens: 450,
 					breakdown: {
 						sessionState: 100,
 						planChunk: 200,
@@ -309,6 +311,7 @@ describe("Adapter interface", () => {
 				],
 				budget: {
 					totalTokens: 200,
+					cappedTokens: 200,
 					breakdown: {
 						sessionState: 50,
 						planChunk: 100,

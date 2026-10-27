@@ -18,6 +18,7 @@ const { GitignoreAwareWalker } = (await import(
 )) as { GitignoreAwareWalker: Walker };
 
 import { runCli } from "../helpers/run-cli.js";
+import { isLockfile, isPlanFile } from "./savings.js";
 import type { DeveloperPattern, TokenReport } from "./types.js";
 
 type WalkedFile = { relativePath: string; sizeBytes: number };
@@ -46,7 +47,11 @@ function sumTokens(files: WalkedFile[]): number {
 export async function measureBaseline(projectDir: string): Promise<TokenReport> {
 	const files = GitignoreAwareWalker.walk(projectDir);
 
-	const relevant = files.filter((f) => !SESSION_DIR_PATTERN.test(f.relativePath));
+	// Lockfiles are generated and never loaded by hand; counting them inflated
+	// DevNexus's baseline by 30% (REQ-EVAL-16).
+	const relevant = files.filter(
+		(f) => !SESSION_DIR_PATTERN.test(f.relativePath) && !isLockfile(f.relativePath),
+	);
 
 	const withTokens = relevant.map((f) => ({
 		path: f.relativePath,
@@ -154,11 +159,8 @@ export async function runCommandChecks(projectDir: string): Promise<{
 
 /** Return files whose relativePath basename matches a PLAN.md pattern. */
 function findPlanFiles(allFiles: WalkedFile[]): WalkedFile[] {
-	return allFiles.filter((f) => {
-		const name = path.basename(f.relativePath);
-		const dir = path.dirname(f.relativePath);
-		return dir === "." && /^PLAN(_\d+)?\.md$/i.test(name);
-	});
+	// Root or docs/ — DevNexus keeps its plan at docs/PLAN.md (REQ-EVAL-17).
+	return allFiles.filter((f) => isPlanFile(f.relativePath));
 }
 
 /**
@@ -276,7 +278,7 @@ function mergeFiles(a: WalkedFile[], b: WalkedFile[]): WalkedFile[] {
  */
 export async function measureDeveloperPatterns(projectDir: string): Promise<DeveloperPattern[]> {
 	const allFiles = GitignoreAwareWalker.walk(projectDir).filter(
-		(f) => !SESSION_DIR_PATTERN.test(f.relativePath),
+		(f) => !SESSION_DIR_PATTERN.test(f.relativePath) && !isLockfile(f.relativePath),
 	);
 
 	// 1. plan-only

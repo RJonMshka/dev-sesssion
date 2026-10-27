@@ -18,12 +18,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { log } from "@clack/prompts";
-import {
-	DEFAULT_CONTEXT_BUDGET,
-	PromptAssembler,
-	type ResolvedFileLayer,
-	TokenCounter,
-} from "@dev-session/core";
+import { PromptAssembler, type ResolvedFileLayer, TokenCounter } from "@dev-session/core";
 import { CliError, PathValidator, type ValidatedPath } from "@dev-session/security";
 import type { Command } from "commander";
 import { handleError } from "../utils/error-handler.js";
@@ -73,6 +68,10 @@ export interface TokenBreakdownEntry {
 /** Full JSON output for --format json. */
 export interface PreviewJson {
 	readonly total_tokens: number;
+	/** Tokens judged against the cap: all but always-include (REQ-BUD-8). */
+	readonly capped_tokens: number;
+	/** Always-include files' cost, loaded every chunk and not capped. */
+	readonly always_include_tokens: number;
 	readonly budget_cap: number;
 	readonly over_budget: boolean;
 	readonly accurate: boolean;
@@ -121,6 +120,8 @@ function safeReadFile(filePath: string): string {
  * @param budgetCap - Budget cap.
  * @param overBudget - Whether total exceeds cap.
  * @param accurate - Whether counts are accurate (vs heuristic).
+ * @param cappedTokens - Tokens judged against the cap, when always-include
+ *   files are left out of them (REQ-BUD-8); defaults to the total.
  * @returns Multi-line table string.
  */
 export function renderBreakdownTable(
@@ -129,6 +130,7 @@ export function renderBreakdownTable(
 	budgetCap: number,
 	overBudget: boolean,
 	accurate: boolean,
+	cappedTokens: number = totalTokens,
 ): string {
 	const LABEL_WIDTH = 38;
 	const TOKEN_WIDTH = 8;
@@ -167,9 +169,20 @@ export function renderBreakdownTable(
 	}
 
 	lines.push(SEP);
-	lines.push(
-		`${"TOTAL".padEnd(LABEL_WIDTH)} ${(prefix + String(totalTokens)).padStart(TOKEN_WIDTH)}   / ${String(budgetCap)} [${status}]`,
-	);
+	const verdict = `   / ${String(budgetCap)} [${status}]`;
+	if (cappedTokens === totalTokens) {
+		lines.push(
+			`${"TOTAL".padEnd(LABEL_WIDTH)} ${(prefix + String(totalTokens)).padStart(TOKEN_WIDTH)}${verdict}`,
+		);
+	} else {
+		// Always-include files load every chunk; the cap judges the rest.
+		lines.push(
+			`${"TOTAL".padEnd(LABEL_WIDTH)} ${(prefix + String(totalTokens)).padStart(TOKEN_WIDTH)}`,
+		);
+		lines.push(
+			`${"Capped (all but always-include)".padEnd(LABEL_WIDTH)} ${(prefix + String(cappedTokens)).padStart(TOKEN_WIDTH)}${verdict}`,
+		);
+	}
 
 	return lines.join("\n");
 }
@@ -192,16 +205,14 @@ export async function runPreview(options: PreviewOptions): Promise<void> {
 	const input = loadAssembleInput(sessionDir, options);
 	const { state } = input;
 	const excludedPaths = input.excluded ?? [];
-	const { prompt: promptText, plan } = PromptAssembler.assemble(input);
+	const { prompt: promptText, plan, budget } = PromptAssembler.assemble(input);
 	const aiIndex = input.index;
 
-	// Count tokens per component, from the raw files: the breakdown describes
-	// what is on disk, not the budget's estimate.
+	// Totals come from the budget the prompt was charged, so preview shows the
+	// figure on the prompt beneath it (REQ-BUD-3). Per-file rows are detail.
 	const counter = TokenCounter.create();
-	const sessionStatePath = path.join(sessionDir, "SESSION_STATE.md");
-	const planChunkPath = path.join(sessionDir, `PLAN_${String(state.active_chunk)}.md`);
-	const sessionStateTokens = (await counter.countString(safeReadFile(sessionStatePath))).tokens;
-	const planChunkTokens = (await counter.countString(safeReadFile(planChunkPath))).tokens;
+	const sessionStateTokens = budget.breakdown.sessionState;
+	const planChunkTokens = budget.breakdown.planChunk;
 
 	// Read each file once to derive its whole-file ("full") cost, then charge
 	// the effective layered cost the resolver chose. Without an ai-index every
@@ -227,15 +238,15 @@ export async function runPreview(options: PreviewOptions): Promise<void> {
 		(c) => c.role === "always-include",
 	);
 	const contextFileCosts: FileTokenInfo[] = allCosts.filter((c) => c.role === "chunk");
-	const alwaysIncludeTotal = alwaysIncludeFileCosts.reduce((s, f) => s + f.tokens, 0);
-	const contextFilesTotal = contextFileCosts.reduce((s, f) => s + f.tokens, 0);
+	const alwaysIncludeTotal = budget.breakdown.alwaysInclude;
+	const contextFilesTotal = [...budget.breakdown.files.values()].reduce((s, t) => s + t, 0);
 
 	// Tokens saved by loading reduced layers instead of full source.
 	const layeredSavings = allCosts.reduce((s, f) => s + (f.fullTokens - f.tokens), 0);
 
-	const totalTokens = sessionStateTokens + planChunkTokens + alwaysIncludeTotal + contextFilesTotal;
-	const budgetCap = DEFAULT_CONTEXT_BUDGET;
-	const overBudget = totalTokens > budgetCap;
+	const totalTokens = budget.totalTokens;
+	const budgetCap = budget.budgetCap;
+	const overBudget = budget.overBudget;
 	const accurate = false; // heuristic only
 
 	const breakdown: TokenBreakdownEntry[] = [
@@ -267,6 +278,8 @@ export async function runPreview(options: PreviewOptions): Promise<void> {
 	if (options.format === "json") {
 		const output: PreviewJson = {
 			total_tokens: totalTokens,
+			capped_tokens: budget.cappedTokens,
+			always_include_tokens: alwaysIncludeTotal,
 			budget_cap: budgetCap,
 			over_budget: overBudget,
 			accurate,
@@ -299,7 +312,14 @@ export async function runPreview(options: PreviewOptions): Promise<void> {
 		);
 	}
 
-	const table = renderBreakdownTable(breakdown, totalTokens, budgetCap, overBudget, accurate);
+	const table = renderBreakdownTable(
+		breakdown,
+		totalTokens,
+		budgetCap,
+		overBudget,
+		accurate,
+		budget.cappedTokens,
+	);
 	process.stdout.write(`\n${table}\n`);
 
 	if (aiIndex === null) {

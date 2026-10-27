@@ -21,6 +21,7 @@ import {
 	SECTION_START,
 	upsertSection,
 } from "../claude-adapter.js";
+import { PLAN_SKILL_PATH, renderPlanSkill } from "../claude-skill.js";
 import { makeBudget, makeChunk, makeState } from "./test-helpers.js";
 
 // ---------------------------------------------------------------------------
@@ -131,6 +132,66 @@ describe("ClaudeAdapter", () => {
 
 			const written = ctx.writeCalls[0]?.content;
 			expect(written).toContain(".session");
+		});
+	});
+
+	describe("the plan skill", () => {
+		const skillWrites = (ctx: { writeCalls: Array<{ path: string; content: string }> }) =>
+			ctx.writeCalls.filter((c) => c.path === PLAN_SKILL_PATH);
+
+		it("is written by setup when the CLI passes its version (REQ-PLA-9)", async () => {
+			const ctx = makeSetupContext({ version: "2.3.0" });
+			const result = await ClaudeAdapter.setup?.(ctx);
+
+			expect(skillWrites(ctx)).toEqual([
+				{ path: PLAN_SKILL_PATH, content: renderPlanSkill("2.3.0") },
+			]);
+			expect(result?.filesWritten).toContain(PLAN_SKILL_PATH);
+		});
+
+		it("leaves a skill file without the marker unchanged, and says so (REQ-PLA-13)", async () => {
+			const mine = "---\nname: dev-sesssion\n---\nmy own notes\n";
+			const ctx = makeSetupContext({
+				version: "2.3.0",
+				readFile: makeReadFile({ [PLAN_SKILL_PATH]: mine }),
+			});
+			const result = await ClaudeAdapter.setup?.(ctx);
+
+			expect(skillWrites(ctx)).toEqual([]);
+			expect(result?.filesWritten).not.toContain(PLAN_SKILL_PATH);
+			expect(result?.notices?.join("\n")).toMatch(/Skipped .*SKILL\.md/);
+		});
+
+		it("replaces a skill carrying an older version's marker on setup (REQ-PLA-14)", async () => {
+			const ctx = makeSetupContext({
+				version: "2.3.0",
+				readFile: makeReadFile({ [PLAN_SKILL_PATH]: renderPlanSkill("2.2.0") }),
+			});
+			await ClaudeAdapter.setup?.(ctx);
+
+			expect(skillWrites(ctx)).toEqual([
+				{ path: PLAN_SKILL_PATH, content: renderPlanSkill("2.3.0") },
+			]);
+		});
+
+		it("replaces an older managed skill on refresh, which update calls (REQ-PLA-14)", () => {
+			const ctx = makeSetupContext({
+				readFile: makeReadFile({ [PLAN_SKILL_PATH]: renderPlanSkill("2.2.0") }),
+			});
+			const result = ClaudeAdapter.refresh?.({ ...ctx, version: "2.3.0" });
+
+			expect(ctx.writeCalls).toEqual([
+				{ path: PLAN_SKILL_PATH, content: renderPlanSkill("2.3.0") },
+			]);
+			expect(result?.filesWritten).toEqual([PLAN_SKILL_PATH]);
+		});
+
+		it("does not create the skill on refresh, or touch a user's file", () => {
+			for (const files of [{}, { [PLAN_SKILL_PATH]: "mine" }]) {
+				const ctx = makeSetupContext({ readFile: makeReadFile(files) });
+				ClaudeAdapter.refresh?.({ ...ctx, version: "2.3.0" });
+				expect(ctx.writeCalls).toEqual([]);
+			}
 		});
 	});
 

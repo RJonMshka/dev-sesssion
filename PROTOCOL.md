@@ -61,13 +61,13 @@ machine-readable state; the body is human narrative.
 
 ```yaml
 ---
-active_chunk: 16              # integer id of the chunk in progress
+active_chunk: 16              # id of the chunk in progress (may be fractional, e.g. 3.5)
 session_id: "chunk-16-..."    # opaque id for the current session
 last_updated: "2026-06-17"    # ISO date (YYYY-MM-DD)
 tasks:                        # tasks for the active chunk
   - text: "Implement X"
     status: done              # one of: todo | in-progress | done
-notes:                        # rolling notes, newest-relevant first
+notes:                        # in the order added; a tool showing some shows the most recent
   - "Gotcha: CliError renders to stdout via clack, not stderr."
 last_worked_files:            # files touched most recently
   - packages/cli/src/commands/init.ts
@@ -75,6 +75,14 @@ completed_chunks:             # map of chunk id -> completion date
   "1": "2026-01-01"
 max_prompt_lines: 20          # optional; NEXT_PROMPT.md line cap (5-50)
 project_name: "Rocket Shop"   # optional; overrides the detected project name
+workflow:                     # optional; the owner's steps for each task
+  - "Write a failing test"
+  - "Make it pass"
+session_base:                 # optional; where the next session starts
+  commit: "0123456789abcdef0123456789abcdef01234567"
+  dirty:
+    - path: "src/wip.ts"
+      hash: "9f2c4e1a7b3d5f60"
 ---
 
 # Session State
@@ -85,15 +93,17 @@ project_name: "Rocket Shop"   # optional; overrides the detected project name
 
 | Field | Type | Notes |
 |---|---|---|
-| `active_chunk` | integer ≥ 1 | Matches a `PLAN_<n>.md` chunk id. |
+| `active_chunk` | number ≥ 1 | Matches a `PLAN_<n>.md` chunk id, so it may be fractional. Advancing moves it to the lowest chunk id above it — `3` → `3.5`, and `1` → `3` when there is no chunk `2`. |
 | `session_id` | string | Opaque; identifies the working session. |
 | `last_updated` | string | `YYYY-MM-DD`. |
-| `tasks[]` | list | `{ text, status }`; `status ∈ {todo, in-progress, done}`. Optional ISO-8601 `added_at` / `completed_at`. |
-| `notes[]` | list of string | Durable gotchas/decisions. Trim aggressively. A note copied from a repository file is written as an attributed quotation, e.g. `Quoted from CLAUDE.md § "Setup step": "…"`, so a reader can tell it from the owner's own notes. |
+| `tasks[]` | list | `{ text, status }`; `status ∈ {todo, in-progress, done}`. Optional ISO-8601 `added_at` / `completed_at`. Replaced by the new chunk's tasks on advance. A task's status is the higher of what this list and `PLAN_<n>.md` record for the same exact text — `done` > `in-progress` > `todo` — so recording status here is enough, and `PLAN_<n>.md` need not be rewritten. |
+| `notes[]` | list of string | Durable gotchas/decisions. Trim aggressively. A note copied from a repository file is written as an attributed quotation, e.g. `Quoted from CLAUDE.md § "Setup step": "…"`, so a reader can tell it from the owner's own notes. Stored in the order added; a tool that shows only some shows the most recent, the owner's ahead of quoted ones. |
 | `last_worked_files[]` | list of string | Repo-relative paths. |
 | `completed_chunks` | map | chunk id → ISO date. |
 | `max_prompt_lines` | number | Optional. `NEXT_PROMPT.md` line cap, 5–50. Defaults to 20; omitted from the file when default. |
 | `project_name` | string | Optional. The project name the prompt shows, 1–214 characters on one line. When absent, a tool uses the `name` in `package.json`, or else the directory name. Written only when it differs from that. |
+| `workflow[]` | list of string | Optional. The owner's steps for working each task, in order: 1–7 steps, each 1–120 characters on one line. A tool may render them in its prompt; none checks or tracks them. Omitted from the file when absent. |
+| `session_base` | map | Optional. Where the next session starts, recorded by `init`, `update` and `advance` in a git work tree. `commit` is `HEAD` then (40 or 64 hex characters; absent in a repository with no commits). `dirty[]` lists the files already modified or untracked then, each `{ path, hash }` with `hash` the `contentHash`, at most 200; with more, no base is written. A tool that tags files a session touched diffs against it; a tool that does not may ignore it. Absent outside git. |
 
 ### `NEXT_PROMPT.md` (required)
 
@@ -129,17 +139,29 @@ last_updated: "2026-06-17"
 The `## Always Include` group (chunk tag `0`) is loaded in every session; each
 `## Chunk <n>` group is loaded only when that chunk is active. Grouping is by
 heading — rows under any other heading are ignored. A file needed by two chunks
-appears under both.
+appears under both. Paths are relative to the project root and stay inside it:
+a conforming tool ignores a row whose path is absolute or, once normalized,
+starts with `..`, since the file may arrive in a pull request.
 
 Indexes larger than 500 entries are paginated into `FILE_INDEX_1.md`,
 `FILE_INDEX_2.md`, … alongside the root file.
 
 ### `PLAN_<n>.md` (required, one or more)
 
-One file per plan chunk. The filename matches `^PLAN_(\d+)\.md$`. YAML
+One file per plan chunk. The filename matches `^PLAN_(\d+(?:\.\d+)?)\.md$`. YAML
 frontmatter declares the chunk; the body is the human plan. `chunk_id` is a
 number ≥ 1 and may be fractional (e.g. `3.5`), so an interstitial chunk can be
 inserted between two existing ones without renumbering the whole plan.
+
+`files` is optional. It lists repository-relative paths the chunk's plan
+section names outside its task lines — a "Key Files" block, a backticked path
+in a numbered step. A tool MAY tag those files to the chunk in `FILE_INDEX.md`.
+A chunk without `files` is valid, and a reader MUST accept it.
+
+`brief` is optional. It holds the chunk's plan section — goal, steps, file
+list — with its task lines removed, as a YAML string (written as a literal
+block). At most 6,000 characters. A tool MAY point the agent at `PLAN_<n>.md`
+for it. A chunk without `brief` is valid, and a reader MUST accept it.
 
 ```yaml
 ---
@@ -147,6 +169,10 @@ chunk_id: 4
 title: "CLI: init command"
 depends_on: [3]        # chunk ids that must complete first (optional, default [])
 est_sessions: 2        # optional estimate
+files:                 # optional — paths the plan section names outside its tasks
+  - "src/commands/init.ts"
+brief: |2-             # optional — the section's own text without its task lines
+  **Goal**: a working `init` command.
 tasks:
   - text: "Parse args and detect project"
     status: done

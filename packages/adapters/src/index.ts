@@ -14,6 +14,8 @@
 export { ClaudeAdapter } from "./claude-adapter.js";
 // Formatters
 export { ClaudeBootstrapFormatter } from "./claude-bootstrap-formatter.js";
+// The Claude Code plan skill
+export { PLAN_SKILL_PATH, renderPlanSkill } from "./claude-skill.js";
 export { CursorAdapter } from "./cursor-adapter.js";
 export { CursorBootstrapFormatter } from "./cursor-bootstrap-formatter.js";
 export { OpencodeAdapter } from "./opencode-adapter.js";

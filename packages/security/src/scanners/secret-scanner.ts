@@ -27,6 +27,18 @@ interface SecretPattern {
 	readonly name: string;
 	/** The regex to test against each line of content. */
 	readonly regex: RegExp;
+	/** True when capture group 1 is the secret and the rest is context, e.g. a key name. */
+	readonly valueInGroup?: true;
+}
+
+/**
+ * Text with every secret masked, and which patterns matched.
+ */
+export interface RedactResult {
+	/** The input with each match replaced by its mask. */
+	readonly text: string;
+	/** Names of the patterns that matched, each once, in pattern order. */
+	readonly patterns: readonly string[];
 }
 
 /**
@@ -44,6 +56,7 @@ const SECRET_PATTERNS: readonly SecretPattern[] = [
 		name: "AWS Secret Key",
 		regex:
 			/(?:aws_secret_access_key|AWS_SECRET_ACCESS_KEY)\s*[=:]\s*["']?([A-Za-z0-9/+=]{40})["']?/,
+		valueInGroup: true,
 	},
 	{
 		name: "GitHub PAT (classic)",
@@ -152,6 +165,35 @@ export const SecretScanner = {
 		}
 
 		return results;
+	},
+
+	/**
+	 * Masks every secret in `text`, using the mask {@link SecretScanner.scan}
+	 * reports, so text lifted from a repository can be stored and shown without
+	 * the value (REQ-PROV-14).
+	 *
+	 * @param text - Text to redact; may span lines.
+	 * @returns The masked text and the names of the patterns that matched.
+	 *
+	 * @example
+	 * ```ts
+	 * SecretScanner.redact("key AKIAIOSFODNN7EXAMPLE").text; // "key AKIA****************"
+	 * ```
+	 */
+	redact(text: string): RedactResult {
+		let out = text;
+		const patterns: string[] = [];
+		for (const pattern of SECRET_PATTERNS) {
+			const global = new RegExp(pattern.regex.source, `${pattern.regex.flags}g`);
+			const next = out.replace(global, (match: string, group: unknown) =>
+				pattern.valueInGroup === true && typeof group === "string"
+					? match.replace(group, redactMatch(group))
+					: redactMatch(match),
+			);
+			if (next !== out) patterns.push(pattern.name);
+			out = next;
+		}
+		return { text: out, patterns };
 	},
 
 	/**

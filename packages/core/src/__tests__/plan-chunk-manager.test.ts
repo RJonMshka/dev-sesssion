@@ -133,16 +133,31 @@ describe("PlanChunkManager", () => {
 		});
 	});
 
+	describe("nextAfter", () => {
+		const chunks = (ids: number[]): PlanChunk[] =>
+			ids.map((chunk_id) => ({ chunk_id, title: "T", depends_on: [], tasks: [] }));
+
+		it("returns the lowest id above the current one, fractional or across a gap (REQ-ORC-6)", () => {
+			expect(PlanChunkManager.nextAfter(chunks([4, 1, 3.5, 2, 3]), 3)?.chunk_id).toBe(3.5);
+			expect(PlanChunkManager.nextAfter(chunks([1, 3]), 1)?.chunk_id).toBe(3);
+		});
+
+		it("returns undefined only from the highest id (REQ-ORC-7)", () => {
+			expect(PlanChunkManager.nextAfter(chunks([1, 1.5, 2]), 2)).toBeUndefined();
+			expect(PlanChunkManager.nextAfter(chunks([1, 1.5, 2]), 1.5)?.chunk_id).toBe(2);
+		});
+	});
+
 	describe("advance", () => {
-		it("increments active_chunk by 1", () => {
-			const state = makeState(2);
-			const advanced = PlanChunkManager.advance(state);
-			expect(advanced.active_chunk).toBe(3);
+		it("makes the given chunk active (REQ-ORC-6)", () => {
+			const state = makeState(3);
+			const advanced = PlanChunkManager.advance(state, 3.5);
+			expect(advanced.active_chunk).toBe(3.5);
 		});
 
 		it("adds current chunk to completed_chunks", () => {
 			const state = makeState(2);
-			const advanced = PlanChunkManager.advance(state);
+			const advanced = PlanChunkManager.advance(state, state.active_chunk + 1);
 			expect(advanced.completed_chunks["2"]).toBeDefined();
 		});
 
@@ -151,7 +166,7 @@ describe("PlanChunkManager", () => {
 				...makeState(3),
 				completed_chunks: { "1": "2026-03-01", "2": "2026-03-15" },
 			};
-			const advanced = PlanChunkManager.advance(state);
+			const advanced = PlanChunkManager.advance(state, state.active_chunk + 1);
 			expect(advanced.completed_chunks["1"]).toBe("2026-03-01");
 			expect(advanced.completed_chunks["2"]).toBe("2026-03-15");
 			expect(advanced.completed_chunks["3"]).toBeDefined();
@@ -223,5 +238,178 @@ describe("PlanChunkManager", () => {
 			expect(content).toContain("# Done Log");
 			expect(content).toContain("## Chunk 2 — Security");
 		});
+
+		it("lists the notes it is given under the chunk's entry (REQ-WF-5)", () => {
+			const chunk: PlanChunk = { chunk_id: 3, title: "Polish", depends_on: [], tasks: [] };
+
+			PlanChunkManager.archive(tmpDir as ValidatedPath, chunk, ["Blocker: cycle", "Kept a.ts"]);
+
+			const content = fs.readFileSync(path.join(tmpDir, "DONE_LOG.md"), "utf-8");
+			const entry = content.slice(content.indexOf("## Chunk 3 — Polish"));
+			expect(entry).toMatch(/Notes:\n- Blocker: cycle\n- Kept a\.ts\n/);
+		});
+
+		it("writes no Notes list when given none (REQ-WF-5)", () => {
+			const chunk: PlanChunk = { chunk_id: 4, title: "Ship", depends_on: [], tasks: [] };
+			PlanChunkManager.archive(tmpDir as ValidatedPath, chunk, []);
+			expect(fs.readFileSync(path.join(tmpDir, "DONE_LOG.md"), "utf-8")).not.toContain("Notes:");
+		});
+	});
+});
+
+describe("PlanChunkManager — plan-named files (LLD-file-index.md)", () => {
+	let dir: string;
+	beforeEach(() => {
+		dir = makeTmpDir();
+	});
+	afterEach(() => {
+		fs.rmSync(dir, { recursive: true, force: true });
+	});
+
+	it("reads back the files toMarkdown wrote (REQ-IDX-16)", async () => {
+		const { PlanParser } = await import("../parsers/plan-parser.js");
+		const chunk: PlanChunk = {
+			chunk_id: 1,
+			title: "Shell",
+			depends_on: [],
+			tasks: [{ text: "Sidebar links navigate", status: "todo" }],
+			files: ["apps/shell/src/App.tsx", 'odd "quoted" name.ts'],
+		};
+		fs.writeFileSync(path.join(dir, "PLAN_1.md"), PlanParser.toMarkdown(chunk));
+
+		const [loaded] = PlanChunkManager.loadAll(dir as ValidatedPath);
+
+		expect(loaded?.files).toEqual(chunk.files);
+	});
+
+	it("round-trips a chunk without files, leaving the key absent (REQ-IDX-16)", async () => {
+		const { PlanParser } = await import("../parsers/plan-parser.js");
+		const chunk: PlanChunk = { chunk_id: 1, title: "Plain", depends_on: [], tasks: [] };
+		const md = PlanParser.toMarkdown(chunk);
+		fs.writeFileSync(path.join(dir, "PLAN_1.md"), md);
+
+		const [loaded] = PlanChunkManager.loadAll(dir as ValidatedPath);
+
+		expect(md).not.toContain("files:");
+		expect(loaded !== undefined && "files" in loaded).toBe(false);
+	});
+});
+
+describe("PlanChunkManager.startAt (LLD-first-run.md)", () => {
+	const chunk = (id: number): PlanChunk => ({
+		chunk_id: id,
+		title: `C${String(id)}`,
+		depends_on: [],
+		tasks: [],
+	});
+	// Document order need not be id order; "earlier" means a lower id.
+	const chunks = [chunk(2), chunk(1), chunk(3.5), chunk(9)];
+
+	it("starts at the lowest-numbered chunk by default (REQ-RUN-27)", () => {
+		const start = PlanChunkManager.startAt(chunks);
+		expect(start.active.chunk_id).toBe(1);
+		expect(start.completedIds).toEqual([]);
+	});
+
+	it("starts at the named chunk and completes every lower id (REQ-RUN-27, REQ-RUN-28)", () => {
+		const start = PlanChunkManager.startAt(chunks, 3.5);
+		expect(start.active.chunk_id).toBe(3.5);
+		expect(start.completedIds).toEqual([1, 2]);
+	});
+
+	it("rejects an id the plan does not define, naming the ones it does (REQ-RUN-30)", () => {
+		expect(() => PlanChunkManager.startAt(chunks, 7)).toThrow(/1, 2, 3\.5, 9/);
+	});
+});
+
+describe("PlanChunkManager — brief (LLD-prompt-context.md)", () => {
+	let dir: string;
+	beforeEach(() => {
+		dir = makeTmpDir();
+	});
+	afterEach(() => {
+		fs.rmSync(dir, { recursive: true, force: true });
+	});
+
+	it("reads back a brief that would break naive YAML (REQ-PCX-4)", async () => {
+		const { PlanParser } = await import("../parsers/plan-parser.js");
+		const brief = [
+			"   leading spaces on the first line",
+			"**Goal**: a key: value lookalike",
+			"",
+			"---",
+			"# not a heading in YAML",
+			"\"quoted\" and 'single' and a trailing space ",
+			"\ttabbed",
+		].join("\n");
+		const chunk: PlanChunk = { chunk_id: 1, title: "Shell", depends_on: [], tasks: [], brief };
+		fs.writeFileSync(path.join(dir, "PLAN_1.md"), PlanParser.toMarkdown(chunk));
+
+		const [loaded] = PlanChunkManager.loadAll(dir as ValidatedPath);
+
+		expect(loaded?.brief).toBe(brief);
+	});
+});
+
+describe("one task status (LLD-workflow-prompt.md Part B)", () => {
+	const chunkWith = (tasks: PlanChunk["tasks"]): PlanChunk => ({
+		chunk_id: 1,
+		title: "T",
+		depends_on: [],
+		tasks,
+	});
+	const status = (chunk: PlanChunk): string[] => chunk.tasks.map((t) => t.status);
+
+	it("counts a task done when either file records it done (REQ-WF-8)", () => {
+		const plan = chunkWith([
+			{ text: "A", status: "done" },
+			{ text: "B", status: "todo" },
+		]);
+		const state = [
+			{ text: "A", status: "todo" as const },
+			{ text: "B", status: "done" as const },
+		];
+
+		expect(status(PlanChunkManager.withSessionStatus(plan, state))).toEqual(["done", "done"]);
+	});
+
+	it("ranks in-progress above todo, and never lowers a status (REQ-WF-8)", () => {
+		const plan = chunkWith([
+			{ text: "A", status: "todo" },
+			{ text: "B", status: "in-progress" },
+			{ text: "C", status: "todo" },
+		]);
+		const state = [
+			{ text: "A", status: "in-progress" as const },
+			{ text: "B", status: "todo" as const },
+			{ text: "Not in this chunk", status: "done" as const },
+		];
+
+		expect(status(PlanChunkManager.withSessionStatus(plan, state))).toEqual([
+			"in-progress",
+			"in-progress",
+			"todo",
+		]);
+	});
+
+	it("loadActive counts the status SESSION_STATE.md records (REQ-WF-7)", () => {
+		const dir = fs.mkdtempSync(path.join(import.meta.dirname ?? __dirname, ".tmp-"));
+		try {
+			writeChunk(dir, 1, "One", ["First", "Second"]);
+			const state: SessionState = {
+				...makeState(1),
+				tasks: [
+					{ text: "First", status: "done" },
+					{ text: "Second", status: "todo" },
+				],
+			};
+
+			const chunk = PlanChunkManager.loadActive(dir as ValidatedPath, state);
+
+			expect(status(chunk)).toEqual(["done", "todo"]);
+			expect(fs.readFileSync(path.join(dir, "PLAN_1.md"), "utf8")).not.toContain("done");
+		} finally {
+			fs.rmSync(dir, { recursive: true, force: true });
+		}
 	});
 });

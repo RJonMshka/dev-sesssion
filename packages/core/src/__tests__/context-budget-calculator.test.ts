@@ -364,6 +364,7 @@ describe("ContextBudgetCalculator", () => {
 
 			const accurateBudget = {
 				totalTokens: 500,
+				cappedTokens: 350,
 				breakdown: {
 					sessionState: 100,
 					planChunk: 100,
@@ -379,5 +380,67 @@ describe("ContextBudgetCalculator", () => {
 			expect(summary).not.toContain("approximate");
 			expect(summary).not.toContain("~");
 		});
+	});
+});
+
+describe("ContextBudgetCalculator — measured components (LLD-budget.md)", () => {
+	it("counts SESSION_STATE and the plan chunk from the text the tool writes (REQ-BUD-1)", async () => {
+		const { SessionStateManager } = await import("../managers/session-state-manager.js");
+		const { PlanParser } = await import("../parsers/plan-parser.js");
+		const state = makeState({
+			notes: ['Quoted from CLAUDE.md § "Scope": "Client-rendered SPAs behind simulated auth."'],
+		});
+		const chunk = makeChunk({ files: ["apps/shell/src/App.tsx", "turbo.json"] });
+		const bytes = (s: string): number => Math.ceil(Buffer.byteLength(s, "utf-8") / 4);
+
+		for (const budget of [
+			ContextBudgetCalculator.estimate(state, chunk, [], []),
+			ContextBudgetCalculator.estimateLayered(state, chunk, []),
+		]) {
+			expect(budget.breakdown.sessionState).toBe(bytes(SessionStateManager.toMarkdown(state)));
+			expect(budget.breakdown.planChunk).toBe(bytes(PlanParser.toMarkdown(chunk)));
+		}
+	});
+});
+
+describe("always-include files and the cap (LLD-budget.md)", () => {
+	// A CLAUDE.md larger than the whole cap, as an ordinary one is on a real
+	// repo: it is loaded every session whatever the chunk, so it cannot make a
+	// chunk too heavy.
+	const bigAlways: FileIndexEntry[] = [
+		{ filepath: "CLAUDE.md", chunk_tags: [0], purpose: "AI instructions", token_cost: 5000 },
+	];
+
+	it("does not count always-include tokens toward the cap (REQ-BUD-6)", () => {
+		const budget = ContextBudgetCalculator.estimate(makeState(), makeChunk(), [], bigAlways);
+
+		expect(budget.totalTokens).toBeGreaterThan(budget.budgetCap);
+		expect(budget.cappedTokens).toBe(budget.totalTokens - budget.breakdown.alwaysInclude);
+		expect(budget.overBudget).toBe(false);
+	});
+
+	it("still counts the same tokens when the chunk carries them (REQ-BUD-6)", () => {
+		const asChunkFile: FileIndexEntry[] = bigAlways.map((e) => ({ ...e, chunk_tags: [4] }));
+		const budget = ContextBudgetCalculator.estimate(makeState(), makeChunk(), asChunkFile, []);
+
+		expect(budget.cappedTokens).toBe(budget.totalTokens);
+		expect(budget.overBudget).toBe(true);
+	});
+
+	it("judges layered budgets the same way (REQ-BUD-6)", () => {
+		const budget = ContextBudgetCalculator.estimateLayered(makeState(), makeChunk(), [
+			{
+				filepath: "CLAUDE.md",
+				role: "always-include",
+				baseLayer: 0,
+				layer: 0,
+				escalated: false,
+				layeredTokenCost: 5000,
+				fullTokenCost: 5000,
+			},
+		]);
+
+		expect(budget.cappedTokens).toBe(budget.totalTokens - 5000);
+		expect(budget.overBudget).toBe(false);
 	});
 });

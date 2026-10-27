@@ -4,6 +4,16 @@
  * @packageDocumentation
  */
 
+export type { PlanCheckCandidate, PlanCheckChunk, PlanCheckReport } from "./check.js";
+export { checkPlan, checkPlanFile, describeExclusion } from "./check.js";
+export type { NoPlanDirectionOptions } from "./direction.js";
+export {
+	CHUNK_HEADING_SHAPE,
+	DEFAULT_PLAN_PATHS,
+	INIT_WITH_PLAN_COMMAND,
+	noPlanDirection,
+	PLAN_CHECK_COMMAND,
+} from "./direction.js";
 export { HeadingPlanSource } from "./heading-source.js";
 export type { PlanIngestResult, PlanSourceCandidate } from "./registry.js";
 export {

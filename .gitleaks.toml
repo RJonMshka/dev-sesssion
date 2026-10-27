@@ -19,7 +19,4 @@ paths = [
   '''packages/security/src/__tests__/write-guard\.test\.ts''',
   '''packages/security/src/__tests__/write-guard\.adversarial\.test\.ts''',
   '''packages/security/src/__tests__/atomic-writer\.adversarial\.test\.ts''',
-  # compact is the only command with network egress; its tests plant fake
-  # credentials to prove the pre-upload scan refuses them.
-  '''packages/cli/src/__tests__/compact\.test\.ts''',
 ]

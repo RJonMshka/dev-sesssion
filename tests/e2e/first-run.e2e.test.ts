@@ -122,7 +122,7 @@ describe("init --yes tags files from task text", () => {
 	it("says how many files were tagged and how many were left to the ai-index (REQ-RUN-6)", async () => {
 		const out = await cli("init", "--yes");
 
-		expect(out).toMatch(/Tagged 2 files to chunks from task text; 2 left to the ai-index\./);
+		expect(out).toMatch(/Tagged 2 files to chunks from the plan; 2 left to the ai-index\./);
 	});
 });
 
@@ -153,9 +153,12 @@ describe("the first prompt", () => {
 	});
 
 	it("is still written when the ai-index cannot be saved (REQ-RUN-11)", async () => {
+		// --strict refuses an index holding a secret. A doc comment's secret is
+		// now redacted at extraction (REQ-PROV-14), so the secret is in a file
+		// name, which the index keys on.
 		fs.writeFileSync(
-			path.join(tmpDir, "src", "upload.ts"),
-			"/**\n * Uses key AKIAIOSFODNN7EXAMPLE for the bucket.\n */\nexport function upload(): void {}\n",
+			path.join(tmpDir, "src", "AKIAIOSFODNN7EXAMPLE.ts"),
+			"export function upload(): void {}\n",
 		);
 
 		const r = await runCli(["init", "--yes", "--strict", "--cwd", tmpDir]);
@@ -295,5 +298,65 @@ describe("preview and trim agree with the written prompt", () => {
 		const before = session("NEXT_PROMPT.md") + session("context-manifest.json");
 		await cli("--dry-run", "trim", "--budget", "1", "--yes");
 		expect(session("NEXT_PROMPT.md") + session("context-manifest.json")).toBe(before);
+	});
+});
+
+describe("init --plan <file>", () => {
+	/** A plan whose chunk titles appear nowhere in the fixture's PLAN.md. */
+	const OTHER_PLAN = `# Agent plan
+
+## Chunk 1 — Logging
+
+- [ ] Add a logger to src/utils.ts
+
+## Chunk 2 — Metrics
+
+- [ ] Count retries in client.ts
+`;
+
+	it("ingests the named file instead of PLAN.md (REQ-PLA-7)", async () => {
+		fs.mkdirSync(path.join(tmpDir, "docs"), { recursive: true });
+		fs.writeFileSync(path.join(tmpDir, "docs", "agent-plan.md"), OTHER_PLAN);
+
+		await cli("init", "--plan", "docs/agent-plan.md", "--yes");
+
+		expect(session("PLAN_1.md")).toContain("Logging");
+		expect(session("PLAN_2.md")).toContain("Metrics");
+		// PLAN.md was there and was not read.
+		expect(session("PLAN_1.md")).not.toContain("Client retries");
+		// …nor rewritten.
+		expect(fs.readFileSync(path.join(tmpDir, "PLAN.md"), "utf-8")).toBe(PLAN);
+	});
+
+	it("rejects a path outside the project root with a SecurityError (REQ-PLA-8)", async () => {
+		const outside = fs.mkdtempSync(path.join(os.tmpdir(), "dev-sesssion-outside-"));
+		try {
+			fs.writeFileSync(path.join(outside, "plan.md"), OTHER_PLAN);
+			const rel = path.relative(tmpDir, path.join(outside, "plan.md"));
+
+			const r = await runCli(["init", "--plan", rel, "--yes", "--cwd", tmpDir]);
+
+			// handleError maps SecurityError to exit 3.
+			expect(r.exitCode).toBe(3);
+			expect(r.stdout + r.stderr).toMatch(/security violation/i);
+			expect(fs.existsSync(path.join(tmpDir, ".session"))).toBe(false);
+		} finally {
+			fs.rmSync(outside, { recursive: true, force: true });
+		}
+	});
+});
+
+describe("init without a plan", () => {
+	it("says no plan was found and names how to write, check and pass one (REQ-ORC-3)", async () => {
+		fs.rmSync(path.join(tmpDir, "PLAN.md"));
+
+		const out = await cli("init", "--yes"); // throws unless exit 0
+
+		expect(out).toContain("No plan found (looked for PLAN.md, docs/PLAN.md)");
+		expect(out).toContain("dev-sesssion plan check <file>");
+		expect(out).toContain("dev-sesssion init --plan <file> -y");
+		// Under --yes the session is not empty-handed, and says so.
+		expect(out).toMatch(/placeholder chunk/i);
+		expect(fs.existsSync(path.join(tmpDir, ".session", "PLAN_1.md"))).toBe(true);
 	});
 });

@@ -39,7 +39,7 @@ export type { SanitizeOptions } from "./sanitizers/content-sanitizer.js";
 export { ContentSanitizer } from "./sanitizers/content-sanitizer.js";
 
 // Scanners
-export type { ScanResult } from "./scanners/secret-scanner.js";
+export type { RedactResult, ScanResult } from "./scanners/secret-scanner.js";
 export { SecretScanner } from "./scanners/secret-scanner.js";
 // Validators
 export type { ValidatedPath } from "./validators/path-validator.js";

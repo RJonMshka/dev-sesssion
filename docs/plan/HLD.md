@@ -38,17 +38,75 @@ measures (feature 6).
 |---|---|---|---|
 | 1 | Plan source registry | `LLD-plan-sources.md` | Only one markdown dialect parses; everything else yields zero chunks |
 | 2 | `symbols` command | `LLD-symbols.md` | Symbol data is extracted and indexed but never shown to a human |
-| 3 | Bootstrap auto-pilot | `LLD-file-index.md` | Init demands up to 30 tagging prompts, or dumps every file into chunk 1 |
+| 3 | Bootstrap auto-pilot | `LLD-file-index.md`, `LLD-tagging.md` | Init demands up to 30 tagging prompts, or dumps every file into chunk 1 |
 | 4 | Workflow-shaped prompt | `LLD-workflow-prompt.md` | `Next:` is a flat bullet list with no position and no exit condition |
 | 5 | Context provenance | `LLD-context-provenance.md` | Text lifted from repo files reaches the agent indistinguishable from the tool's own instructions |
 | 6 | Eval harness integrity | `LLD-eval-harness.md` | The harness that produces our published numbers has no tests and no CI |
 | 7 | Code units | `LLD-code-units.md` | The smallest thing a prompt can load beyond signatures is a whole file, and nothing records what a prompt loaded |
 | 8 | First run | `LLD-first-run.md` | `init -y` tags every file to chunk 1, `import` quotes the tool's own block back, and the prompt ignores `index` and `import` until `update` runs |
+| 9 | Single-file components | `LLD-sfc-index.md` | `.vue` and `.svelte` files never reach the ai-index |
+| 10 | One budget | `LLD-budget.md` | The prompt, `status`, `preview` and `health` each reported a different budget, all of them low |
+| 11 | Prompt context | `LLD-prompt-context.md` | The agent saw a chunk's checkboxes but not its goal or steps, and the load line hid files past six |
+| 12 | Files a chunk will create | `LLD-new-files.md` | A phase whose files do not exist yet loads nothing for them — not even the code they sit beside |
+| 13 | Plan authoring and orchestration | `LLD-plan-authoring.md` | An agent cannot check a plan it wrote without running `init`, and a harness driving `advance` either hangs on a prompt or skips work |
+| 14 | No network, no API key | `LLD-offline.md` | `compact` needed its own API key and was the one command that sent data off the machine, in a tool used from inside a harness that already has a model |
 
-1–4 are independent except that 4 depends on notes decay landing first. 8 takes over
-the `--yes` half of 3; the interactive half and tagging-on-touch stay with 3. 5 and 6
-are coupled in one direction: 6 supplies the adversarial corpus that locks 5's
-fix, so 5's regression tests live in 6's tier. Neither blocks the others.
+### Status (2026-10-24)
+
+Shipped in 2.4.2 or earlier: 1, 5, 7, 8 (first slice), 6 (all but REQ-EVAL-6's
+adversarial corpus).
+
+Built on `docs/lld-remaining-features`, pushed, **not yet released or PR'd** —
+found by dogfooding 2.4.2 on DevNexus, a real 195-file micro-frontend monorepo
+whose plan names each phase's files:
+
+| Feature | Commit | What moved on DevNexus |
+|---|---|---|
+| 6 — recall, `--target`, honest benchmark (REQ-EVAL-10..18) | `f931566`, `8a83a22` | The eval now *fails* an empty context; it had passed one |
+| 3 — files the plan names (REQ-IDX-12..18) | `a630e4a` | Tag recall 0/47 → 47/47, no wrong tags |
+| 9 (SFC-1..5) | `84e646a` | Indexed files 95 → 111; 66 component units, hash fidelity 66/66 |
+| 10 (BUD-1..5) | `48e4722`, `3e2595f` | One figure everywhere (~4,500, honestly over the 4,000 default) |
+| 10 (BUD-6..8) | `fix(budget): judge the chunk` | Always-include (`CLAUDE.md`, ~1,960) reported beside the cap, not against it: chunks 1–8 `[OK]` at ~950–2,550; chunk 9 still `[OVER]` at ~6,120 for a 17 KB doc |
+| 12 (NEW-1..6) | `feat(prompt): files a chunk will create` | Phase 8 states its 8 absent paths and loads `App.tsx`, `main.tsx`, `routing/MFEOutlet.tsx`, `routing/mfe-registry.ts`; recall unchanged |
+| 8 — import notes, `init --chunk` (REQ-RUN-23..31) | `1c73bec`, `b74010f` | Readable notes; start at phase 8 in one command |
+| 11 (PCX-1..7) | `4908221` | Prompt recall 5/11 → 11/11; `PLAN_1.md` holds the goal and all eight steps |
+
+Measure any further change with
+`pnpm eval --local --target evals/targets/devnexus.local.json` (gitignored; the
+target names files from DevNexus's own plan).
+
+Every open item now has an LLD (2026-10-24). Build order:
+
+| # | What | LLD | Size | Why here |
+|---|---|---|---|---|
+| 1 | ✅ **Done** `c57608f` — Task status reaches the prompt (WF-7..11) | `LLD-workflow-prompt.md` Part B | S–M, `fix:` | Live bug: `update` and MCP `mark_task_done` write `SESSION_STATE.md`; the prompt and `status` read `PLAN_N.md`, so marking a task done changes nothing a user sees |
+| 2 | ✅ **Done** `1901b2a` — Advance in plan order (ORC-6, 7) | `LLD-plan-authoring.md` | S, `fix:` | Live bug: `active_chunk + 1` skips fractional chunks and reports "all complete" across a gap. Same lines of `advance.ts` as 1 |
+| 3 | ✅ **Done** `2e0a595` — Quote summaries in `index --show` / `--file` (SYM-7, 9) | `LLD-symbols.md` | S, `fix:` | Live provenance gap through the CLI |
+| 4 | ✅ **Done** on `feat/plan-orchestration` — Feature 13 rest: `init --plan`, skill, ORC-1..5 | `LLD-plan-authoring.md` | M | `plan check` (PLA-1..6) built; the loop needs ORC-6 first |
+| 5 | ✅ **Done** on `feat/workflow-prompt` — Notes decay (WF-1..6), then the workflow prompt (WF-12..22) | `LLD-workflow-prompt.md` Parts A, C | S + M | The feature aimed at correctness; A is the prerequisite the HLD named and never defined |
+| 6 | ✅ **Done** on `feat/tagging-on-touch` — Tagging on touch, interactive init cut (IDX-19..43, DRY-7) | `LLD-tagging.md` | M–L | Feature 3's second half. Step 1 (move tagging into core, cut the 30-prompt branch) ships alone |
+| 7 | ✅ **Done** on `feat/symbols` — `symbols` (SYM-1..6, 8, 10..18) | `LLD-symbols.md` | M | Independent; reads shipped unit data |
+| 8 | ✅ **Done** — REQ-EVAL-6 adversarial corpus; found two breaks, fixed as REQ-PROV-13..15; 8/8 clean | `LLD-eval-harness.md` (deltas in `LLD-agent-tier.md`) | S–M | Designed; seeds now pass, so it is a regression lock |
+| 9 | Agent tier on DevNexus (EVAL-19..45) | `LLD-agent-tier.md` | M + paid runs | Last: it should measure the features above. Stats and harness fixes are free; a run is ~$75 cached at 6 tasks × 5 repeats |
+
+Steps 1–3 are bug fixes found while planning, and ship first as `fix:` commits.
+Done 2026-10-24 on `fix/live-bugs`, not yet pushed. Step 2 also widened
+`CONTEXT_LOG.md`'s `active_chunk` to a number, which landing on a fractional
+chunk needed. Step 4 done 2026-10-26 on `feat/plan-orchestration`: `advance
+--json`, `init --plan`, the Claude plan skill (written by init, refreshed by
+update) and MCP `check_plan`. Step 5 done 2026-10-26 on `feat/workflow-prompt`,
+branched from `feat/plan-orchestration`: notes decay, then `Next (task k of
+n):`, `Done when:` / `Chunk done:` and the optional `Each task:` line, through
+one `formatWorkLines` helper.
+5, 6 and 7 are independent of each other. Steps 7 then 6 done 2026-10-26 on
+`feat/symbols` and `feat/tagging-on-touch` (stacked, off
+`feat/plan-orchestration`); merged into `feat/workflow-prompt` the same day,
+keeping both sides of the schema, protocol and barrel additions
+(`workflow` and `session_base` in `SESSION_STATE.md`). Step 8 built 2026-10-26:
+the corpus found two breaks present since 2.4.2 — a `FILE_INDEX.md` row
+outside the root reaches `Load full:`, and a secret in a doc comment is
+copied into `ai-index.yaml` without warning. Both fixed the same day
+(REQ-PROV-13..15). Step 9 is next.
 
 ---
 
@@ -201,8 +259,6 @@ rather than guessing more.
 - **No `ChunkId` value type.** Fractional ids (`3.5`, `13.1`) now work end to
   end. Alphanumeric ids (`13a`) do not, and are not planned: decimals already
   give interleaving, which is the only thing suffixes were used for.
-- **`advance()` still does `active_chunk + 1`.** It cannot step onto a
-  fractional chunk. Known, carried, not addressed here.
 - **No enforcement machinery for the method.** No requirement-coverage gate, no
   phase transitions in the product. `docs/METHOD.md` is how *we* work; the
   workflow-prompt feature ships generic, user-defined steps that owe it nothing.

@@ -1,20 +1,21 @@
 /**
  * Migration path C: Auto-generate FILE_INDEX.md from codebase walk.
  *
- * Uses {@link GitignoreAwareWalker} to discover files, groups them by
- * directory, and in interactive mode prompts to tag each group to a chunk.
- * In `--yes` mode, a file is tagged to the chunks whose unfinished tasks name
- * it, and files no task names are left out (LLD-first-run.md).
+ * Uses {@link GitignoreAwareWalker} to discover files. A file is tagged to
+ * the chunks whose unfinished tasks or plan-named files name it, and files the
+ * plan never names are left out (LLD-first-run.md, LLD-file-index.md). Both
+ * modes tag the same way and ask no question: a per-directory prompt tagged
+ * files by where they sat, which is not evidence (LLD-tagging.md,
+ * REQ-IDX-42, -43). `index add` tags a single file by hand.
  *
  * @module
  */
 
 import * as path from "node:path";
-import { cancel, isCancel, log, select, spinner } from "@clack/prompts";
-import type { FileIndexEntry, PlanChunk, WalkedFile } from "@dev-session/core";
-import { FileIndexManager, GitignoreAwareWalker, referencedFiles } from "@dev-session/core";
+import { log, spinner } from "@clack/prompts";
+import type { FileIndexEntry, PlanChunk } from "@dev-session/core";
+import { FileIndexManager, GitignoreAwareWalker, PlanTags } from "@dev-session/core";
 import type { ValidatedPath } from "@dev-session/security";
-import { CliError } from "@dev-session/security";
 import { dryRunWrite } from "../utils/dry-run.js";
 
 // ---------------------------------------------------------------------------
@@ -45,9 +46,6 @@ const DEFAULT_ALWAYS_INCLUDE: ReadonlyArray<{
 	{ filepath: ".session/SESSION_STATE.md", purpose: "Active chunk + task tracking" },
 ];
 
-/** Maximum number of directory groups to display interactively. */
-const MAX_INTERACTIVE_GROUPS = 30;
-
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
@@ -57,15 +55,13 @@ const MAX_INTERACTIVE_GROUPS = 30;
  *
  * @param sessionDir - Validated path to the `.session/` directory.
  * @param chunks - The available plan chunks (for tagging options).
- * @param options - CLI options controlling interactivity and writes.
+ * @param options - CLI options controlling writes.
  * @returns The generation result with entries and counts.
- * @throws {CliError} If the user cancels.
  */
 export async function generateIndex(
 	sessionDir: ValidatedPath,
 	chunks: readonly PlanChunk[],
 	options: {
-		readonly yes: boolean;
 		readonly dryRun: boolean;
 		readonly verbose: boolean;
 		readonly cwd: string;
@@ -111,86 +107,16 @@ export async function generateIndex(
 		}
 	}
 
-	if (options.yes) {
-		// Tag only what a task names; the ai-index covers the rest (REQ-RUN-1, -4, -6).
-		const always = new Set(entries.map((e) => e.filepath));
-		const tagged = tagFromTasks(files, chunks, always);
-		entries.push(...tagged);
-		const left =
-			files.length - tagged.length - files.filter((f) => always.has(f.relativePath)).length;
-		log.info(
-			`Tagged ${String(tagged.length)} file${tagged.length === 1 ? "" : "s"} to chunks from task text; ${String(left)} left to the ai-index.`,
-		);
-	} else {
-		// Interactive mode: prompt per directory group
-		const displayGroups =
-			groups.length > MAX_INTERACTIVE_GROUPS ? groups.slice(0, MAX_INTERACTIVE_GROUPS) : groups;
-
-		if (groups.length > MAX_INTERACTIVE_GROUPS) {
-			log.warn(
-				`Showing first ${MAX_INTERACTIVE_GROUPS} of ${groups.length} directories. Remaining files will be tagged to chunk 1.`,
-			);
-		}
-
-		for (const group of displayGroups) {
-			const totalTokens = group.files.reduce(
-				(sum, f) => sum + GitignoreAwareWalker.estimateTokenCost(f),
-				0,
-			);
-
-			const chunkOptions = [
-				{ value: "skip", label: "Skip (don't index)" },
-				{ value: "always", label: "Always include" },
-				...chunks.map((c) => ({
-					value: String(c.chunk_id),
-					label: `Chunk ${c.chunk_id}: ${c.title}`,
-				})),
-			];
-
-			const result = await select({
-				message: `${group.directory}/ (${group.files.length} files, ~${totalTokens} tokens)`,
-				options: chunkOptions,
-			});
-
-			if (isCancel(result)) {
-				cancel("Init cancelled.");
-				throw new CliError({ message: "Init cancelled by user." });
-			}
-
-			if (result === "skip") {
-				continue;
-			}
-
-			const chunkTag = result === "always" ? 0 : Number.parseInt(result as string, 10);
-
-			for (const file of group.files) {
-				const tokenCost = GitignoreAwareWalker.estimateTokenCost(file);
-				entries.push({
-					filepath: file.relativePath,
-					chunk_tags: [chunkTag],
-					purpose: inferPurpose(file.relativePath),
-					token_cost: tokenCost,
-				});
-			}
-		}
-
-		// Tag remaining groups (if truncated) to chunk 1
-		if (groups.length > MAX_INTERACTIVE_GROUPS) {
-			const fallbackChunk = chunks[0];
-			const activeChunkId = fallbackChunk !== undefined ? fallbackChunk.chunk_id : 1;
-			for (const group of groups.slice(MAX_INTERACTIVE_GROUPS)) {
-				for (const file of group.files) {
-					const tokenCost = GitignoreAwareWalker.estimateTokenCost(file);
-					entries.push({
-						filepath: file.relativePath,
-						chunk_tags: [activeChunkId],
-						purpose: inferPurpose(file.relativePath),
-						token_cost: tokenCost,
-					});
-				}
-			}
-		}
-	}
+	// Tag only what the plan names; the ai-index covers the rest (REQ-RUN-1, -4,
+	// -6; REQ-IDX-42).
+	const always = new Set(entries.map((e) => e.filepath));
+	const tagged = PlanTags.fromPlan(files, chunks, always);
+	entries.push(...tagged);
+	const left =
+		files.length - tagged.length - files.filter((f) => always.has(f.relativePath)).length;
+	log.info(
+		`Tagged ${String(tagged.length)} file${tagged.length === 1 ? "" : "s"} to chunks from the plan; ${String(left)} left to the ai-index.`,
+	);
 
 	// --- Write FILE_INDEX.md ---
 	if (options.dryRun) {
@@ -213,84 +139,4 @@ export async function generateIndex(
 		fileCount: indexedCount,
 		alwaysIncludeCount,
 	};
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Builds one entry per walked file an unfinished task names, tagged to every
- * chunk that names it (REQ-RUN-1). Files no task names get no entry
- * (REQ-RUN-4): `chunk_tags` must be non-empty, and the ai-index still reaches
- * them.
- *
- * @param files - Walked files.
- * @param chunks - The plan's chunks.
- * @param alwaysInclude - Paths already present as always-include entries.
- * @returns The tagged entries, in walk order.
- */
-function tagFromTasks(
-	files: readonly WalkedFile[],
-	chunks: readonly PlanChunk[],
-	alwaysInclude: ReadonlySet<string>,
-): FileIndexEntry[] {
-	const refs = referencedFiles(
-		chunks,
-		files.map((f) => f.relativePath),
-	);
-	const tagged: FileIndexEntry[] = [];
-	for (const file of files) {
-		const chunkTags = refs.get(file.relativePath);
-		if (chunkTags === undefined || alwaysInclude.has(file.relativePath)) continue;
-		tagged.push({
-			filepath: file.relativePath,
-			chunk_tags: chunkTags,
-			purpose: inferPurpose(file.relativePath),
-			token_cost: GitignoreAwareWalker.estimateTokenCost(file),
-		});
-	}
-	return tagged;
-}
-
-/**
- * Infer a short purpose description from a file path.
- *
- * @param filepath - The relative file path.
- * @returns A short purpose string.
- */
-function inferPurpose(filepath: string): string {
-	const base = path.basename(filepath);
-	const ext = path.extname(filepath);
-	const dir = path.dirname(filepath);
-
-	if (base === "package.json") return "Package manifest";
-	if (base === "tsconfig.json") return "TypeScript config";
-	if (base === "tsconfig.build.json") return "Build-only TypeScript config";
-	if (base === "tsup.config.ts") return "Build config";
-	if (base === "vitest.config.ts") return "Test config";
-	if (base === "biome.json") return "Linter/formatter config";
-	if (base === ".npmrc") return "npm/pnpm settings";
-	if (base === ".nvmrc") return "Node version";
-	if (base === ".gitignore") return "Git ignore rules";
-	if (base === "README.md") return "Documentation";
-	if (base === "CHANGELOG.md") return "Change log";
-	if (base === "LICENSE") return "License file";
-
-	if (base.endsWith(".test.ts") || base.endsWith(".spec.ts")) {
-		return `Tests for ${base.replace(/\.(test|spec)\.ts$/, "")}`;
-	}
-
-	if (ext === ".ts" || ext === ".tsx") {
-		if (base === "index.ts" || base === "index.tsx") {
-			return `${dir === "." ? "Root" : dir} entry point`;
-		}
-		return `${base.replace(ext, "")} module`;
-	}
-
-	if (ext === ".md") return "Documentation";
-	if (ext === ".json") return "Configuration";
-	if (ext === ".yml" || ext === ".yaml") return "Configuration";
-
-	return "Project file";
 }

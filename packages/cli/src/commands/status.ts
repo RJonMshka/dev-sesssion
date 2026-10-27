@@ -19,10 +19,12 @@ import {
 	ContextBudgetCalculator,
 	type FileIndexEntry,
 	FileIndexManager,
+	formatOverBudgetMessage,
 	MAX_PROMPT_LINES,
 	NextPromptWriter,
 	type PlanChunk,
 	PlanChunkManager,
+	PromptAssembler,
 	SessionMemoryManager,
 	type SessionState,
 	SessionStateManager,
@@ -32,6 +34,7 @@ import {
 import { CliError, PathValidator, type ValidatedPath } from "@dev-session/security";
 import type { Command } from "commander";
 import { handleError } from "../utils/error-handler.js";
+import { loadAssembleInput } from "./regenerate-prompt.js";
 
 /** Options passed from Commander to the status action. */
 export interface StatusOptions {
@@ -63,6 +66,10 @@ export interface StatusJson {
 	};
 	readonly budget: {
 		readonly total_tokens: number;
+		/** Tokens judged against the cap: all but always-include (REQ-BUD-8). */
+		readonly capped_tokens: number;
+		/** Always-include files' cost, loaded every chunk and not capped. */
+		readonly always_include_tokens: number;
 		readonly budget_cap: number;
 		readonly over_budget: boolean;
 		readonly accurate: boolean;
@@ -114,9 +121,7 @@ export function computeWarnings(
 	}
 
 	if (budget.overBudget) {
-		warnings.push(
-			`Context budget exceeded: ~${String(budget.totalTokens)} / ${String(budget.budgetCap)} tokens — remove large files or split the chunk`,
-		);
+		warnings.push(formatOverBudgetMessage(budget));
 	}
 
 	// Warn if all tasks are done but chunk hasn't been advanced
@@ -248,6 +253,8 @@ export function buildStatusJson(
 		},
 		budget: {
 			total_tokens: budget.totalTokens,
+			capped_tokens: budget.cappedTokens,
+			always_include_tokens: budget.breakdown.alwaysInclude,
 			budget_cap: budget.budgetCap,
 			over_budget: budget.overBudget,
 			accurate: budget.accurate,
@@ -344,12 +351,24 @@ export async function runStatus(options: StatusOptions): Promise<void> {
 
 	const state = SessionStateManager.load(sessionDir);
 	const chunk = PlanChunkManager.loadActive(sessionDir, state);
-	const allEntries = FileIndexManager.load(sessionDir);
+	const allEntries = FileIndexManager.withMeasuredCosts(
+		FileIndexManager.load(sessionDir),
+		options.cwd,
+	);
 	const alwaysInclude = FileIndexManager.alwaysInclude(allEntries);
 	const chunkFiles = FileIndexManager.queryByChunk(allEntries, state.active_chunk);
 
-	// Compute context budget
-	const budget = ContextBudgetCalculator.estimate(state, chunk, chunkFiles, alwaysInclude);
+	// The budget the prompt is charged, layered once an ai-index exists — not a
+	// second estimate that disagrees with the prompt's Budget line (REQ-BUD-2).
+	const { budget } = PromptAssembler.assemble(
+		loadAssembleInput(sessionDir, {
+			cwd: options.cwd,
+			verbose: false,
+			state,
+			chunk,
+			entries: allEntries,
+		}),
+	);
 
 	const promptLineCount = readPromptLineCount(sessionDir);
 

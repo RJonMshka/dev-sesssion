@@ -27,21 +27,80 @@ dev-sesssion init [options]
 |---|---|
 | `--team` | Enable team mode (auto-patches `.gitignore` + `.gitattributes`) |
 | `--max-files <n>` | Cap the number of files indexed, in `FILE_INDEX.md` and the ai-index (useful for large repos) |
+| `--chunk <id>` | Start at this chunk instead of the lowest-numbered. Lower-numbered chunks are recorded in `completed_chunks` (dated today, task statuses untouched) and get no files tagged. An id the plan does not define is an error, listing the ids it does. Without `--yes`, init asks |
+| `--plan <file>` | Read this plan instead of looking for `PLAN.md` and `docs/PLAN.md`. The path is relative to the project root; one that leads outside it is refused (exit 3) before anything is written. Use it when `PLAN.md` already holds something else, such as a spec or a roadmap |
 
 **What it does:**
 
-1. Detects existing `PLAN.md`, `CLAUDE.md`, `AGENTS.md`, `.cursor/`, `.windsurfrules`
-2. Splits an existing plan or scaffolds a new one interactively
-3. Walks the codebase to generate `FILE_INDEX.md`. With `--yes`, a file is tagged
-   to a chunk only when one of that chunk's unfinished tasks names it — by path
-   (`src/utils.ts`) or by a basename no other file shares (`utils.ts`). Files no
-   task names are left out of `FILE_INDEX.md`; the ai-index still reaches them.
-   Without `--yes`, it asks per directory
+1. Detects existing `PLAN.md` (or reads the `--plan` file), `CLAUDE.md`, `AGENTS.md`, `.cursor/`, `.windsurfrules`
+2. Splits an existing plan or scaffolds a new one interactively. With no plan,
+   it says where it looked and how to write one, check it with `plan check`,
+   and pass it with `--plan`. Under `--yes` it still exits 0 with one
+   placeholder chunk, and says so
+3. Walks the codebase to generate `FILE_INDEX.md`. A file is tagged
+   to a chunk only when the plan names it for that chunk — by path
+   (`src/utils.ts`) or by a basename no other file shares (`utils.ts`) — either
+   in one of the chunk's unfinished tasks, or elsewhere in its section: a fenced
+   "Key Files" block, a backticked path in a numbered step, or a bare path
+   containing `/`. Brace groups expand (`layout/{Sidebar,Header}.tsx`); globs and
+   directories are skipped; a chunk whose tasks are all done tags nothing. Files
+   the plan never names are left out of `FILE_INDEX.md`; the ai-index still
+   reaches them. Tagging is the same with or without `--yes` and asks no
+   question: a file is never tagged because of the directory it is in. Tag a
+   file by hand with `index add`
+   - Each chunk's `PLAN_N.md` keeps the paths it named (`files`) and the rest of
+     its section — goal, numbered steps, file list — as `brief`. The prompt points
+     at it with a `Plan:` line. Checkboxes remain the tracked tasks
+   - Paths the active chunk names that are not on disk yet go on a
+     `Not on disk yet:` line, and the existing files beside them are loaded as
+     summaries (not written to `FILE_INDEX.md`)
 4. Builds `ai-index.yaml`, so the first prompt can focus the units your tasks
    name. If that fails (for example `--strict` refusing a secret), init warns and
    carries on without it
 5. Writes `SESSION_STATE.md`, `ROUTINES.md`, `NEXT_PROMPT.md`
 6. Optionally patches `.gitignore` (and `.gitattributes` in team mode)
+
+---
+
+## dev-sesssion plan check
+
+Report whether `init` would read a plan, and how — without running `init` and
+without writing any file. Use it after writing or editing a plan.
+
+```bash
+dev-sesssion plan check <file> [--json]
+```
+
+`<file>` is relative to the project root (`--cwd`); a path outside it is
+rejected. The report names the plan format chosen and every format's score,
+each chunk (id, title, task count, whether it has a goal or steps besides its
+tasks, the paths it names), every section skipped and why, and dependencies on
+chunks the plan does not define.
+
+**Exit code:** `0` when the plan yields chunks and `init` would drop no task;
+`1` when it yields none, no format recognizes it, or a skipped section holds
+tasks. A skipped section with no tasks (an `## Overview`) does not fail it.
+
+**`--json`** prints one document and nothing else:
+
+```json
+{
+  "ok": true,
+  "source": { "name": "headings", "confidence": 0.95 },
+  "candidates": [
+    { "name": "headings", "confidence": 0.95, "reason": "2 numbered h2 heading(s)" },
+    { "name": "task-list", "confidence": 0, "reason": "document has headings" }
+  ],
+  "chunks": [
+    { "id": 1, "title": "Client", "taskCount": 1, "hasBrief": true, "namedPaths": ["src/client.ts"] }
+  ],
+  "excluded": [],
+  "warnings": []
+}
+```
+
+`source` is `null` when no format recognizes the document; `candidates` still
+lists every score.
 
 ---
 
@@ -79,14 +138,29 @@ Output includes:
   "last_updated": "2026-04-07",
   "tasks": { "total": 11, "done": 6, "in_progress": 2, "todo": 3, "percent_complete": 55 },
   "files": { "always_include": 2, "indexed": 54, "context": 8 },
-  "budget": { "total_tokens": 3840, "budget_cap": 4000, "over_budget": false, "accurate": false },
+  "budget": {
+    "total_tokens": 3840,
+    "capped_tokens": 2890,
+    "always_include_tokens": 950,
+    "budget_cap": 4000,
+    "over_budget": false,
+    "accurate": false
+  },
   "warnings": [],
   "days_since_last_session": 0
 }
 ```
 
-`budget_cap` is the *bootstrap* budget (default 4,000 estimated tokens) — the
-cost of the generated context, not of the source files the AI loads afterwards.
+`budget_cap` (default 4,000 estimated tokens) caps what the active chunk brings
+into context: `SESSION_STATE.md`, the plan chunk, and the chunk's files at the
+layer they load. That figure is `capped_tokens`, the number on the prompt's
+`Budget:` line, and `over_budget` compares it with the cap; `preview` and
+`health` judge the same one. Always-include files such as `CLAUDE.md` load in
+every chunk, so no trim or split can reduce them — they are reported as
+`always_include_tokens`, beside the cap rather than against it, and
+`total_tokens` is the two together. `SESSION_STATE.md` and the plan chunk (brief
+included) are counted from the text written for them, and a file without an
+ai-index entry at its measured size.
 A `memory` object with session-log aggregates is included when
 `.session/CONTEXT_LOG.md` exists, and `days_since_last_session` is `null` when
 `last_updated` cannot be parsed.
@@ -95,10 +169,11 @@ A `memory` object with session-log aggregates is included when
 
 ## dev-sesssion update
 
-Interactively mark tasks done and add session notes.
+Interactively mark tasks done and add session notes, and tag the files the
+session changed.
 
 ```bash
-dev-sesssion update
+dev-sesssion update [--no-tag]
 ```
 
 **What it does:**
@@ -106,9 +181,40 @@ dev-sesssion update
 1. Shows the current task list with checkboxes
 2. Lets you mark tasks done or in-progress
 3. Prompts for optional session notes
-4. Detects git-modified files and suggests adding them to the index
-5. Regenerates `NEXT_PROMPT.md` for the next session
+4. Tags the files this session changed to the active chunk (below)
+5. Regenerates `NEXT_PROMPT.md` for the next session, loading the files just tagged
 6. Scans written content for secrets
+
+**Tagging what the session touched.** In a git repository, `init`, `update`
+and `advance` record a session base in `SESSION_STATE.md`: `HEAD` and the files
+already dirty. The next `update` tags each file changed since then to the active
+chunk, and also to any open chunk whose tasks or file list name it. A file
+counts as changed if your own commits since the base changed it, or the working
+tree has it modified, staged or untracked. "Your own" means the author email
+matches `git config user.email`. Commits from a `pull` or a merge do not count,
+and with no `user.email` set, no commit counts.
+
+A file is not tagged when it:
+
+- is a deletion, under `.session/`, `node_modules/`, `dist/` or `build/`, or
+  always-included;
+- was written by dev-sesssion (`CLAUDE.md` and the other adapter files,
+  `.gitignore`, `.gitattributes`);
+- is a lockfile, binary, or marked `linguist-generated` in `.gitattributes`;
+- changed only in whitespace, or was changed and changed back;
+- has characters in its path other than letters, digits and `. _ - + @ /`;
+- was already dirty at the base and has not changed since.
+
+If more than 20 files remain, `update` treats the session as a sweep (a rename,
+a formatter run, a dependency bump) and tags none of them. If every task in the
+active chunk is done, it tags nothing. The report names each file tagged and
+counts the rest by reason.
+
+Without `--yes`, `update` asks once, with every file preselected. `--no-tag`
+skips tagging and still moves the base, so the files are not offered again.
+Under `--dry-run` it prints what it would tag and writes nothing. `advance`
+records a new base and tags nothing. The first `update` after upgrading has no
+base yet: it tags nothing, says `no-base`, and records one.
 
 ---
 
@@ -123,9 +229,39 @@ dev-sesssion advance
 Run this when all tasks in the active chunk are complete. The command:
 
 1. Marks the current chunk as completed in `SESSION_STATE.md`
-2. Archives it to `DONE_LOG.md`
-3. Activates the next chunk
+2. Archives it to `DONE_LOG.md`, moving the notes you added during the chunk
+   into its entry (notes quoted from a file stay in `SESSION_STATE.md`)
+3. Activates the next chunk — the lowest chunk id above the current one, so
+   chunk `3.5` follows `3`, and a plan numbered `1, 3` goes from 1 to 3
 4. Writes a fresh `NEXT_PROMPT.md`
+
+On the highest-numbered chunk it reports that all chunks are complete and
+exits 0 without changing anything.
+
+If the active chunk still has open tasks, `advance` asks before moving on.
+`--yes` (global) skips the question and advances anyway. When stdin is not a
+terminal, as under a script or a coding harness, there is nobody to ask: it
+exits 1 without changing anything and names `--yes` as the override.
+
+| Option | Description |
+|---|---|
+| `--json` | Print the result as one JSON document on stdout; progress messages go to stderr |
+
+`--json` output, for a harness driving the loop:
+
+```json
+{
+  "archivedChunkId": 1,
+  "newChunkId": 2,
+  "newChunkTitle": "Core",
+  "tasksRemaining": 1,
+  "forceAdvanced": true,
+  "allChunksComplete": false
+}
+```
+
+Stop when `allChunksComplete` is `true`. In that case `newChunkId` equals
+`archivedChunkId` and nothing was archived.
 
 ---
 
@@ -154,6 +290,10 @@ Run on its own, `dev-sesssion index` rebuilds `.session/ai-index.yaml`
 `NEXT_PROMPT.md` and `context-manifest.json` from it, so the prompt focuses
 units added since the last run. `--dry-run` writes none of them.
 
+TypeScript and JavaScript files are indexed, and so are `.vue` and `.svelte`
+components: their `<script>` blocks are parsed in place, so units carry the
+component file's own line numbers.
+
 The subcommands below manage `FILE_INDEX.md`.
 
 ### Add a file
@@ -181,6 +321,58 @@ Finds FILE_INDEX entries whose files no longer exist. Use `--fix` to remove them
 
 ---
 
+## dev-sesssion symbols
+
+Shows what the ai-index holds — the data prompts are built from — and whether
+that record still matches the code. Reads only: it writes nothing and does not
+regenerate the prompt.
+
+```bash
+dev-sesssion symbols <path> [--json]
+dev-sesssion symbols --name <name> [--json]
+```
+
+`symbols <path>` prints the file's token cost and module summary, each export's
+signature and line, and each code unit's id, kind, line range, token cost and
+share of the file. Summaries come from doc comments in the file, so they are
+printed as quotations (`quoted: "…"`).
+
+```
+src/utils.ts · 1,468 tokens · current
+quoted: "Request parsing helpers."
+Exports
+  L12  export function parseBody(req: Request): Body — quoted: "Parses a JSON body."
+Units
+  parseBody          function  L10-48    210 tok  14%  exported
+  normalizeHeaders   function  L50-61     58 tok   4%
+```
+
+`symbols --name <name>` lists every unit whose id, or member name after the
+last `.`, is exactly `<name>` (no substring or fuzzy matching), as
+`path#id:start-end`. `would focus` marks the declarations a task naming
+`` `<name>` `` would focus. The decision comes from the same code the prompt
+uses. When a name is declared more than once, each declaration shows its usage
+evidence. If none or too many have evidence, the name is ambiguous and focuses
+nothing. A plain word such as `helper` counts in a task only between backticks,
+and the output says so. A prompt focuses at most 5 units across all its tasks,
+so a unit marked `would focus` can still be crowded out by other tasks.
+
+Each file is checked against the hash recorded when it was indexed:
+
+| Mark | Meaning |
+|---|---|
+| `current` | The file matches its record |
+| `STALE — run dev-sesssion index` | The file changed since indexing |
+| `removed since indexing` | The file no longer exists |
+| `freshness unknown` | The index predates file hashes |
+
+Exit codes: `0` when a report prints, stale or not; `1` when `--name` matches
+nothing, when there is no index or `.session/`, when the file is not indexed,
+or when the path is outside the project. `--json` prints one JSON document with
+`freshness` on every file; summaries stay raw strings there.
+
+---
+
 ## dev-sesssion health
 
 Full session audit with severity-graded findings.
@@ -199,7 +391,7 @@ dev-sesssion health [--fix] [--json]
 | Stale FILE_INDEX entries (file missing) | `STALE_INDEX_ENTRIES` | warning |
 | FILE_INDEX references chunks with no plan file | `MISSING_CHUNK_FILES` | warning |
 | More than 4 always-include files | `ALWAYS_INCLUDE_CREEP` | warning |
-| Context budget over the cap | `BUDGET_EXCEEDED` | warning |
+| Context budget over the cap — the same figure the prompt's `Budget:` line shows | `BUDGET_EXCEEDED` | warning |
 | NEXT_PROMPT.md missing | `PROMPT_MISSING` | warning |
 | NEXT_PROMPT.md over the configured cap (default 20) | `PROMPT_TOO_LONG` | warning |
 | FILE_INDEX has more than 500 entries | `FILE_INDEX_LARGE` | info |
@@ -294,13 +486,13 @@ dev-sesssion import --from claude
 
 Reads `CLAUDE.md` and imports each H2 section as a note in `SESSION_STATE.md`. Useful for migrating an existing CLAUDE.md-based workflow.
 
-Each note is a quotation attributed to the file, capped at 240 characters:
+Each note is a quotation of the section's prose — fenced code, tables and rules are left out, list markers stripped, and a section with no prose makes no note. It is attributed to the file and capped at 240 characters, cut at a word with an ellipsis:
 
 ```
 Quoted from CLAUDE.md § "Conventions": "Use tabs, not spaces."
 ```
 
-The prompt shows it as quoted text from `CLAUDE.md`, not as your own note, so an agent can tell the two apart. Running the import again adds nothing new. A note left by an older version in the unquoted `CLAUDE.md: <title> — …` form is replaced with the quoted one.
+The prompt shows it as quoted text from `CLAUDE.md`, not as your own note, so an agent can tell the two apart. Running the import again adds nothing new. A note left by an older version — the unquoted `CLAUDE.md: <title> — …` form, or 2.4.x's raw 120-character excerpt — is replaced with the current one.
 
 The `<!-- dev-sesssion:start -->` … `<!-- dev-sesssion:end -->` block that `init` writes into `CLAUDE.md` is the tool's own text and is never imported; notes that 2.4.1 and earlier imported from it are removed. When the import changes `SESSION_STATE.md`, `NEXT_PROMPT.md` is regenerated (not under `--dry-run`).
 
@@ -378,6 +570,8 @@ dev-sesssion preview [--format json] [--no-content] [--copy]
 ```json
 {
   "total_tokens": 3210,
+  "capped_tokens": 2260,
+  "always_include_tokens": 950,
   "budget_cap": 4000,
   "over_budget": false,
   "accurate": false,
@@ -398,8 +592,8 @@ dev-sesssion preview [--format json] [--no-content] [--copy]
 character-based heuristic rather than a real tokenizer (the inverse of
 `accurate`). `layered_savings` is the token count saved by layered loading versus
 loading every file in full. `budget_cap` defaults to 4,000 estimated tokens and
-covers the *generated bootstrap context*, not the source files the AI loads
-afterwards.
+is judged against `capped_tokens` — everything but the always-include files,
+which the table shows on their own row and leaves out of the capped line.
 
 Exits non-zero if no `.session/` directory exists.
 
@@ -527,78 +721,26 @@ dev-sesssion mcp [--read-only]
 
 | Tool | What it does |
 |---|---|
-| `get_active_chunk` | Active chunk ID, title, and live task list |
+| `get_active_chunk` | Active chunk ID, title, and its tasks — each task's status the higher of what `PLAN_<n>.md` and `SESSION_STATE.md` record |
 | `list_context_files` | Files in `FILE_INDEX.md`, optionally filtered to a chunk |
 | `read_file_layer` | Render a file at layer 0 (summary), 1 (signatures), or 2 (full source) |
 | `read_unit` | Return one function, method, class or type by `path#id` — the refs on the prompt's `Focus (read_unit):` line. Reads the file as it is now, so the range is current even after edits |
 | `query_index` | Query the ai-index by exactly one of tag, chunk, or layer |
-| `mark_task_done` | Mark a task done by exact text match — disabled in read-only mode |
+| `mark_task_done` | Mark a task of the active chunk done by exact text match; the next regenerated prompt counts it — disabled in read-only mode |
 | `get_next_prompt` | Read the raw contents of `NEXT_PROMPT.md` |
+| `check_plan` | Check a plan file by path, the way `init` would read it; returns the same report as `plan check --json` and writes nothing |
 
-Requires a `.session/` directory.
+Requires a `.session/` directory. The server never exposes `advance` or `init`:
+they rewrite session state, and an orchestrator runs them through the CLI
+(`advance --json`) so `--read-only` keeps meaning what it says.
 
 ---
 
-## dev-sesssion compact
+## dev-sesssion compact (removed in 3.0)
 
-Use an AI model to compress a context file, reducing its token count while preserving meaning.
-
-```bash
-dev-sesssion compact <file> [--model <id>] [--allow-secrets] [--dry-run] [--yes]
-```
-
-**Arguments:**
-
-| Argument | Description |
-|---|---|
-| `<file>` | Path to the file to compact (relative to project root) |
-
-**Options:**
-
-| Flag | Description |
-|---|---|
-| `--model <id>` | Model to use (default: `claude-haiku-4-5-20251001`) |
-| `--allow-secrets` | Send the file even if the pre-flight secret scan flags it |
-| `--dry-run` | Print compacted content to stdout without writing (global flag) |
-| `--yes` | Skip confirmation prompt |
-
-**Requires** `ANTHROPIC_API_KEY` environment variable.
-
-**What it does:**
-
-1. Reads the target file and counts its tokens
-2. Scans the content for secrets and refuses to send if any match (see below)
-3. Calls the Haiku model with a compaction system prompt
-4. Shows before/after token and line counts
-5. Prompts for confirmation (unless `--yes` or `--dry-run`)
-6. Creates a timestamped backup at `.session/backups/<filename>.<timestamp>`
-7. Writes the compacted content atomically
-8. Updates `token_cost` in `FILE_INDEX.md` for the file
-
-**Pre-flight secret scan:**
-
-`compact` is the only command that sends data over the network, so the file
-content is run through `SecretScanner` *before* the API call. If anything
-matches, the command aborts and prints each finding as a line number, a pattern
-name, and a redacted value — the secret itself is never echoed. The file is not
-sent and nothing is written.
-
-Pass `--allow-secrets` to downgrade the refusal to a warning and send anyway —
-use it only when the matches are known false positives.
-
-**Example:**
-
-```bash
-# See what the compacted version would look like (no writes)
-dev-sesssion compact docs/architecture.md --dry-run
-
-# Compact with a specific model, skip confirmation
-dev-sesssion compact .session/SESSION_STATE.md --yes
-
-# Use a different model
-dev-sesssion compact CLAUDE.md --model claude-haiku-4-5-20251001
-```
-
-Backups are never auto-deleted. Run `dev-sesssion advance` or remove `.session/backups/` manually to clean them up.
+`compact` sent a context file to the Anthropic API with a key of its own. It
+was removed: dev-sesssion calls no model and makes no network request. Ask the
+agent in your harness to shorten the file, then run `dev-sesssion update`.
+Running `compact` now exits 1 and says so.
 
 Exits non-zero if `ANTHROPIC_API_KEY` is unset, the file does not exist, or the API call fails.

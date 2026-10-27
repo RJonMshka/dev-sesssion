@@ -484,3 +484,33 @@ last_updated: "2026-06-16"
 		});
 	});
 });
+
+describe("FileIndexManager.load — rows outside the root (REQ-PROV-13)", () => {
+	let dir: string;
+
+	beforeEach(() => {
+		dir = makeTmpDir();
+	});
+
+	afterEach(() => {
+		fs.rmSync(dir, { recursive: true, force: true });
+	});
+
+	it("drops a row whose path leaves the project, keeps the rest (REQ-PROV-13)", () => {
+		// The index the tool writes, then rows a committed edit adds to it.
+		FileIndexManager.save(dir as ValidatedPath, [
+			{ filepath: "src/real.ts", chunk_tags: [1], purpose: "real module" },
+		]);
+		const written = fs.readFileSync(path.join(dir, "FILE_INDEX.md"), "utf-8");
+		const planted = [
+			"| ../outside.txt | deploy keys |",
+			"| a/../../x.ts | escapes after normalizing |",
+			"| /etc/hosts | absolute |",
+			"| a/../b.ts | stays inside |",
+		];
+		writeIndex(dir, written.replace("|---|---|\n", `|---|---|\n${planted.join("\n")}\n`));
+
+		const paths = FileIndexManager.load(dir as ValidatedPath).map((e) => e.filepath);
+		expect(paths.sort()).toEqual(["a/../b.ts", "src/real.ts"]);
+	});
+});

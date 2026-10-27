@@ -2,8 +2,9 @@
  * `dev-sesssion update` command.
  *
  * Interactive task marking, note adding, "last worked" file updates,
- * prompt regeneration, and secret scanning. In `--yes` mode, only
- * auto-detectable updates are applied (git status for last-worked files).
+ * tagging the files the session changed (LLD-tagging.md), prompt
+ * regeneration, and secret scanning. In `--yes` mode, only auto-detectable
+ * updates are applied (git status for last-worked files, touch tags).
  *
  * Business logic lives in @dev-session/core — this module handles CLI
  * prompts, formatting, and file write orchestration.
@@ -29,9 +30,31 @@ import {
 } from "@dev-session/core";
 import { CliError, PathValidator, type ValidatedPath } from "@dev-session/security";
 import type { Command } from "commander";
+import { readVersion } from "../read-version.js";
+import { createAdapterReadFile, createAdapterWriteFile } from "../utils/adapter-io.js";
 import { dryRunSkipWrite } from "../utils/dry-run.js";
 import { handleError } from "../utils/error-handler.js";
+import { resolveAdapter } from "../utils/resolve-adapter.js";
 import { regeneratePrompt } from "./regenerate-prompt.js";
+import { tagTouchedFiles, withSessionBase } from "./touch-tagging.js";
+
+/**
+ * Brings the adapter's managed files, such as the Claude plan skill, up to
+ * this version (REQ-PLA-14). The adapter decides what it owns.
+ *
+ * @param options - The update options: working directory and adapter override.
+ * @throws {SecurityError} If the writer refuses a path or its content.
+ */
+function refreshAdapterFiles(options: UpdateOptions): void {
+	const { adapter } = resolveAdapter(options.cwd, options.adapter);
+	const result = adapter.refresh?.({
+		projectRoot: options.cwd,
+		version: readVersion(),
+		writeFile: createAdapterWriteFile(options.cwd),
+		readFile: createAdapterReadFile(options.cwd),
+	});
+	for (const notice of result?.notices ?? []) log.info(notice);
+}
 
 const execFileAsync = promisify(execFile);
 
@@ -53,6 +76,8 @@ export interface UpdateOptions {
 	readonly dryRun?: boolean;
 	/** Explicit adapter override (from --adapter flag). */
 	readonly adapter?: string;
+	/** Tag no file on account of touch (REQ-IDX-39). */
+	readonly noTag?: boolean;
 }
 
 /** Result returned after an update run. */
@@ -96,6 +121,8 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 		const taskResult = await promptTaskUpdates(chunk.tasks);
 		if (taskResult.changed) {
 			for (const update of taskResult.updates) {
+				// The text comes from the active chunk; state may not list it yet (REQ-WF-10).
+				state = SessionStateManager.adoptTask(state, update.text);
 				if (update.newStatus === TaskStatus.DONE) {
 					state = SessionStateManager.markTaskDone(state, update.text);
 				} else if (update.newStatus === TaskStatus.IN_PROGRESS) {
@@ -133,8 +160,22 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 		}
 	}
 
-	// Step 4: Save state
+	// Step 3b: Tag the files this session changed (REQ-IDX-21..40), then move
+	// the base so the next update covers only what comes after (REQ-IDX-19).
 	const dryRun = options.dryRun === true;
+	const liveChunk = PlanChunkManager.withSessionStatus(chunk, state.tasks);
+	const chunks = PlanChunkManager.loadAll(sessionDir).map((c) =>
+		c.chunk_id === liveChunk.chunk_id ? liveChunk : c,
+	);
+	const touched = await tagTouchedFiles(sessionDir, state, chunks, allEntries, {
+		cwd: options.cwd,
+		yes: options.yes,
+		dryRun,
+		noTag: options.noTag === true,
+	});
+	state = await withSessionBase(state, options.cwd);
+
+	// Step 4: Save state
 	if (dryRun) {
 		dryRunSkipWrite(
 			path.join(sessionDir, "SESSION_STATE.md"),
@@ -143,6 +184,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 		);
 	} else {
 		SessionStateManager.save(sessionDir, state);
+		refreshAdapterFiles(options);
 	}
 
 	if (options.verbose) {
@@ -164,8 +206,10 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 		blockOnSecrets: options.strict,
 		...(options.adapter !== undefined ? { adapter: options.adapter } : {}),
 		state,
-		chunk,
-		entries: allEntries,
+		// Re-merged, so the prompt counts the tasks just marked (REQ-WF-7).
+		chunk: PlanChunkManager.withSessionStatus(chunk, state.tasks),
+		// The entries just tagged, so the prompt loads them (REQ-IDX-36).
+		entries: touched.entries,
 	});
 
 	log.info(ContextBudgetCalculator.formatSummary(budget));
@@ -384,7 +428,8 @@ export function registerUpdateCommand(program: Command): void {
 	program
 		.command("update")
 		.description("Interactively update task status, add notes, and regenerate the prompt")
-		.action(async () => {
+		.option("--no-tag", "Do not tag the files this session changed")
+		.action(async (cmdOptions: { tag?: boolean }) => {
 			const opts = program.opts<{
 				cwd: string;
 				yes: boolean;
@@ -401,6 +446,7 @@ export function registerUpdateCommand(program: Command): void {
 				strict: opts.strict,
 				dryRun: opts.dryRun,
 				...(opts.adapter !== undefined ? { adapter: opts.adapter } : {}),
+				noTag: cmdOptions.tag === false,
 			};
 
 			try {

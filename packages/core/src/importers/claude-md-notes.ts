@@ -10,18 +10,50 @@
  */
 
 import { formatQuotedNote } from "../formatters/formatter-utils.js";
+import { FENCE_RE, RULE_RE } from "../parsers/plan-sources/markdown-utils.js";
 import { splitManagedBlock } from "./managed-block.js";
 
 /** The file the notes are attributed to. */
 const SOURCE_FILE = "CLAUDE.md";
 
-/** Characters of section body kept in a note, before the note cap applies. */
-const EXCERPT_CHARS = 120;
+/**
+ * Characters of section body releases up to 2.4.2 kept, whatever they were.
+ * Used only to recognise notes those releases wrote (REQ-RUN-26).
+ */
+const LEGACY_EXCERPT_CHARS = 120;
 
-/** One `##` section: its heading and the start of its body. */
+/** One `##` section: its heading and its body text. */
 interface Section {
 	readonly title: string;
 	readonly excerpt: string;
+}
+
+/** How a section's body becomes an excerpt. */
+type ExcerptMode = "prose" | "legacy";
+
+const MARKER_RE = /^(?:[-*+]\s+|\d+[.)]\s+|>\s?)/;
+
+/**
+ * Reduces a section's body to its prose (REQ-RUN-23): fenced blocks, table rows
+ * and rules are dropped, list and quote markers stripped.
+ *
+ * @param lines - The section's non-heading body lines, trimmed.
+ * @returns The prose, whitespace collapsed.
+ */
+function proseOf(lines: readonly string[]): string {
+	const kept: string[] = [];
+	let inFence = false;
+	for (const line of lines) {
+		if (FENCE_RE.test(line)) {
+			inFence = !inFence;
+			continue;
+		}
+		if (inFence || line.startsWith("|") || RULE_RE.test(line)) continue;
+		let text = line;
+		while (MARKER_RE.test(text)) text = text.replace(MARKER_RE, "");
+		if (text !== "") kept.push(text);
+	}
+	return kept.join(" ").replace(/\s+/g, " ").trim();
 }
 
 /** Result of {@link ClaudeMdNotes.merge}. */
@@ -35,20 +67,26 @@ export interface MergedNotes {
 }
 
 /**
- * Splits markdown into `##` sections, keeping the first {@link EXCERPT_CHARS}
- * characters of each body with whitespace collapsed.
+ * Splits markdown into `##` sections. In `prose` mode each excerpt is the
+ * section's prose, uncut — `formatQuotedNote` applies the cap. In `legacy` mode
+ * it is the first {@link LEGACY_EXCERPT_CHARS} characters of the raw body, as
+ * releases up to 2.4.2 wrote it.
  *
  * @param content - Raw markdown.
+ * @param mode - How to build excerpts.
  * @returns The sections in document order.
  */
-function extractH2Sections(content: string): Section[] {
+function extractH2Sections(content: string, mode: ExcerptMode = "prose"): Section[] {
 	const sections: Section[] = [];
 	let currentTitle: string | null = null;
 	const currentBody: string[] = [];
 
 	const flush = (): void => {
 		if (currentTitle === null) return;
-		const excerpt = currentBody.join(" ").replace(/\s+/g, " ").trim().slice(0, EXCERPT_CHARS);
+		const excerpt =
+			mode === "prose"
+				? proseOf(currentBody)
+				: currentBody.join(" ").replace(/\s+/g, " ").trim().slice(0, LEGACY_EXCERPT_CHARS);
 		sections.push({ title: currentTitle, excerpt });
 		currentBody.length = 0;
 	};
@@ -98,16 +136,18 @@ function quotedForm({ title, excerpt }: Section): string {
  * @param current - The quoted notes this import writes.
  * @returns The notes to remove from an existing list.
  */
-function staleForms(
-	content: string,
-	sections: readonly Section[],
-	current: ReadonlySet<string>,
-): Set<string> {
-	const whole = extractH2Sections(content);
+function staleForms(content: string, current: ReadonlySet<string>): Set<string> {
+	// Earlier releases built excerpts the legacy way, so that is the form their
+	// notes hold: 2.2.1 unquoted (REQ-PROV-11), 2.4.x quoted (REQ-RUN-26), and
+	// either read across the managed block (REQ-RUN-9).
+	const own = extractH2Sections(splitManagedBlock(content).user, "legacy");
+	const whole = extractH2Sections(content, "legacy");
 	const stale = new Set([
-		...sections.map(unquotedForm),
+		...own.map(unquotedForm),
+		...own.map(quotedForm),
 		...whole.map(unquotedForm),
 		...whole.map(quotedForm),
+		...extractH2Sections(content).map(quotedForm),
 	]);
 	for (const note of current) stale.delete(note);
 	return stale;
@@ -125,7 +165,10 @@ export const ClaudeMdNotes = {
 	 */
 	build(content: string): string[] {
 		// Only the owner's text becomes notes; the tool's own block does not (REQ-RUN-7, -18).
-		return extractH2Sections(splitManagedBlock(content).user).map(quotedForm);
+		// A section with no prose — a lone table or code block — makes no note (REQ-RUN-24).
+		return extractH2Sections(splitManagedBlock(content).user)
+			.filter((s) => s.excerpt !== "")
+			.map(quotedForm);
 	},
 
 	/**
@@ -147,9 +190,8 @@ export const ClaudeMdNotes = {
 	 * @returns The merged list, what was added, and how many old notes were removed.
 	 */
 	merge(content: string, existing: readonly string[]): MergedNotes {
-		const sections = extractH2Sections(splitManagedBlock(content).user);
-		const current = new Set(sections.map(quotedForm));
-		const stale = staleForms(content, sections, current);
+		const current = new Set(ClaudeMdNotes.build(content));
+		const stale = staleForms(content, current);
 		const kept = existing.filter((note) => !stale.has(note));
 		const present = new Set(kept);
 		const added = [...current].filter((note) => !present.has(note));

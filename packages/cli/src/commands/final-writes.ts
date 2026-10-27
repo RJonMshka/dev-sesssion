@@ -14,15 +14,19 @@ import type { AiIndex, FileIndexEntry, PlanChunk, SessionState } from "@dev-sess
 import {
 	ContextBudgetCalculator,
 	MAX_PROMPT_LINES,
+	PlanChunkManager,
 	RoutinesWriter,
 	SessionStateManager,
+	serializeSessionBaseYaml,
 } from "@dev-session/core";
 import type { ValidatedPath } from "@dev-session/security";
 import { AtomicWriter, CliError, PathValidator, SecretScanner } from "@dev-session/security";
+import { readVersion } from "../read-version.js";
 import { createAdapterReadFile, createAdapterWriteFile } from "../utils/adapter-io.js";
 import { dryRunGitignorePatch, dryRunWrite } from "../utils/dry-run.js";
 import { resolveAdapter } from "../utils/resolve-adapter.js";
 import { detectProjectName, regeneratePrompt } from "./regenerate-prompt.js";
+import { withSessionBase } from "./touch-tagging.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -44,6 +48,8 @@ export interface FinalWriteOptions {
 	 * absent, whatever `ai-index.yaml` is on disk is used.
 	 */
 	readonly index?: AiIndex | null;
+	/** The chunk to start at; the lowest-numbered when absent (REQ-RUN-27). */
+	readonly startChunk?: number;
 }
 
 /** Result from the final writes phase. */
@@ -118,16 +124,28 @@ export async function runFinalWrites(
 	let filesWritten = 0;
 	let secretWarnings = 0;
 
-	const activeChunk = chunks[0];
-	if (!activeChunk) {
+	if (chunks.length === 0) {
 		throw new CliError({
 			message: "No plan chunks available. Cannot create session state.",
 			suggestion: "Ensure plan splitting or scaffolding produced at least one chunk.",
 		});
 	}
+	const { active: activeChunk, completedIds } = PlanChunkManager.startAt(
+		chunks,
+		options.startChunk,
+	);
 
 	// --- 1. Write SESSION_STATE.md ---
-	const sessionState = buildInitialState(activeChunk, projectName, options.cwd);
+	// Chunks below the starting one are recorded as advance would (REQ-RUN-28).
+	const today = new Date().toISOString().slice(0, 10);
+	// The base marks where the first session starts (REQ-IDX-19).
+	const sessionState: SessionState = await withSessionBase(
+		{
+			...buildInitialState(activeChunk, projectName, options.cwd),
+			completed_chunks: Object.fromEntries(completedIds.map((id) => [String(id), today])),
+		},
+		options.cwd,
+	);
 	const stateContent = serializeSessionState(sessionState);
 
 	secretWarnings += scanContent(stateContent, "SESSION_STATE.md", options.verbose);
@@ -168,11 +186,13 @@ export async function runFinalWrites(
 			isReinit: false,
 			writeFile: createAdapterWriteFile(options.cwd),
 			readFile: createAdapterReadFile(options.cwd),
+			version: readVersion(),
 		});
 
 		if (options.verbose) {
 			log.info(`Adapter setup: ${setupResult.summary}`);
 		}
+		for (const notice of setupResult.notices ?? []) log.info(notice);
 	}
 
 	// --- 3b. Write NEXT_PROMPT.md + manifest, from the ai-index init just built (REQ-RUN-10) ---
@@ -242,7 +262,8 @@ function buildInitialState(activeChunk: PlanChunk, projectName: string, cwd: str
 		})),
 		last_worked_files: [],
 		max_prompt_lines: MAX_PROMPT_LINES,
-		notes: [`Session initialized on ${nowDate}`],
+		// No progress note: the prompt's Resume line says it (REQ-WF-4).
+		notes: [],
 		completed_chunks: {},
 		...(typedName.length > 0 && typedName !== detectProjectName(cwd)
 			? { project_name: typedName }
@@ -277,6 +298,7 @@ function serializeSessionState(state: SessionState): string {
 		`active_chunk: ${state.active_chunk}`,
 		`session_id: "${state.session_id}"`,
 		`last_updated: "${state.last_updated}"`,
+		...serializeSessionBaseYaml(state.session_base),
 		"---",
 		"",
 		"# Session State",

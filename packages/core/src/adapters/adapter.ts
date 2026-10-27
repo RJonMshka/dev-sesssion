@@ -73,6 +73,22 @@ export interface AdapterSetupContext {
 	readonly writeFile: AdapterWriteFile;
 	/** Safe file reader (returns undefined if not found). */
 	readonly readFile: AdapterReadFile;
+	/** The CLI version, for files that carry a managed marker. Absent: none are written. */
+	readonly version?: string;
+}
+
+/**
+ * Context provided to an adapter's `refresh` hook (called during `dev-sesssion update`).
+ */
+export interface AdapterRefreshContext {
+	/** Absolute path to the project root. */
+	readonly projectRoot: string;
+	/** The CLI version, for files that carry a managed marker. */
+	readonly version: string;
+	/** Safe file writer (backed by AtomicWriter in the CLI layer). */
+	readonly writeFile: AdapterWriteFile;
+	/** Safe file reader (returns undefined if not found). */
+	readonly readFile: AdapterReadFile;
 }
 
 /**
@@ -83,6 +99,8 @@ export interface AdapterSetupResult {
 	readonly filesWritten: readonly string[];
 	/** Human-readable summary of what the setup did (for CLI output). */
 	readonly summary: string;
+	/** Lines the CLI always shows, such as a file left alone because the user owns it. */
+	readonly notices?: readonly string[];
 }
 
 /**
@@ -185,6 +203,17 @@ export interface Adapter {
 	 * @returns A result describing what files were written.
 	 */
 	setup?(context: AdapterSetupContext): Promise<AdapterSetupResult>;
+
+	/**
+	 * Called during `dev-sesssion update` to bring this tool's managed files up
+	 * to the running version. Replaces only files that carry this tool's managed
+	 * marker; never creates one, and never touches a file the user owns.
+	 *
+	 * @param context - Version, reader and writer.
+	 * @returns A result describing what files were written.
+	 * @throws {SecurityError} If the writer refuses a path or its content.
+	 */
+	refresh?(context: AdapterRefreshContext): AdapterSetupResult;
 
 	/**
 	 * Transforms session state before prompt generation.

@@ -17,6 +17,7 @@ export {
 export type {
 	Adapter,
 	AdapterReadFile,
+	AdapterRefreshContext,
 	AdapterSetupContext,
 	AdapterSetupResult,
 	AdapterWriteFile,
@@ -27,13 +28,19 @@ export type {
 	AiIndex,
 	FileAnnotations,
 	FileEntry,
+	Freshness,
 	LayerHint,
 	ParsedFile,
 	ParsedSymbol,
 	ParsedUnit,
 	SymbolAnnotations,
 	SymbolEntry,
+	SymbolExportRow,
+	SymbolFileReport,
+	SymbolMatch,
+	SymbolNameReport,
 	SymbolSurface,
+	SymbolUnitRow,
 	UnitEntry,
 	UnitKind,
 } from "./annotation/index.js";
@@ -44,6 +51,7 @@ export {
 	AiIndexManager,
 	AnnotationParser,
 	AutoExtractor,
+	SymbolQuery,
 } from "./annotation/index.js";
 // Calculators
 export { ContextBudgetCalculator } from "./calculators/context-budget-calculator.js";
@@ -55,7 +63,25 @@ export type {
 	ResolvedFileLayer,
 } from "./calculators/layer-resolver.js";
 export { LayerResolver } from "./calculators/layer-resolver.js";
+export { type NeighbourInput, NewFiles } from "./calculators/new-files.js";
+export { inferPurpose, PlanTags } from "./calculators/plan-tags.js";
 export type {
+	SkipReason,
+	StopReason,
+	TouchCandidate,
+	TouchDecision,
+	TouchDecisionInput,
+	TouchObservation,
+} from "./calculators/touch-tags.js";
+export {
+	MAX_TOUCH_TAGS,
+	SessionBase,
+	TouchDetector,
+	TouchTagger,
+} from "./calculators/touch-tags.js";
+export type {
+	DeclarationGroup,
+	FocusExplanation,
 	FocusedUnit,
 	UnitFocusInput,
 	UnitFocusResult,
@@ -83,33 +109,53 @@ export { ProjectDetector } from "./detectors/project-detector.js";
 export type { BootstrapContext, BootstrapFormatter } from "./formatters/bootstrap-formatter.js";
 // Formatter utilities (shared across all formatter implementations)
 export {
+	CHUNK_DONE_PREFIX,
 	DEFAULT_MAX_NEXT_TASKS,
 	DEFAULT_MAX_NOTES,
 	DEFAULT_MAX_PROMPT_LINES,
+	DONE_WHEN_PREFIX,
 	FILE_LOAD_PREFIXES,
 	FOCUS_PREFIX,
 	formatBudgetLine,
 	formatChunkProgress,
 	formatCompletedChunksSummary,
 	formatLayeredContextLines,
+	formatNewFilesLine,
+	formatOverBudgetMessage,
+	formatPlanLine,
 	formatQuotedNote,
+	formatQuotedSummary,
+	formatRefList,
 	formatUnitRef,
+	formatWorkLines,
 	getPendingTasks,
+	isDerivedNote,
+	isProgressNote,
 	LAYER_SUFFIX_RE,
 	LEGACY_LOAD_PREFIX,
 	LOAD_FULL_PREFIX,
 	LOAD_PREFIX,
 	MAX_NOTE_CHARS,
+	MAX_REF_LINE_CHARS,
+	MEMORY_NOTE_PREFIX,
 	mergeContextFiles,
+	NEW_FILES_PREFIX,
+	NEXT_PREFIX,
+	NOTE_PREFIX,
+	PATH_SHAPED,
+	PLAN_PREFIX,
 	QUOTED_LABEL,
+	QUOTED_NOTE_PREFIX,
 	quoteText,
 	SUMMARIES_PREFIX,
+	selectNotes,
 	trimToMaxLines,
+	WORKFLOW_PREFIX,
 } from "./formatters/formatter-utils.js";
 // Bootstrap formatters
 export { PlainTextFormatter } from "./formatters/plain-text-formatter.js";
 // Git-backed verification and replay scoring
-export type { GitCommit } from "./git/git-reader.js";
+export type { DiffKind, GitCommit, StatusEntry } from "./git/git-reader.js";
 export { GitReader } from "./git/git-reader.js";
 // Importers
 export type { MergedNotes } from "./importers/claude-md-notes.js";
@@ -128,7 +174,12 @@ export { ContextManifest } from "./managers/context-manifest.js";
 export { FILE_INDEX_PAGE_SIZE, FileIndexManager } from "./managers/file-index-manager.js";
 export { NextPromptWriter } from "./managers/next-prompt-writer.js";
 export { DONE_LOG_FILENAME, PlanChunkManager } from "./managers/plan-chunk-manager.js";
-export type { AssembledPrompt, AssembleInput } from "./managers/prompt-assembler.js";
+export type {
+	AssembledPrompt,
+	AssembleInput,
+	ChargedContext,
+	ChargeInput,
+} from "./managers/prompt-assembler.js";
 export { PromptAssembler } from "./managers/prompt-assembler.js";
 export { RoutinesWriter } from "./managers/routines-writer.js";
 export type {
@@ -140,7 +191,10 @@ export type {
 export { SessionManager } from "./managers/session-manager.js";
 export { SessionMemoryManager } from "./managers/session-memory-manager.js";
 // Managers
-export { SessionStateManager } from "./managers/session-state-manager.js";
+export {
+	SessionStateManager,
+	serializeSessionBaseYaml,
+} from "./managers/session-state-manager.js";
 // Trim overrides
 export { TrimOverridesManager } from "./managers/trim-overrides-manager.js";
 // Parsers
@@ -148,6 +202,10 @@ export { PlanParser } from "./parsers/plan-parser.js";
 export type {
 	ExcludedSection,
 	ExclusionReason,
+	NoPlanDirectionOptions,
+	PlanCheckCandidate,
+	PlanCheckChunk,
+	PlanCheckReport,
 	PlanIngestResult,
 	PlanParseResult,
 	PlanSource,
@@ -156,11 +214,19 @@ export type {
 } from "./parsers/plan-sources/index.js";
 // Plan source registry — many plan dialects in, one PlanChunk[] out
 export {
+	CHUNK_HEADING_SHAPE,
+	checkPlan,
+	checkPlanFile,
+	DEFAULT_PLAN_PATHS,
+	describeExclusion,
 	detectPlanSource,
 	formatCandidates,
 	getPlanSourceByName,
 	getRegisteredPlanSources,
 	HeadingPlanSource,
+	INIT_WITH_PLAN_COMMAND,
+	noPlanDirection,
+	PLAN_CHECK_COMMAND,
 	PLAN_SOURCE_MIN_CONFIDENCE,
 	parsePlan,
 	registerPlanSource,
@@ -187,6 +253,7 @@ export type {
 	PlanChunk,
 	ProjectInfo,
 	ProjectTypeValue,
+	SessionBaseRecord,
 	SessionState,
 	StalenessReport,
 	Task,
@@ -216,6 +283,8 @@ export {
 	MAX_PROJECT_NAME_CHARS,
 	MAX_PROMPT_CHARS,
 	MAX_PROMPT_LINES,
+	MAX_WORKFLOW_STEP_CHARS,
+	MAX_WORKFLOW_STEPS,
 	ManifestEntrySchema,
 	MIN_CONFIGURABLE_PROMPT_LINES,
 	NextPromptSchema,
@@ -243,4 +312,8 @@ export type {
 } from "./verifiers/session-verifier.js";
 export { SessionVerifier, VerifySeverity } from "./verifiers/session-verifier.js";
 // Walkers
-export { GitignoreAwareWalker } from "./walkers/gitignore-aware-walker.js";
+export {
+	GitignoreAwareWalker,
+	isAlwaysIgnored,
+	LOCKFILE_NAMES,
+} from "./walkers/gitignore-aware-walker.js";

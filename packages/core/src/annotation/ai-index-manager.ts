@@ -11,7 +11,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { ValidatedPath } from "@dev-session/security";
 import { AtomicWriter, ParseError, PathValidator } from "@dev-session/security";
-import { QUOTED_LABEL, quoteText } from "../formatters/formatter-utils.js";
+import { formatQuotedSummary } from "../formatters/formatter-utils.js";
 import type { FileIndexEntry } from "../schemas/index.js";
 import { AI_INDEX_FILENAME, AiIndexBuilder } from "./ai-index-builder.js";
 import type { AiIndex, FileEntry } from "./types.js";
@@ -19,16 +19,6 @@ import type { AiIndex, FileEntry } from "./types.js";
 // ---------------------------------------------------------------------------
 // AiIndexManager
 // ---------------------------------------------------------------------------
-
-/**
- * Renders a summary taken from a doc comment as a labelled quotation.
- *
- * @param summary - The stored summary.
- * @returns `quoted: "<summary>"`, escaped onto one line.
- */
-function quoteSummary(summary: string): string {
-	return `${QUOTED_LABEL} ${quoteText(summary)}`;
-}
 
 /**
  * Manages the lifecycle of the ai-index on disk and provides query/render APIs.
@@ -168,7 +158,7 @@ export const AiIndexManager = {
 		const lines: string[] = [`## ${relPath}`];
 
 		if (entry.module_summary) {
-			lines.push(quoteSummary(entry.module_summary));
+			lines.push(formatQuotedSummary(entry.module_summary));
 		}
 
 		const publicSymbols = Object.entries(entry.exports)
@@ -199,7 +189,7 @@ export const AiIndexManager = {
 		const lines: string[] = [`## ${relPath}`];
 
 		if (entry.module_summary) {
-			lines.push(quoteSummary(entry.module_summary));
+			lines.push(formatQuotedSummary(entry.module_summary));
 		}
 
 		const publicSymbols = Object.entries(entry.exports)
@@ -207,7 +197,7 @@ export const AiIndexManager = {
 			.sort(([a], [b]) => a.localeCompare(b));
 
 		for (const [, sym] of publicSymbols) {
-			const summaryPart = sym.summary ? ` — ${quoteSummary(sym.summary)}` : "";
+			const summaryPart = sym.summary ? ` — ${formatQuotedSummary(sym.summary)}` : "";
 			lines.push(`  ${sym.signature}${summaryPart}`);
 		}
 

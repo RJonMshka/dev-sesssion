@@ -31,7 +31,6 @@
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@anthropic-ai/sdk": "0.54.0",
 		"@clack/prompts": "1.2.0",
 		"@modelcontextprotocol/sdk": "1.29.0",
 		"clipboardy": "4.0.0",

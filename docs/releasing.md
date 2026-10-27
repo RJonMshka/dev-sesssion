@@ -125,7 +125,7 @@ mkdir /tmp/ds-smoke && cd /tmp/ds-smoke && git init && npm init -y
 | 13 | `preview` | `preview` / `--format json` / `--no-content` | token breakdown + assembled bootstrap; JSON parses |
 | 14 | `trim` | `trim` | interactively exclude files → budget drops |
 | 15 | `lint-context` | `lint-context` / `--json` | duplicate blocks, soft language, dead `@mentions`; JSON parses |
-| 16 | `compact` | `ANTHROPIC_API_KEY=… compact <file>` | AI-compacts a context file; without a key → a clear error |
+| 16 | `compact` | `compact CLAUDE.md` | removed in 3.0: exits 1 with a reason; not in `--help` |
 | 17 | `memory` | `memory show -n` / `stats --json` / `stale` / `prune` | history, stats, staleness, pruning all emit cleanly |
 | 18 | `mcp` | `mcp` | stdio MCP server serving `.session/`; responds to a client handshake |
 

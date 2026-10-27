@@ -16,6 +16,7 @@
 import type { AiIndex } from "../annotation/types.js";
 import { ContextBudgetCalculator } from "../calculators/context-budget-calculator.js";
 import { type ContextPlan, LayerResolver } from "../calculators/layer-resolver.js";
+import { NewFiles } from "../calculators/new-files.js";
 import type { BootstrapContext, BootstrapFormatter } from "../formatters/bootstrap-formatter.js";
 import type {
 	ContextBudget,
@@ -55,6 +56,30 @@ export interface AssembleInput {
 	 * (REQ-RUN-20).
 	 */
 	readonly excluded?: readonly string[];
+	/**
+	 * Paths the active chunk's plan names that are not on disk, from
+	 * `NewFiles.absent` (LLD-new-files.md). The prompt states them and loads
+	 * the indexed files beside them (REQ-NEW-1, REQ-NEW-4).
+	 */
+	readonly absent?: readonly string[];
+}
+
+/** What charging the budget needs: the session, without any formatting. */
+export type ChargeInput = Pick<
+	AssembleInput,
+	"state" | "chunk" | "entries" | "index" | "excluded" | "absent"
+>;
+
+/** The context a prompt would load, and the budget it is charged. */
+export interface ChargedContext {
+	/** The context budget. */
+	readonly budget: ContextBudget;
+	/** The resolved layers and focus. */
+	readonly plan: ContextPlan;
+	/** Files tagged to the active chunk, trimmed paths removed. */
+	readonly chunkFiles: readonly FileIndexEntry[];
+	/** Always-include files. */
+	readonly alwaysIncludeFiles: readonly FileIndexEntry[];
 }
 
 /** The assembled prompt and what it was built from. */
@@ -87,7 +112,7 @@ const BASE_EXCLUDES = ["**/__tests__/**", "**/dist/**", "**/node_modules/**"] as
  * @returns The budget.
  */
 function chargeBudget(
-	input: AssembleInput,
+	input: ChargeInput,
 	plan: ContextPlan,
 	chunkFiles: readonly FileIndexEntry[],
 	alwaysIncludeFiles: readonly FileIndexEntry[],
@@ -117,23 +142,52 @@ function withoutExcluded(plan: ContextPlan, excluded: ReadonlySet<string>): Cont
  */
 export const PromptAssembler = {
 	/**
+	 * Resolves what the prompt would load and charges its budget, without
+	 * formatting anything. `assemble` is built on it, and `health` judges the
+	 * budget by it, so the two cannot disagree (LLD-budget.md, REQ-BUD-5).
+	 *
+	 * @param input - The session: state, active chunk, entries, ai-index, trims.
+	 * @returns The plan, the budget, and the files it was charged for.
+	 */
+	charge(input: ChargeInput): ChargedContext {
+		const { chunk, entries, index } = input;
+		const excluded = new Set(input.excluded ?? []);
+		const tagged = FileIndexManager.queryByChunk(entries, chunk.chunk_id).filter(
+			(e) => !excluded.has(e.filepath),
+		);
+		const alwaysIncludeFiles = FileIndexManager.alwaysInclude(entries);
+		// The code beside files the chunk will create, charged like any chunk
+		// file so every command reports the same budget (REQ-NEW-4, REQ-NEW-5).
+		const taken = new Set([
+			...excluded,
+			...tagged.map((e) => e.filepath),
+			...alwaysIncludeFiles.map((e) => e.filepath),
+		]);
+		const neighbours = NewFiles.neighbours({
+			absent: input.absent ?? [],
+			index,
+			taken,
+			activeChunk: chunk.chunk_id,
+		});
+		const chunkFiles = [...tagged, ...neighbours];
+		const plan = withoutExcluded(
+			LayerResolver.plan({ chunkFiles, alwaysIncludeFiles, tasks: chunk.tasks, index }),
+			excluded,
+		);
+		const budget = chargeBudget(input, plan, chunkFiles, alwaysIncludeFiles);
+		return { budget, plan, chunkFiles, alwaysIncludeFiles };
+	},
+
+	/**
 	 * Builds the prompt, its manifest and its budget from session state.
 	 *
 	 * @param input - The loaded session and the adapter's formatter.
 	 * @returns The assembled prompt.
 	 */
 	assemble(input: AssembleInput): AssembledPrompt {
-		const { state, chunk, entries, index } = input;
+		const { state, chunk, index } = input;
 		const excluded = new Set(input.excluded ?? []);
-		const chunkFiles = FileIndexManager.queryByChunk(entries, chunk.chunk_id).filter(
-			(e) => !excluded.has(e.filepath),
-		);
-		const alwaysIncludeFiles = FileIndexManager.alwaysInclude(entries);
-		const plan = withoutExcluded(
-			LayerResolver.plan({ chunkFiles, alwaysIncludeFiles, tasks: chunk.tasks, index }),
-			excluded,
-		);
-		const budget = chargeBudget(input, plan, chunkFiles, alwaysIncludeFiles);
+		const { plan, budget, chunkFiles, alwaysIncludeFiles } = PromptAssembler.charge(input);
 		const shown = input.transformState ? input.transformState(state) : state;
 
 		const context: BootstrapContext = {
@@ -148,6 +202,9 @@ export const PromptAssembler = {
 			],
 			projectName: input.projectName,
 			maxPromptLines: shown.max_prompt_lines,
+			// Resolved here, not by formatters, so a later per-chunk workflow changes one place.
+			...(shown.workflow !== undefined ? { workflow: shown.workflow } : {}),
+			...(input.absent !== undefined && input.absent.length > 0 ? { newFiles: input.absent } : {}),
 			...(index !== null ? { resolvedLayers: plan.layers, focusUnits: plan.focus } : {}),
 		};
 		const prompt = NextPromptWriter.generateWithFormatter(input.formatter, context);

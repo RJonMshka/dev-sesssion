@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { BootstrapContext } from "../formatters/bootstrap-formatter.js";
+import { MAX_REF_LINE_CHARS, NEW_FILES_PREFIX } from "../formatters/formatter-utils.js";
 import { PlainTextFormatter } from "../formatters/plain-text-formatter.js";
 import type { ContextBudget, ContextBudgetBreakdown } from "../schemas/context-budget.js";
 import type { FileIndexEntry, PlanChunk, SessionState } from "../schemas/index.js";
@@ -56,13 +57,18 @@ function makeBudget(overrides?: Partial<ContextBudget>): ContextBudget {
 		alwaysInclude: 100,
 	};
 
-	return {
+	const budget = {
 		totalTokens: 750,
 		breakdown,
 		overBudget: false,
 		budgetCap: 4000,
 		accurate: false,
 		...overrides,
+	};
+	// Derived as the calculator derives it, unless a test sets it (REQ-BUD-6).
+	return {
+		...budget,
+		cappedTokens: overrides?.cappedTokens ?? budget.totalTokens - budget.breakdown.alwaysInclude,
 	};
 }
 
@@ -99,10 +105,15 @@ describe("PlainTextFormatter", () => {
 			expect(result).toContain("packages/cli/src/file-2.ts");
 		});
 
-		it("truncates long file lists with count", () => {
-			const files = makeFiles(10);
-			const result = PlainTextFormatter.formatFilesToLoad(files);
-			expect(result).toContain("+4 more");
+		it("names every file that fits on the line (REQ-PCX-7)", () => {
+			const result = PlainTextFormatter.formatFilesToLoad(makeFiles(10));
+			expect(result).not.toContain("more");
+		});
+
+		it("counts the files a too-long line leaves out (REQ-PCX-7)", () => {
+			const result = PlainTextFormatter.formatFilesToLoad(makeFiles(200));
+			expect(result.length).toBeLessThanOrEqual(MAX_REF_LINE_CHARS);
+			expect(result).toMatch(/, \+\d+ more$/);
 		});
 	});
 
@@ -286,5 +297,15 @@ describe("PlainTextFormatter", () => {
 
 			expect(content).toContain("+6 more tasks");
 		});
+	});
+});
+
+describe("files not on disk yet", () => {
+	it("states them as plain text after the plan line (REQ-NEW-1)", () => {
+		const prompt = PlainTextFormatter.generatePrompt(
+			makeContext({ newFiles: ["src/routing/transitions.ts"] }),
+		);
+		expect(prompt).toContain(`${NEW_FILES_PREFIX} src/routing/transitions.ts`);
+		expect(PlainTextFormatter.generatePrompt(makeContext())).not.toContain(NEW_FILES_PREFIX);
 	});
 });

@@ -11,6 +11,7 @@ import { AutoExtractor } from "../annotation/auto-extractor.js";
 import { FileIndexManager } from "../managers/file-index-manager.js";
 import { SessionManager } from "../managers/session-manager.js";
 import { SessionStateManager } from "../managers/session-state-manager.js";
+import { PlanParser } from "../parsers/plan-parser.js";
 import type { FileIndexEntry, SessionState } from "../schemas/index.js";
 
 /** Project root + validated `.session/` path for a freshly seeded fixture. */
@@ -42,10 +43,16 @@ function makeState(overrides: Partial<SessionState> = {}): SessionState {
 	};
 }
 
-function writeChunk(sessionDir: string, id: number, title: string): void {
+/** Writes `PLAN_<id>.md` with the plan parser's own serializer, as split-plan does. */
+function writeChunk(sessionDir: string, id: number, title: string, tasks: string[] = []): void {
 	fs.writeFileSync(
 		path.join(sessionDir, `PLAN_${String(id)}.md`),
-		`---\nchunk_id: ${String(id)}\ntitle: "${title}"\ndepends_on: []\ntasks: []\n---\n\n# Chunk ${String(id)}\n`,
+		PlanParser.toMarkdown({
+			chunk_id: id,
+			title,
+			depends_on: [],
+			tasks: tasks.map((text) => ({ text, status: "todo" as const })),
+		}),
 	);
 }
 
@@ -68,7 +75,7 @@ function seed(): Fixture {
 		}),
 	);
 
-	writeChunk(sessionAbs, 1, "Foundation");
+	writeChunk(sessionAbs, 1, "Foundation", ["Task A", "Task B"]);
 
 	// A real source file so the ai-index has a renderable entry.
 	const srcRel = "src/widget.ts";
@@ -222,6 +229,49 @@ describe("SessionManager", () => {
 			const mgr = SessionManager.create(projectRoot, { readOnly: true });
 			expect(mgr.isReadOnly).toBe(true);
 			expect(() => mgr.markTaskDone("Task A")).toThrow(CliError);
+		});
+	});
+
+	describe("a session whose state still lists an earlier chunk's tasks", () => {
+		/** Chunk 3 active; SESSION_STATE.md holds chunk 1's tasks, as 2.4.x advance left it. */
+		function seedStale(): ValidatedPath {
+			const { sessionDir } = seed();
+			writeChunk(path.join(projectRoot, ".session"), 3, "Release", ["Polish", "Ship"]);
+			SessionStateManager.save(
+				sessionDir,
+				makeState({
+					active_chunk: 3,
+					tasks: [
+						{ text: "Task A", status: "done" },
+						{ text: "Task B", status: "done" },
+					],
+				}),
+			);
+			return sessionDir;
+		}
+
+		it("mark_task_done records a task of the active chunk that state lacks (REQ-WF-10)", () => {
+			const sessionDir = seedStale();
+			const mgr = SessionManager.create(projectRoot);
+
+			const result = mgr.markTaskDone("Polish");
+
+			expect(result.matched).toBe(true);
+			const polish = SessionStateManager.load(sessionDir).tasks.find((t) => t.text === "Polish");
+			expect(polish?.status).toBe("done");
+			expect(mgr.getActiveChunk().tasks.filter((t) => t.status === "done")).toHaveLength(1);
+		});
+
+		it("get_active_chunk returns the active chunk's tasks (REQ-WF-11)", () => {
+			seedStale();
+			const mgr = SessionManager.create(projectRoot);
+
+			const { tasks } = mgr.getActiveChunk();
+
+			expect(tasks.map((t) => [t.text, t.status])).toEqual([
+				["Polish", "todo"],
+				["Ship", "todo"],
+			]);
 		});
 	});
 

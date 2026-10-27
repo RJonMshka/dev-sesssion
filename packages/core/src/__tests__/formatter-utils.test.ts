@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { ContextBudgetCalculator } from "../calculators/context-budget-calculator.js";
 import type { ResolvedFileLayer } from "../calculators/layer-resolver.js";
 import {
 	FILE_LOAD_PREFIXES,
@@ -6,12 +7,12 @@ import {
 	formatChunkProgress,
 	formatCompletedChunksSummary,
 	formatLayeredContextLines,
+	formatOverBudgetMessage,
 	getPendingTasks,
 	mergeContextFiles,
 	trimToMaxLines,
 } from "../formatters/formatter-utils.js";
-import type { ContextBudget, ContextBudgetBreakdown } from "../schemas/context-budget.js";
-import type { PlanChunk, SessionState } from "../schemas/index.js";
+import type { FileIndexEntry, PlanChunk, SessionState } from "../schemas/index.js";
 
 function makeResolved(filepath: string, layer: 0 | 1 | 2, escalated = false): ResolvedFileLayer {
 	return {
@@ -48,23 +49,6 @@ function makeChunk(overrides?: Partial<PlanChunk>): PlanChunk {
 			{ text: "Task B", status: "in-progress" },
 			{ text: "Task C", status: "todo" },
 		],
-		...overrides,
-	};
-}
-
-function makeBudget(overrides?: Partial<ContextBudget>): ContextBudget {
-	const breakdown: ContextBudgetBreakdown = {
-		sessionState: 150,
-		planChunk: 200,
-		files: new Map(),
-		alwaysInclude: 100,
-	};
-	return {
-		totalTokens: 750,
-		breakdown,
-		overBudget: false,
-		budgetCap: 4000,
-		accurate: false,
 		...overrides,
 	};
 }
@@ -131,14 +115,49 @@ describe("formatChunkProgress", () => {
 });
 
 describe("formatBudgetLine", () => {
-	it("shows OK status when within budget", () => {
-		const budget = makeBudget({ overBudget: false, totalTokens: 750, budgetCap: 4000 });
-		expect(formatBudgetLine(budget)).toBe("Budget: ~750/4000 tokens [OK]");
+	const cheap: FileIndexEntry[] = [
+		{ filepath: "src/a.ts", chunk_tags: [4], purpose: "A", token_cost: 100 },
+	];
+	const heavy: FileIndexEntry[] = [
+		{ filepath: "src/a.ts", chunk_tags: [4], purpose: "A", token_cost: 9000 },
+	];
+	const claudeMd: FileIndexEntry[] = [
+		{ filepath: "CLAUDE.md", chunk_tags: [0], purpose: "Instructions", token_cost: 1960 },
+	];
+
+	it("states the capped tokens against the cap, with no suffix when nothing is always loaded (REQ-BUD-7)", () => {
+		const budget = ContextBudgetCalculator.estimate(makeState(), makeChunk(), cheap, []);
+		expect(formatBudgetLine(budget)).toBe(
+			`Budget: ~${String(budget.cappedTokens)}/4000 tokens [OK]`,
+		);
 	});
 
-	it("shows OVER status when over budget", () => {
-		const budget = makeBudget({ overBudget: true, totalTokens: 5000, budgetCap: 4000 });
-		expect(formatBudgetLine(budget)).toBe("Budget: ~5000/4000 tokens [OVER]");
+	it("shows OVER when the chunk is over the cap (REQ-BUD-7)", () => {
+		const budget = ContextBudgetCalculator.estimate(makeState(), makeChunk(), heavy, []);
+		expect(formatBudgetLine(budget)).toBe(
+			`Budget: ~${String(budget.cappedTokens)}/4000 tokens [OVER]`,
+		);
+	});
+
+	it("states the always-loaded cost apart from the capped tokens (REQ-BUD-7)", () => {
+		const budget = ContextBudgetCalculator.estimate(makeState(), makeChunk(), cheap, claudeMd);
+		expect(formatBudgetLine(budget)).toBe(
+			`Budget: ~${String(budget.cappedTokens)}/4000 tokens [OK] + ~1960 always loaded`,
+		);
+	});
+});
+
+describe("formatOverBudgetMessage", () => {
+	it("states the capped tokens against the cap and the always-loaded cost apart (REQ-BUD-8)", () => {
+		const budget = ContextBudgetCalculator.estimate(
+			makeState(),
+			makeChunk(),
+			[{ filepath: "src/a.ts", chunk_tags: [4], purpose: "A", token_cost: 9000 }],
+			[{ filepath: "CLAUDE.md", chunk_tags: [0], purpose: "I", token_cost: 1960 }],
+		);
+		expect(formatOverBudgetMessage(budget)).toBe(
+			`Context budget exceeded: ~${String(budget.cappedTokens)} / 4000 tokens, plus ~1960 always loaded — remove large files or split the chunk`,
+		);
 	});
 });
 
@@ -314,5 +333,52 @@ describe("mergeContextFiles", () => {
 
 	it("returns an empty list when both inputs are empty", () => {
 		expect(mergeContextFiles([], [])).toEqual([]);
+	});
+});
+
+describe("formatRefList (LLD-prompt-context.md)", () => {
+	it("names every reference while the line fits (REQ-PCX-7)", async () => {
+		const { formatRefList } = await import("../formatters/formatter-utils.js");
+		const refs = Array.from({ length: 11 }, (_, i) => `@apps/shell/src/file${String(i)}.tsx·L1`);
+
+		expect(formatRefList(refs)).toBe(refs.join(", "));
+	});
+
+	it("stops within the character cap and counts what it left out (REQ-PCX-7)", async () => {
+		const { formatRefList, MAX_REF_LINE_CHARS } = await import("../formatters/formatter-utils.js");
+		const refs = Array.from({ length: 200 }, (_, i) => `@packages/core/src/module${String(i)}.ts`);
+
+		const line = formatRefList(refs);
+		const m = /, \+(\d+) more$/.exec(line);
+		const shown = line.replace(/, \+\d+ more$/, "").split(", ");
+
+		expect(line.length).toBeLessThanOrEqual(MAX_REF_LINE_CHARS);
+		expect(m).not.toBeNull();
+		expect(shown.length + Number(m?.[1])).toBe(200);
+		expect(shown).toEqual(refs.slice(0, shown.length));
+	});
+
+	it("renders an empty list as (none) (REQ-PCX-7)", async () => {
+		const { formatRefList } = await import("../formatters/formatter-utils.js");
+		expect(formatRefList([])).toBe("(none)");
+	});
+});
+
+describe("formatPlanLine (LLD-prompt-context.md)", () => {
+	it("names the chunk's file when it has a brief (REQ-PCX-5)", async () => {
+		const { formatPlanLine, FILE_LOAD_PREFIXES, PLAN_PREFIX } = await import(
+			"../formatters/formatter-utils.js"
+		);
+		const chunk = { chunk_id: 3, title: "T", depends_on: [], tasks: [], brief: "Goal: x" };
+
+		expect(formatPlanLine(chunk, (p) => `@${p}`)).toBe("Plan: @.session/PLAN_3.md");
+		expect(FILE_LOAD_PREFIXES).toContain(PLAN_PREFIX);
+	});
+
+	it("is undefined for a chunk without a brief (REQ-PCX-5)", async () => {
+		const { formatPlanLine } = await import("../formatters/formatter-utils.js");
+		expect(formatPlanLine({ chunk_id: 1, title: "T", depends_on: [], tasks: [] }, (p) => p)).toBe(
+			undefined,
+		);
 	});
 });

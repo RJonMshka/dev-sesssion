@@ -9,6 +9,7 @@
  */
 
 import * as fs from "node:fs";
+import * as path from "node:path";
 import type { AdapterReadFile, AdapterWriteFile } from "@dev-session/core";
 import { AtomicWriter, PathValidator } from "@dev-session/security";
 
@@ -16,7 +17,9 @@ import { AtomicWriter, PathValidator } from "@dev-session/security";
  * Creates an {@link AdapterWriteFile} function backed by AtomicWriter.
  *
  * The returned function resolves relative paths against `projectRoot`
- * using PathValidator, then writes atomically via AtomicWriter.
+ * using PathValidator, creates the parent directory (an adapter may own a
+ * nested path, such as `.claude/skills/...`), then writes atomically via
+ * AtomicWriter.
  *
  * @param projectRoot - Absolute path to the project root.
  * @returns A write function safe for use in adapter contexts.
@@ -24,6 +27,7 @@ import { AtomicWriter, PathValidator } from "@dev-session/security";
 export function createAdapterWriteFile(projectRoot: string): AdapterWriteFile {
 	return (relativePath: string, content: string): void => {
 		const validated = PathValidator.safeResolvePath(relativePath, projectRoot);
+		fs.mkdirSync(path.dirname(validated), { recursive: true });
 		AtomicWriter.writeFile(validated, content, { skipGuard: true });
 	};
 }

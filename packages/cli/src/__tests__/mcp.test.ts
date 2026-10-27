@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 
-import { SessionManager } from "@dev-session/core";
+import { checkPlan, SessionManager } from "@dev-session/core";
 import { PathValidator } from "@dev-session/security";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
@@ -67,13 +67,14 @@ describe("dev-sesssion MCP server", () => {
 		await client.close();
 	});
 
-	it("advertises all seven session tools", async () => {
+	it("advertises the eight session tools, and neither advance nor init (REQ-ORC-4, 5)", async () => {
 		seedSession();
 		const client = await connectClient();
 		const { tools } = await client.listTools();
 		const names = tools.map((t) => t.name).sort();
 		expect(names).toEqual(
 			[
+				"check_plan",
 				"get_active_chunk",
 				"get_next_prompt",
 				"list_context_files",
@@ -183,5 +184,71 @@ describe("dev-sesssion MCP server", () => {
 		});
 		expect((result as { isError?: boolean }).isError).toBe(true);
 		await client.close();
+	});
+
+	describe("check_plan", () => {
+		const PLAN = `# Plan
+
+## Chunk 1 — A
+
+Goal: build a.
+
+Files: \`src/a.ts\`
+
+- [ ] Write src/a.ts
+
+## Notes
+
+- [ ] A task under no chunk
+`;
+
+		it("returns the same report as plan check --json, and writes nothing (REQ-ORC-4)", async () => {
+			seedSession();
+			fs.mkdirSync(path.join(projectRoot, "docs"));
+			fs.writeFileSync(path.join(projectRoot, "docs", "plan.md"), PLAN);
+			const before = fs.readdirSync(path.join(projectRoot, ".session")).sort();
+
+			const client = await connectClient();
+			const result = await client.callTool({
+				name: "check_plan",
+				arguments: { path: "docs/plan.md" },
+			});
+
+			expect((result as { isError?: boolean }).isError).toBeFalsy();
+			expect(JSON.parse(firstText(result))).toEqual(checkPlan(PLAN));
+			expect(fs.readdirSync(path.join(projectRoot, ".session")).sort()).toEqual(before);
+			await client.close();
+		});
+
+		it("is marked read-only and works on a read-only server (REQ-ORC-4)", async () => {
+			seedSession();
+			fs.writeFileSync(path.join(projectRoot, "plan.md"), PLAN);
+			const client = await connectClient({ readOnly: true });
+
+			const { tools } = await client.listTools();
+			const tool = tools.find((t) => t.name === "check_plan");
+			expect(tool?.annotations?.readOnlyHint).toBe(true);
+
+			const result = await client.callTool({ name: "check_plan", arguments: { path: "plan.md" } });
+			expect((result as { isError?: boolean }).isError).toBeFalsy();
+			await client.close();
+		});
+
+		it("rejects a path outside the project, and names a missing file without its absolute path", async () => {
+			seedSession();
+			const client = await connectClient();
+
+			const outside = await client.callTool({
+				name: "check_plan",
+				arguments: { path: "../../etc/passwd" },
+			});
+			expect((outside as { isError?: boolean }).isError).toBe(true);
+
+			const missing = await client.callTool({ name: "check_plan", arguments: { path: "nope.md" } });
+			expect((missing as { isError?: boolean }).isError).toBe(true);
+			expect(firstText(missing)).toContain("nope.md");
+			expect(firstText(missing)).not.toContain(projectRoot);
+			await client.close();
+		});
 	});
 });

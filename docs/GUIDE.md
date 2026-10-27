@@ -92,6 +92,8 @@ Imagine a thick textbook. Without a table of contents, you'd have to flip throug
 
 `FILE_INDEX.md` is the table of contents for your codebase. Every file the AI might need is listed here, tagged with the chunk(s) it belongs to. At the start of a session, the AI looks up the active chunk number, filters the index, and loads only those files.
 
+`init --yes` fills it from your plan: a file is tagged to a chunk when that chunk's section names it — in a task, a backticked path, or a "Key Files" block.
+
 **Example entry in `FILE_INDEX.md`:**
 
 ```markdown
@@ -150,17 +152,39 @@ This is a short (≤20 lines by default), self-contained prompt that you paste a
 ```
 Project: my-saas-app
 Active chunk: 3 — Billing integration
-Budget: ~2180/4000 tokens [OK]
+Budget: ~2180/4000 tokens [OK] + ~950 always loaded
+Plan: .session/PLAN_3.md
 Load: CLAUDE.md, src/billing/stripe.ts, src/users/subscription.ts
 Do NOT read: src/auth/**, dist/
 Resume: 4/7 tasks done Chunks 1-2 done.
 Last touched: src/billing/webhooks.ts
-Next:
+Next (task 5 of 7):
   [ ] POST /billing/upgrade endpoint
   [ ] Prorate calculation logic
   [ ] Tests for upgrade/downgrade
+Done when: all 7 tasks are done (3 left) — then stop.
 Note: decided to use Prisma instead of Knex
 ```
+
+`Next (task 5 of 7)` is the current task's place in the chunk: the first task
+in progress, or else the first not started, listed first. `Done when:` tells
+the agent where the session ends. Once every task is done, both are replaced by
+`Chunk done: … the next step is \`dev-sesssion advance\`.` The prompt shows your
+two newest notes, yours ahead of any quoted from `CLAUDE.md`.
+
+`Plan:` points at the active chunk's plan file when its section in your plan
+has more than checkboxes — the goal, numbered steps and file list are kept
+there as its brief, while the checkboxes stay the tracked tasks. File lists name
+every file that fits on the line (about 25) before ending in `+N more`.
+
+When the plan names files that do not exist yet — a phase that creates them —
+the prompt lists them on a `Not on disk yet:` line, as plain paths, and loads
+the summaries of the existing files beside them: the files in the nearest
+directory that has any, up to three per new file and eight in all, never the
+project root's. Those neighbours are chosen fresh each time the prompt is
+written and are not added to `FILE_INDEX.md`. A path the plan names that
+merely moved since it was written shows up on the same line; the prompt says
+it is not on disk, not that it should be created.
 
 (The exact wording of the file-reference lines depends on the adapter — Claude
 Code writes `@`-mentions, Cursor and Windsurf write `Ignore:` instead of
@@ -172,7 +196,7 @@ Code writes `@`-mentions, Cursor and Windsurf write `Ignore:` instead of
 
 Every AI session has a **token budget** — like a word count limit on an essay. Load too many files and you blow the budget; load too few and the AI is working blind.
 
-`dev-sesssion` tracks a context budget estimate for each session, calculated from the files tagged to the active chunk. When you run `dev-sesssion status`, it shows you how much budget you're using and warns you if you're over the limit.
+`dev-sesssion` tracks a context budget estimate for each session: `SESSION_STATE.md`, the active `PLAN_N.md`, and the files tagged to the active chunk at the layer the prompt loads them. The prompt's `Budget:` line, `status`, `preview` and `health` all report that one figure, and warn when it is over the limit. A large `CLAUDE.md` counts — Claude Code loads it whole every session.
 
 > **Rule of thumb:** if you're consistently over budget, split the chunk in two. If you're well under, you might be able to merge two small chunks.
 
@@ -248,8 +272,9 @@ dev-sesssion advance
 ```
 
 This:
-1. Archives the completed chunk to `DONE_LOG.md` (so you have a record)
-2. Compacts the session state (cleans up old notes)
+1. Archives the completed chunk to `DONE_LOG.md` (so you have a record), with
+   the notes you added during it. Notes quoted from `CLAUDE.md` stay
+2. Clears those notes from the session state, so the next chunk starts fresh
 3. Advances `active_chunk` to the next number
 4. Regenerates `NEXT_PROMPT.md` for the new chunk
 
@@ -266,6 +291,7 @@ Every command, flag, exit code and JSON shape is in
 | Command | Reach for it when |
 |---|---|
 | `init` / `migrate` | Setting up a project, or every package of a monorepo |
+| `plan check` | You wrote or edited a plan and want to know `init` will read it |
 | `prompt` | Starting a session — print or `--copy` the handoff |
 | `update` | Ending a session — mark tasks done, regenerate the prompt |
 | `advance` | The active chunk is finished |
@@ -273,7 +299,7 @@ Every command, flag, exit code and JSON shape is in
 | `index add` / `index audit` | A new file should be known, or old entries went stale |
 | `health` | Something feels off — a linter for the session files |
 | `verify` | You want to know whether the session state is *true*, per git |
-| `preview` / `trim` / `lint-context` / `compact` | Tuning what the context actually costs |
+| `preview` / `trim` / `lint-context` | Tuning what the context actually costs |
 | `import` / `export` | Reusing rules you already wrote for another tool |
 | `memory` | Reviewing how past sessions actually used their context |
 | `mcp` | Serving session state to a tool over MCP instead of pasting |
@@ -350,6 +376,28 @@ Every command that touches the prompt reads the same setting: `init`, `update`, 
 `advance` trim and validate against it, and both `dev-sesssion status` and
 `dev-sesssion health` warn against it rather than against the default.
 
+### Steps for every task
+
+To have the prompt remind the agent how you work each task, add `workflow` to
+the `SESSION_STATE.md` frontmatter: 1 to 7 steps, each one line of at most 120
+characters.
+
+```yaml
+workflow:
+  - "Write a failing test"
+  - "Make it pass"
+  - "Run the full suite"
+```
+
+The prompt then carries one line after the task list:
+
+```
+Each task: 1. Write a failing test 2. Make it pass 3. Run the full suite
+```
+
+The tool does not check the steps or track which one the agent is on. A
+malformed value fails when the state file is parsed, and `health` reports it.
+
 ### Scriptable JSON output
 
 Pipe `dev-sesssion status --json` into `jq` or other tools:
@@ -362,7 +410,7 @@ dev-sesssion status --json | jq '.budget.over_budget'
 dev-sesssion status --json | jq '.tasks.percent_complete'
 ```
 
-`status`, `health`, `preview`, `lint-context` and `memory` all take `--json`.
+`status`, `health`, `preview`, `lint-context`, `memory` and `plan check` all take `--json`.
 The full shape of each is in [commands.md](commands.md).
 
 ### CI integration
@@ -416,7 +464,7 @@ You've completed all your planned chunks. This is a good problem to have! You ha
 
 **Q: How do I add notes without marking tasks done?**
 
-Run `dev-sesssion update`, press Enter through the task checklist (select nothing), and type your note in the notes prompt. The note will be saved to `SESSION_STATE.md` and included in the next `NEXT_PROMPT.md`.
+Run `dev-sesssion update`, press Enter through the task checklist (select nothing), and type your note in the notes prompt. The note will be saved to `SESSION_STATE.md` and included in the next `NEXT_PROMPT.md`, which shows your two newest notes. When you `advance`, your notes move into that chunk's `DONE_LOG.md` entry; a note that should outlive its chunk belongs in `CLAUDE.md`.
 
 ---
 

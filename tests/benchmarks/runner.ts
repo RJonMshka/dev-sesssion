@@ -9,21 +9,13 @@ import {
 	measureWithTool,
 	runCommandChecks,
 } from "./measure.js";
+import { computeSavings } from "./savings.js";
 import type {
 	BenchmarkOptions,
 	BenchmarkResult,
 	BenchmarkTarget,
 	PatternComparison,
-	SavingsReport,
 } from "./types.js";
-
-function computeSavings(withoutTokens: number, withTokens: number): SavingsReport {
-	const tokensSaved = withoutTokens - withTokens;
-	const percentSaved = withoutTokens > 0 ? (tokensSaved / withoutTokens) * 100 : 0;
-	const ratioNum = withTokens > 0 ? withoutTokens / withTokens : 0;
-	const ratio = `${ratioNum.toFixed(1)}×`;
-	return { tokensSaved, percentSaved, ratio };
-}
 
 /**
  * Run the benchmark for a single target.
@@ -41,7 +33,11 @@ async function benchmarkTarget(
 			measureWithTool(target.path, options.skipInit || (target.skipInit ?? false)),
 		]);
 
-		const savings = computeSavings(without.totalTokens, withReport.totalTokens);
+		const savings = computeSavings(
+			without.totalTokens,
+			withReport.totalTokens,
+			withReport.fileCount,
+		);
 
 		// Pattern comparison and command checks can run in parallel (session is ready)
 		const [commands, patterns, nextPrompt] = await Promise.all([
@@ -71,7 +67,7 @@ async function benchmarkTarget(
 			target,
 			without: { totalTokens: 0, fileCount: 0, topFiles: [], accurate: false },
 			with: { totalTokens: 0, fileCount: 0, topFiles: [], accurate: false },
-			savings: { tokensSaved: 0, percentSaved: 0, ratio: "N/A" },
+			savings: { tokensSaved: 0, percentSaved: 0, ratio: "N/A", applicable: false },
 			commands: { statusOk: false, healthOk: false, promptOk: false, exportClaudeOk: false },
 			initialized: false,
 			durationMs: Date.now() - t0,

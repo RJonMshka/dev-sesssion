@@ -1,7 +1,7 @@
 /**
  * `dev-sesssion advance` command.
  *
- * Archives the current chunk, compacts session state, advances to the
+ * Archives the current chunk with the owner's notes, advances to the
  * next chunk, and regenerates NEXT_PROMPT.md. Warns if not all tasks in
  * the active chunk are done, prompting for confirmation to force-advance.
  *
@@ -30,7 +30,9 @@ import { CliError, PathValidator, type ValidatedPath } from "@dev-session/securi
 import type { Command } from "commander";
 import { dryRunSkipWrite } from "../utils/dry-run.js";
 import { handleError } from "../utils/error-handler.js";
+import { withStdoutOnStderr, writeJson } from "../utils/json-output.js";
 import { regeneratePrompt } from "./regenerate-prompt.js";
+import { withSessionBase } from "./touch-tagging.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -111,6 +113,14 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 			log.warn("Force-advancing in --yes mode.");
 			forceAdvanced = true;
 		} else {
+			// A harness cannot answer the prompt, so without a TTY it would hang
+			// forever. Fail before anything is written (REQ-ORC-2).
+			if (process.stdin.isTTY !== true) {
+				throw new CliError({
+					message: `Chunk ${String(currentChunkId)} has incomplete tasks and stdin is not a terminal, so advance cannot ask to confirm.`,
+					suggestion: "Mark the tasks done first, or pass --yes to advance with them incomplete.",
+				});
+			}
 			const forceResult = await confirm({
 				message: "Force advance with incomplete tasks?",
 			});
@@ -126,14 +136,14 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 	}
 
 	// Step 2: Verify next chunk exists
-	const nextChunkId = currentChunkId + 1;
-	const nextChunkExists = allChunks.some((c) => c.chunk_id === nextChunkId);
+	// The lowest id above this one, so 3.5 is not skipped and a gap is crossed (REQ-ORC-6, 7).
+	const nextChunk = PlanChunkManager.nextAfter(allChunks, currentChunkId);
 
-	if (!nextChunkExists) {
+	if (nextChunk === undefined) {
 		// Reaching the last chunk is a clean terminal state, not an error: nothing
 		// to archive or advance to. Return a passing result so callers exit 0.
 		log.success(
-			`Chunk ${String(currentChunkId)} is the last chunk — no PLAN_${String(nextChunkId)}.md to advance to.`,
+			`Chunk ${String(currentChunkId)} is the last chunk — no higher-numbered PLAN_<n>.md to advance to.`,
 		);
 		log.info("All chunks complete. Run `dev-sesssion status` to review.");
 
@@ -147,8 +157,11 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 		};
 	}
 
-	// Step 3: Archive the completed chunk
+	// Step 3: Archive the completed chunk, with the owner's notes from it. Derived
+	// notes stay in state and progress notes are dropped (REQ-WF-5, 6).
 	const dryRun = options.dryRun === true;
+	const taken = SessionStateManager.takeChunkNotes(state);
+	state = taken.state;
 	if (dryRun) {
 		dryRunSkipWrite(
 			path.join(sessionDir, DONE_LOG_FILENAME),
@@ -156,22 +169,29 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 			`archive chunk ${String(currentChunkId)}`,
 		);
 	} else {
-		PlanChunkManager.archive(sessionDir, currentChunk);
+		PlanChunkManager.archive(sessionDir, currentChunk, taken.archived);
 	}
 
+	if (taken.archived.length > 0) {
+		const count = taken.archived.length;
+		log.info(
+			`${dryRun ? "Would move" : "Moved"} ${String(count)} note${count === 1 ? "" : "s"} to chunk ${String(currentChunkId)}'s ${DONE_LOG_FILENAME} entry.`,
+		);
+	}
 	if (options.verbose) {
 		log.info(`Archived chunk ${String(currentChunkId)} to DONE_LOG.md`);
 	}
 
-	// Step 4: Compact session state
-	state = SessionStateManager.compact(state);
-
-	if (options.verbose) {
-		log.info("Compacted session state.");
-	}
-
 	// Step 5: Advance to next chunk
-	state = PlanChunkManager.advance(state);
+	// State's task list follows the chunk, so MCP and `update` see the new
+	// chunk's tasks, not the archived one's (REQ-WF-9).
+	state = {
+		...PlanChunkManager.advance(state, nextChunk.chunk_id),
+		tasks: [...nextChunk.tasks],
+	};
+	// A fresh base, and no tags: a completed chunk loads nothing, and tagging
+	// the next one would guess that work carries over (REQ-IDX-19, -41).
+	state = await withSessionBase(state, options.cwd);
 	if (dryRun) {
 		dryRunSkipWrite(
 			path.join(sessionDir, "SESSION_STATE.md"),
@@ -278,7 +298,8 @@ export function registerAdvanceCommand(program: Command): void {
 	program
 		.command("advance")
 		.description("Archive current chunk and advance to the next one")
-		.action(async () => {
+		.option("--json", "Output the result as machine-readable JSON", false)
+		.action(async (cmdOptions: { json?: boolean }) => {
 			const opts = program.opts<{
 				cwd: string;
 				yes: boolean;
@@ -295,10 +316,24 @@ export function registerAdvanceCommand(program: Command): void {
 				...(opts.adapter !== undefined ? { adapter: opts.adapter } : {}),
 			};
 
-			try {
-				await runAdvance(advanceOptions);
-			} catch (error: unknown) {
-				handleError(error);
+			if (cmdOptions.json !== true) {
+				try {
+					await runAdvance(advanceOptions);
+				} catch (error: unknown) {
+					handleError(error);
+				}
+				return;
 			}
+
+			// One JSON document on stdout; progress and errors go to stderr (REQ-ORC-1).
+			const result = await withStdoutOnStderr(async () => {
+				try {
+					return await runAdvance(advanceOptions);
+				} catch (error: unknown) {
+					handleError(error);
+					return undefined;
+				}
+			});
+			if (result !== undefined) writeJson(result);
 		});
 }

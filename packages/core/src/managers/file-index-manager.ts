@@ -13,6 +13,7 @@ import * as path from "node:path";
 import type { ValidatedPath } from "@dev-session/security";
 import { AtomicWriter, ParseError } from "@dev-session/security";
 
+import { TokenCounter } from "../counters/token-counter.js";
 import type { AuditResult, FileIndexEntry } from "../schemas/index.js";
 
 /** The filename for the file index within the session directory. */
@@ -61,6 +62,34 @@ const TABLE_HEADER_PATTERN = /^\|\s*File\s*\|\s*Purpose\s*\|$/;
  * Pure query functions operate on in-memory `FileIndexEntry[]` arrays.
  */
 export const FileIndexManager = {
+	/**
+	 * Fills a missing `token_cost` from each file's size (LLD-budget.md, REQ-BUD-4).
+	 *
+	 * `FILE_INDEX.md` stores no costs, so entries read back from disk have none,
+	 * and a file the ai-index does not cover was charged a flat default — 50
+	 * tokens for a 4 KB stylesheet. This measures it with the walker's heuristic,
+	 * so a reload charges what `init` charged. A path outside `projectRoot`, or
+	 * one that cannot be stat'ed, is left without a cost.
+	 *
+	 * @param entries - File index entries.
+	 * @param projectRoot - Absolute project root the paths are relative to.
+	 * @returns The entries, each with a cost where one could be measured.
+	 */
+	withMeasuredCosts(entries: readonly FileIndexEntry[], projectRoot: string): FileIndexEntry[] {
+		const root = path.resolve(projectRoot);
+		return entries.map((entry) => {
+			if (entry.token_cost !== undefined) return entry;
+			const abs = path.resolve(root, entry.filepath);
+			if (abs !== root && !abs.startsWith(root + path.sep)) return entry;
+			try {
+				const { size } = fs.statSync(abs);
+				return { ...entry, token_cost: TokenCounter.heuristicCountFromBytes(size) };
+			} catch {
+				return entry;
+			}
+		});
+	},
+
 	/**
 	 * Loads and parses FILE_INDEX.md from the given session directory.
 	 *
@@ -160,6 +189,35 @@ export const FileIndexManager = {
 	},
 
 	/**
+	 * Adds chunk tags to a file, keeping its purpose, token cost and other tags
+	 * (REQ-IDX-34). Unlike {@link add}, an existing row is never rewritten
+	 * beyond its tags, so `save` leaves every other line as it was.
+	 *
+	 * @param entries - The existing file index entries.
+	 * @param filepath - The file to tag.
+	 * @param chunks - Chunk ids to add.
+	 * @param purpose - Purpose for a new entry; ignored for an existing one.
+	 * @returns A new array; the existing entry object when nothing changed.
+	 */
+	tag(
+		entries: readonly FileIndexEntry[],
+		filepath: string,
+		chunks: readonly number[],
+		purpose: string,
+	): FileIndexEntry[] {
+		const at = entries.findIndex((e) => e.filepath === filepath);
+		if (at === -1) {
+			return [...entries, { filepath, chunk_tags: mergeChunkTags([], chunks), purpose }];
+		}
+		const existing = entries[at] as FileIndexEntry;
+		const merged = mergeChunkTags(existing.chunk_tags, chunks);
+		if (merged.length === existing.chunk_tags.length) return [...entries];
+		const result = [...entries];
+		result[at] = { ...existing, chunk_tags: merged };
+		return result;
+	},
+
+	/**
 	 * Audits the file index against the filesystem.
 	 *
 	 * Checks for:
@@ -240,7 +298,9 @@ function parseFileIndex(content: string, relativePath: string): FileIndexEntry[]
 
 		if (isTableDataRow(trimmed) && currentChunkTag !== undefined) {
 			const parsed = parseTableRow(trimmed, relativePath, i + 1);
-			if (parsed !== undefined) {
+			// A committed row can point anywhere; one outside the root is dropped,
+			// not thrown on, so a planted row cannot make the session unloadable.
+			if (parsed !== undefined && !leavesRoot(parsed.filepath)) {
 				addParsedEntry(entries, parsed.filepath, parsed.purpose, currentChunkTag);
 			}
 		}
@@ -344,6 +404,24 @@ function parseTableRow(
 	}
 
 	return { filepath, purpose };
+}
+
+/**
+ * Whether a row's path points outside the project root (REQ-PROV-13): absolute,
+ * drive-lettered, or starting with `..` once normalized. Lexical, as the plan's
+ * file matcher is; a symlink pointing out is not caught here.
+ *
+ * @param filepath - The path as written in the row.
+ * @returns True when the row must be dropped.
+ */
+function leavesRoot(filepath: string): boolean {
+	const norm = path.posix.normalize(filepath.replace(/\\/g, "/"));
+	return (
+		path.posix.isAbsolute(norm) ||
+		/^[A-Za-z]:/.test(norm) ||
+		norm === ".." ||
+		norm.startsWith("../")
+	);
 }
 
 /**

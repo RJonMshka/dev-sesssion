@@ -10,7 +10,7 @@
 
 import { Command } from "commander";
 import { registerAdvanceCommand } from "./commands/advance.js";
-import { registerCompactCommand } from "./commands/compact.js";
+import { registerCompactRemovedCommand } from "./commands/compact-removed.js";
 import { registerExportCommand } from "./commands/export.js";
 import { registerHealthCommand } from "./commands/health.js";
 import { registerImportCommand } from "./commands/import.js";
@@ -20,9 +20,11 @@ import { registerLintContextCommand } from "./commands/lint-context.js";
 import { registerMcpCommand } from "./commands/mcp.js";
 import { registerMemoryCommand } from "./commands/memory.js";
 import { registerMigrateCommand } from "./commands/migrate.js";
+import { registerPlanCommand } from "./commands/plan.js";
 import { registerPreviewCommand } from "./commands/preview.js";
 import { registerPromptCommand } from "./commands/prompt.js";
 import { registerStatusCommand } from "./commands/status.js";
+import { registerSymbolsCommand } from "./commands/symbols.js";
 import { registerTrimCommand } from "./commands/trim.js";
 import { registerUpdateCommand } from "./commands/update.js";
 import { registerVerifyCommand } from "./commands/verify.js";
@@ -64,6 +66,7 @@ export function createProgram(): Command {
 	registerAdvanceCommand(program);
 	registerPromptCommand(program);
 	registerIndexCommand(program);
+	registerSymbolsCommand(program);
 	registerHealthCommand(program);
 	registerVerifyCommand(program);
 	registerImportCommand(program);
@@ -71,9 +74,10 @@ export function createProgram(): Command {
 	registerPreviewCommand(program);
 	registerTrimCommand(program);
 	registerLintContextCommand(program);
-	registerCompactCommand(program);
+	registerCompactRemovedCommand(program);
 	registerMemoryCommand(program);
 	registerMcpCommand(program);
+	registerPlanCommand(program);
 
 	return program;
 }

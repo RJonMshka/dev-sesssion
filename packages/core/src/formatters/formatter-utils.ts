@@ -12,6 +12,7 @@ import type { ResolvedFileLayer } from "../calculators/layer-resolver.js";
 import type { FocusedUnit } from "../calculators/unit-focus.js";
 import type { ContextBudget } from "../schemas/context-budget.js";
 import type { FileIndexEntry, PlanChunk, SessionState, Task } from "../schemas/index.js";
+import type { BootstrapContext } from "./bootstrap-formatter.js";
 
 /** Maximum pending tasks to show in the "Next" section by default. */
 export const DEFAULT_MAX_NEXT_TASKS = 4;
@@ -74,14 +75,40 @@ export function formatChunkProgress(chunk: PlanChunk): string {
 }
 
 /**
- * Formats the budget status line.
+ * Formats the budget status line: the tokens judged against the cap, and the
+ * always-loaded cost beside them (LLD-budget.md, REQ-BUD-7).
  *
  * @param budget - The calculated context budget.
- * @returns A compact budget status string like "Budget: ~750/4000 tokens [OK]".
+ * @returns A compact status string like
+ *   "Budget: ~750/4000 tokens [OK] + ~1960 always loaded"; the suffix is
+ *   omitted when always-include files cost nothing.
  */
 export function formatBudgetLine(budget: ContextBudget): string {
 	const status = budget.overBudget ? "OVER" : "OK";
-	return `Budget: ~${String(budget.totalTokens)}/${String(budget.budgetCap)} tokens [${status}]`;
+	return `Budget: ~${String(budget.cappedTokens)}/${String(budget.budgetCap)} tokens [${status}]${alwaysLoadedSuffix(budget, " + ")}`;
+}
+
+/**
+ * Formats the over-budget warning `status` and `health` print — one sentence,
+ * so the two cannot drift (REQ-BUD-8).
+ *
+ * @param budget - An over-budget context budget.
+ * @returns The warning text.
+ */
+export function formatOverBudgetMessage(budget: ContextBudget): string {
+	return `Context budget exceeded: ~${String(budget.cappedTokens)} / ${String(budget.budgetCap)} tokens${alwaysLoadedSuffix(budget, ", plus ")} — remove large files or split the chunk`;
+}
+
+/**
+ * The always-loaded cost as a suffix, or nothing when it is zero.
+ *
+ * @param budget - The context budget.
+ * @param joiner - Text placed before the figure.
+ * @returns E.g. " + ~1960 always loaded", or "".
+ */
+function alwaysLoadedSuffix(budget: ContextBudget, joiner: string): string {
+	const always = budget.breakdown.alwaysInclude;
+	return always > 0 ? `${joiner}~${String(always)} always loaded` : "";
 }
 
 /**
@@ -139,6 +166,19 @@ export const LOAD_FULL_PREFIX = "Load full:";
 export const SUMMARIES_PREFIX = "Summaries (read_file_layer for detail):";
 
 /**
+ * Prefix introducing the active chunk's plan file, which holds its brief
+ * (LLD-prompt-context.md, REQ-PCX-5).
+ */
+export const PLAN_PREFIX = "Plan:";
+
+/**
+ * Prefix introducing paths the plan names that are not on disk (REQ-NEW-1).
+ * Not a file-load prefix: nothing on the line exists to be loaded, so the
+ * validator and replay scorer must not read it as one.
+ */
+export const NEW_FILES_PREFIX = "Not on disk yet:";
+
+/**
  * Prefix introducing the focused-units line (REQ-UNIT-13). Each reference is
  * `path#id:start-end`; everything before `#` is the file.
  */
@@ -159,6 +199,7 @@ export const FILE_LOAD_PREFIXES: readonly string[] = [
 	FOCUS_PREFIX,
 	LOAD_FULL_PREFIX,
 	SUMMARIES_PREFIX,
+	PLAN_PREFIX,
 	LOAD_PREFIX,
 ];
 
@@ -177,6 +218,13 @@ export const MAX_NOTE_CHARS = 240;
 /** Marks a summary the layer renderer quotes from a doc comment (REQ-PROV-2, -8). */
 export const QUOTED_LABEL = "quoted:";
 
+/**
+ * Characters a path may hold to be rendered bare, outside any quotation
+ * (REQ-NEW-2, REQ-SYM-8). Anything else is repository text and is quoted or
+ * dropped, depending on the line.
+ */
+export const PATH_SHAPED = /^[A-Za-z0-9._\-+@/]+$/;
+
 /** Appended to text shortened to fit a cap. */
 const ELLIPSIS = "…";
 
@@ -192,6 +240,20 @@ const ELLIPSIS = "…";
  */
 export function quoteText(text: string): string {
 	return JSON.stringify(text);
+}
+
+/**
+ * Renders a summary taken from a doc comment as a labelled quotation
+ * (REQ-PROV-8, REQ-SYM-7, -9).
+ *
+ * The layer renderer and the `index --show` / `--file` printers share it, so
+ * a summary reads the same wherever an agent meets it.
+ *
+ * @param summary - The stored or extracted summary.
+ * @returns `quoted: "<summary>"`, escaped onto one line.
+ */
+export function formatQuotedSummary(summary: string): string {
+	return `${QUOTED_LABEL} ${quoteText(summary)}`;
 }
 
 /**
@@ -216,7 +278,182 @@ function fitText(text: string, render: (t: string) => string, max: number): stri
 		if (render(cut(mid)).length <= max) lo = mid;
 		else hi = mid - 1;
 	}
+	// End on a word where the last 40% of the kept text has a break, so a note
+	// does not stop at "on a mul…" (REQ-RUN-25). A shorter cut still fits.
+	const space = text.slice(0, lo + 1).search(/\s\S*$/);
+	if (space >= Math.ceil(lo * 0.6)) return `${text.slice(0, space).trimEnd()}${ELLIPSIS}`;
 	return cut(lo);
+}
+
+/** Prefix of every note line in a generated prompt. */
+export const NOTE_PREFIX = "Note:";
+
+/** Opens a note quoted from a repository file (REQ-PROV-1). */
+export const QUOTED_NOTE_PREFIX = "Quoted from ";
+
+/** Opens a note the Claude adapter lifts from `.claude/MEMORY.md`. */
+export const MEMORY_NOTE_PREFIX = "[memory] ";
+
+/** The two whole-note shapes 2.4.x wrote to record progress (REQ-WF-3). */
+const PROGRESS_NOTE_RES: readonly RegExp[] = [
+	/^Session initialized on \d{4}-\d{2}-\d{2}$/,
+	/^Completed: Chunks [\d., -]+\. See DONE_LOG\.md for details\.$/,
+];
+
+/**
+ * Whether a note is in a shape the tool wrote to record progress (REQ-WF-3).
+ * The match is on the whole note, so an owner's note that merely starts
+ * `Completed:` is not one.
+ *
+ * @param note - A note from `SESSION_STATE.md`.
+ * @returns True for `Session initialized on <date>` or `Completed: Chunks <ids>. …`.
+ */
+export function isProgressNote(note: string): boolean {
+	return PROGRESS_NOTE_RES.some((re) => re.test(note));
+}
+
+/**
+ * Whether a note was derived from a file the agent can read — quoted from a
+ * repository file, or lifted from memory (REQ-WF-2).
+ *
+ * @param note - A note from `SESSION_STATE.md`.
+ * @returns True when the note starts with {@link QUOTED_NOTE_PREFIX} or {@link MEMORY_NOTE_PREFIX}.
+ */
+export function isDerivedNote(note: string): boolean {
+	return note.startsWith(QUOTED_NOTE_PREFIX) || note.startsWith(MEMORY_NOTE_PREFIX);
+}
+
+/**
+ * The notes a prompt shows (REQ-WF-1..3): progress notes dropped, the owner's
+ * notes ahead of derived ones, and within each group the newest first.
+ * Notes are stored in the order added, so newest is last.
+ *
+ * @param notes - Notes in the order they were added.
+ * @param max - How many to return at most.
+ * @returns Up to `max` notes, in the order to show them.
+ */
+export function selectNotes(notes: readonly string[], max: number): string[] {
+	const newestFirst = notes.filter((n) => !isProgressNote(n)).reverse();
+	const owner = newestFirst.filter((n) => !isDerivedNote(n));
+	const derived = newestFirst.filter(isDerivedNote);
+	return [...owner, ...derived].slice(0, Math.max(0, max));
+}
+
+/** Opens the pending-task header: `Next (task 3 of 8):` (REQ-WF-12). */
+export const NEXT_PREFIX = "Next";
+
+/** Opens the line saying when the chunk is done (REQ-WF-14). */
+export const DONE_WHEN_PREFIX = "Done when:";
+
+/** Opens the line shown once every task is done (REQ-WF-15). */
+export const CHUNK_DONE_PREFIX = "Chunk done:";
+
+/** Opens the owner's per-task steps (REQ-WF-16). */
+export const WORKFLOW_PREFIX = "Each task:";
+
+/**
+ * Pending tasks in the order the prompt lists them (REQ-WF-13): the current
+ * task first — the first in-progress task in plan order, else the first todo
+ * — then the rest in plan order.
+ *
+ * @param chunk - The active chunk.
+ * @returns The pending tasks, current first; empty when none are pending.
+ */
+export function orderPendingTasks(chunk: PlanChunk): readonly Task[] {
+	const pending = getPendingTasks(chunk);
+	const current = pending.find((t) => t.status === "in-progress") ?? pending[0];
+	if (current === undefined) return [];
+	return [current, ...pending.filter((t) => t !== current)];
+}
+
+/** What the tail shows; `formatWorkLines` shrinks it to fit the line cap. */
+interface WorkLayout {
+	readonly pending: readonly Task[];
+	shown: number;
+	notes: readonly string[];
+	more: boolean;
+	workflow: boolean;
+}
+
+/** `all 3 tasks are done`, or `the 1 task is done`. */
+function allDone(n: number): string {
+	return n === 1 ? "the 1 task is done" : `all ${String(n)} tasks are done`;
+}
+
+/**
+ * Renders the tail for a chunk with pending tasks.
+ *
+ * @param context - The bootstrap context.
+ * @param layout - What to show.
+ * @returns The tail lines.
+ */
+function renderWork(context: BootstrapContext, layout: WorkLayout): string[] {
+	const { tasks } = context.chunk;
+	const current = layout.pending[0] as Task;
+	const hidden = layout.pending.length - layout.shown;
+	const steps = layout.workflow ? (context.workflow ?? []) : [];
+	const left = tasks.filter((t) => t.status !== "done").length;
+	return [
+		`${NEXT_PREFIX} (task ${String(tasks.indexOf(current) + 1)} of ${String(tasks.length)}):`,
+		...layout.pending
+			.slice(0, layout.shown)
+			.map((t) => `  ${t.status === "in-progress" ? "[WIP]" : "[ ]"} ${t.text}`),
+		...(hidden > 0 && layout.more ? [`  (+${String(hidden)} more tasks)`] : []),
+		...(steps.length > 0
+			? [`${WORKFLOW_PREFIX} ${steps.map((s, i) => `${String(i + 1)}. ${s}`).join(" ")}`]
+			: []),
+		`${DONE_WHEN_PREFIX} ${allDone(tasks.length)} (${String(left)} left) — then stop.`,
+		...layout.notes.map((n) => `${NOTE_PREFIX} ${n}`),
+	];
+}
+
+/**
+ * The prompt's tail, after the `Resume` lines: the position and pending
+ * tasks, the owner's workflow, the exit line, and notes (REQ-WF-12..17).
+ * Every shipped formatter renders its tail here (REQ-WF-20).
+ *
+ * When the tail would push the prompt past its line cap, it drops tasks after
+ * the current one (counted into `+N more`), then the last shown notes, then
+ * the `+N more` line, then the workflow line (REQ-WF-19). What still does not
+ * fit is left to {@link trimToMaxLines}.
+ *
+ * @param context - The bootstrap context.
+ * @param linesUsed - Lines the formatter has already written.
+ * @param maxTasks - Most pending tasks to list.
+ * @param maxNotes - Most notes to show.
+ * @returns The tail lines.
+ */
+export function formatWorkLines(
+	context: BootstrapContext,
+	linesUsed: number,
+	maxTasks: number = DEFAULT_MAX_NEXT_TASKS,
+	maxNotes: number = DEFAULT_MAX_NOTES,
+): string[] {
+	const room = (context.maxPromptLines ?? DEFAULT_MAX_PROMPT_LINES) - linesUsed;
+	const pending = orderPendingTasks(context.chunk);
+	const notes = selectNotes(context.state.notes, maxNotes);
+	if (pending.length === 0) {
+		const n = context.chunk.tasks.length;
+		const head =
+			n > 0
+				? [`${CHUNK_DONE_PREFIX} ${allDone(n)} — the next step is \`dev-sesssion advance\`.`]
+				: [];
+		const kept = notes.slice(0, Math.max(0, room - head.length));
+		return [...head, ...kept.map((note) => `${NOTE_PREFIX} ${note}`)];
+	}
+	const layout: WorkLayout = {
+		pending,
+		shown: Math.max(1, Math.min(maxTasks, pending.length)),
+		notes,
+		more: true,
+		workflow: true,
+	};
+	const over = (): boolean => renderWork(context, layout).length > room;
+	while (over() && layout.shown > 1) layout.shown--;
+	while (over() && layout.notes.length > 0) layout.notes = layout.notes.slice(0, -1);
+	if (over()) layout.more = false;
+	if (over()) layout.workflow = false;
+	return renderWork(context, layout);
 }
 
 /**
@@ -240,7 +477,9 @@ export function formatQuotedNote(opts: {
 	const { sourceFile, section, text } = opts;
 	const render = (s: string | undefined, t: string): string => {
 		const head =
-			s === undefined ? `Quoted from ${sourceFile}` : `Quoted from ${sourceFile} § ${quoteText(s)}`;
+			s === undefined
+				? `${QUOTED_NOTE_PREFIX}${sourceFile}`
+				: `${QUOTED_NOTE_PREFIX}${sourceFile} § ${quoteText(s)}`;
 		return t.length === 0 ? head : `${head}: ${quoteText(t)}`;
 	};
 
@@ -251,7 +490,7 @@ export function formatQuotedNote(opts: {
 	const heading =
 		section === undefined ? null : fitText(section, (s) => render(s, placeholder), MAX_NOTE_CHARS);
 	if (heading !== null) return render(heading, placeholder);
-	return `Quoted from ${sourceFile}`.slice(0, MAX_NOTE_CHARS);
+	return `${QUOTED_NOTE_PREFIX}${sourceFile}`.slice(0, MAX_NOTE_CHARS);
 }
 
 /**
@@ -280,20 +519,67 @@ export function trimToMaxLines(lines: readonly string[], maxLines: number): read
 }
 
 /**
- * Caps a list of rendered file references and appends a "+N more" suffix.
+ * Longest a list of file references may run on one prompt line
+ * (LLD-prompt-context.md, REQ-PCX-7): five notes' worth, a tenth of
+ * `MAX_PROMPT_CHARS` — about 25 layered refs.
+ */
+export const MAX_REF_LINE_CHARS = 1_200;
+
+/**
+ * Renders a list of file references, naming every one that fits within
+ * {@link MAX_REF_LINE_CHARS} and counting the rest as `+N more` (REQ-PCX-7).
+ *
+ * The one list renderer: every shipped formatter and the prompt writer call it
+ * (REQ-PCX-6). A fixed count of six — five copies, plus a sixth at five — used
+ * to hide files the budget had already paid for.
  *
  * @param refs - The already-formatted file references.
- * @param maxFiles - Maximum references to show before truncating.
+ * @param maxCount - Optional cap on how many to name, on top of the character cap.
  * @returns A comma-separated string, or `"(none)"` when empty.
  */
-function capRefList(refs: readonly string[], maxFiles: number): string {
+export function formatRefList(
+	refs: readonly string[],
+	maxCount = Number.POSITIVE_INFINITY,
+): string {
 	if (refs.length === 0) {
 		return "(none)";
 	}
-	const shown = refs.slice(0, maxFiles);
-	const remaining = refs.length - shown.length;
-	const suffix = remaining > 0 ? `, +${String(remaining)} more` : "";
-	return shown.join(", ") + suffix;
+	const suffixFor = (n: number): string => (n > 0 ? `, +${String(n)} more` : "");
+	let shown = 0;
+	let length = 0;
+	for (const ref of refs) {
+		if (shown >= maxCount) break;
+		const next = length + (shown === 0 ? 0 : 2) + ref.length;
+		if (next + suffixFor(refs.length - shown - 1).length > MAX_REF_LINE_CHARS) break;
+		length = next;
+		shown++;
+	}
+	return refs.slice(0, shown).join(", ") + suffixFor(refs.length - shown);
+}
+
+/**
+ * The `Plan:` line for the active chunk, when it has a brief (REQ-PCX-5).
+ *
+ * @param chunk - The active chunk.
+ * @param ref - Renders a path in the formatter's reference syntax.
+ * @returns The line, or `undefined` when there is no brief to point at.
+ */
+export function formatPlanLine(chunk: PlanChunk, ref: (p: string) => string): string | undefined {
+	if (chunk.brief === undefined) return undefined;
+	return `${PLAN_PREFIX} ${ref(`.session/PLAN_${String(chunk.chunk_id)}.md`)}`;
+}
+
+/**
+ * The `Not on disk yet:` line (LLD-new-files.md, REQ-NEW-1). Paths are plain
+ * text, not passed through a formatter's `ref`: an `@path` to a missing file
+ * is an error in the tool that reads it.
+ *
+ * @param paths - Path-shaped absent paths, from `NewFiles.absent`.
+ * @returns The line, or `undefined` when there are none.
+ */
+export function formatNewFilesLine(paths: readonly string[] | undefined): string | undefined {
+	if (paths === undefined || paths.length === 0) return undefined;
+	return `${NEW_FILES_PREFIX} ${formatRefList(paths)}`;
 }
 
 /**
@@ -323,14 +609,15 @@ export function formatUnitRef(unit: FocusedUnit): string {
  *
  * @param resolved - Per-file resolved layers from `LayerResolver.resolve`.
  * @param ref - Renders a single filepath in the formatter's reference syntax.
- * @param maxFiles - Maximum files to list per line before truncating.
+ * @param maxFiles - Optional cap on refs per line, on top of the character
+ *   cap (REQ-PCX-7). Shipped formatters pass none.
  * @param focus - Units focused by the active tasks (REQ-UNIT-13).
  * @returns The prompt lines describing what to load and at which granularity.
  */
 export function formatLayeredContextLines(
 	resolved: readonly ResolvedFileLayer[],
 	ref: (filepath: string) => string,
-	maxFiles: number,
+	maxFiles: number = Number.POSITIVE_INFINITY,
 	focus: readonly FocusedUnit[] = [],
 ): readonly string[] {
 	const full: string[] = [];
@@ -345,13 +632,13 @@ export function formatLayeredContextLines(
 
 	const lines: string[] = [];
 	if (focus.length > 0) {
-		lines.push(`${FOCUS_PREFIX} ${capRefList(focus.map(formatUnitRef), maxFiles)}`);
+		lines.push(`${FOCUS_PREFIX} ${formatRefList(focus.map(formatUnitRef), maxFiles)}`);
 	}
 	if (full.length > 0) {
-		lines.push(`${LOAD_FULL_PREFIX} ${capRefList(full, maxFiles)}`);
+		lines.push(`${LOAD_FULL_PREFIX} ${formatRefList(full, maxFiles)}`);
 	}
 	if (summary.length > 0) {
-		lines.push(`${SUMMARIES_PREFIX} ${capRefList(summary, maxFiles)}`);
+		lines.push(`${SUMMARIES_PREFIX} ${formatRefList(summary, maxFiles)}`);
 	}
 	if (lines.length === 0) {
 		lines.push(`${LOAD_PREFIX} (none)`);

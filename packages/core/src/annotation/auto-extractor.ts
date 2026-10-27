@@ -3,7 +3,8 @@
  * using AST-based analysis (zero annotations required).
  *
  * Uses `@typescript-eslint/typescript-estree` for parsing. No regex. Supports
- * `.ts`, `.tsx`, `.js`, `.jsx`, `.mts`, `.mjs`. Skips `.vue`, `.svelte`.
+ * `.ts`, `.tsx`, `.js`, `.jsx`, `.mts`, `.mjs`, and the `<script>` blocks of
+ * `.vue` and `.svelte` components (LLD-sfc-index.md).
  *
  * Any existing `/** * /` JSDoc summary blocks are captured automatically.
  * Optional `@ai-*` override tags (Chunk 13) are parsed transparently via
@@ -15,12 +16,13 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { ValidatedPath } from "@dev-session/security";
-import { ParseError } from "@dev-session/security";
+import { ParseError, SecretScanner } from "@dev-session/security";
 import type { TSESTree } from "@typescript-eslint/typescript-estree";
 import { parse } from "@typescript-eslint/typescript-estree";
 import { TokenCounter } from "../counters/token-counter.js";
 import { GitignoreAwareWalker } from "../walkers/gitignore-aware-walker.js";
 import { AnnotationParser } from "./annotation-parser.js";
+import { SFC_EXTENSIONS, scriptProgram } from "./sfc-script.js";
 import type { ParsedFile, ParsedSymbol, SymbolSurface } from "./types.js";
 import { contentHash, extractUnits, findLeadingJsdocComment } from "./unit-extractor.js";
 import { extractUsage } from "./usage-extractor.js";
@@ -33,7 +35,15 @@ const annotationParser = new AnnotationParser();
 // ---------------------------------------------------------------------------
 
 /** File extensions handled by the extractor. */
-const SUPPORTED_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx", ".mts", ".mjs"]);
+const SUPPORTED_EXTENSIONS = new Set([
+	".ts",
+	".tsx",
+	".js",
+	".jsx",
+	".mts",
+	".mjs",
+	...SFC_EXTENSIONS,
+]);
 
 /** Max chars to include in a signature (avoids huge generics). */
 const MAX_SIGNATURE_CHARS = 200;
@@ -80,9 +90,14 @@ export class AutoExtractor {
 			return emptyParsedFile(filePath, source);
 		}
 
+		// A component parses as its script bodies, blanked in place so every
+		// position is already a position in the file (REQ-SFC-1, REQ-SFC-2).
+		const sfc = SFC_EXTENSIONS.has(ext) ? scriptProgram(source) : undefined;
+		const program = sfc?.program ?? source;
+
 		try {
-			const isJsx = ext === ".jsx" || ext === ".tsx";
-			const ast = parse(source, {
+			const isJsx = sfc?.jsx ?? (ext === ".jsx" || ext === ".tsx");
+			const ast = parse(program, {
 				comment: true,
 				range: true,
 				loc: true,
@@ -91,7 +106,7 @@ export class AutoExtractor {
 				errorOnUnknownASTType: false,
 			});
 
-			return {
+			return redactSecrets({
 				path: filePath,
 				moduleSummary: extractModuleSummary(ast),
 				exports: extractExports(ast, source),
@@ -99,7 +114,7 @@ export class AutoExtractor {
 				tokenCostAccurate: false,
 				...unitsWithUsage(ast, source, filePath),
 				hash: contentHash(source),
-			};
+			});
 		} catch {
 			// Parse error (e.g., syntax error in the file) — emit warning and continue
 			console.warn(`[AutoExtractor] Parse error in ${path.basename(filePath)}, skipping`);
@@ -441,6 +456,36 @@ function makeSymbol(
 		line,
 		tags: overrides.tags,
 	};
+}
+
+/**
+ * Masks secrets in the text extraction lifts from the file (REQ-PROV-14).
+ *
+ * Summaries and signatures are the only free text in a {@link ParsedFile};
+ * unit ids are name-shaped by construction (REQ-PROV-9). Everything that reads
+ * the index — `ai-index.yaml`, `symbols`, the MCP tools — reads this output, so
+ * masking here covers them all.
+ *
+ * @param file - A freshly extracted file.
+ * @returns The file with each secret masked, and `secrets` set when any was.
+ */
+function redactSecrets(file: ParsedFile): ParsedFile {
+	const found = new Set<string>();
+	const clean = (text: string): string => {
+		const out = SecretScanner.redact(text);
+		for (const p of out.patterns) found.add(p);
+		return out.text;
+	};
+	const redacted: ParsedFile = {
+		...file,
+		moduleSummary: clean(file.moduleSummary),
+		exports: file.exports.map((sym) => ({
+			...sym,
+			summary: clean(sym.summary),
+			signature: clean(sym.signature),
+		})),
+	};
+	return found.size === 0 ? file : { ...redacted, secrets: [...found] };
 }
 
 /**

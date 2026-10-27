@@ -1,0 +1,218 @@
+{
+  "version": "2.4.2",
+  "targets": [
+    {
+      "target": "simple-node-app",
+      "files": 10,
+      "units": 19,
+      "exportedUnits": 16,
+      "fidelityChecked": 19,
+      "fidelityMismatches": [],
+      "scenarios": [
+        {
+          "target": "simple-node-app",
+          "scenario": "camel-case",
+          "expected": [
+            "src/middleware/auth.ts#requireAuth"
+          ],
+          "focused": [
+            "src/middleware/auth.ts#requireAuth"
+          ],
+          "focusOk": true,
+          "ungrounded": [],
+          "promptHashOk": true,
+          "manifestMatchesPrompt": true,
+          "missingEvidence": [],
+          "reduction": {
+            "unitTokens": 94,
+            "unitFileTokens": 144,
+            "unitRatio": 0.6527777777777778,
+            "manifestRatio": 0.7422680412371134
+          }
+        },
+        {
+          "target": "simple-node-app",
+          "scenario": "two-units",
+          "expected": [
+            "src/utils/validate.ts#parseBody",
+            "src/utils/errors.ts#AppError"
+          ],
+          "focused": [
+            "src/utils/validate.ts#parseBody",
+            "src/utils/errors.ts#AppError"
+          ],
+          "focusOk": true,
+          "ungrounded": [],
+          "promptHashOk": true,
+          "manifestMatchesPrompt": true,
+          "missingEvidence": [],
+          "reduction": {
+            "unitTokens": 121,
+            "unitFileTokens": 141,
+            "unitRatio": 0.8581560283687943,
+            "manifestRatio": 0.8952879581151832
+          }
+        },
+        {
+          "target": "simple-node-app",
+          "scenario": "schema-const",
+          "expected": [
+            "src/models/user.ts#UpdateUserSchema"
+          ],
+          "focused": [
+            "src/models/user.ts#UpdateUserSchema"
+          ],
+          "focusOk": true,
+          "ungrounded": [],
+          "promptHashOk": true,
+          "manifestMatchesPrompt": true,
+          "missingEvidence": [],
+          "reduction": {
+            "unitTokens": 15,
+            "unitFileTokens": 157,
+            "unitRatio": 0.09554140127388536,
+            "manifestRatio": 0.3140096618357488
+          }
+        },
+        {
+          "target": "simple-node-app",
+          "scenario": "prose-only",
+          "expected": [],
+          "focused": [],
+          "focusOk": true,
+          "ungrounded": [],
+          "promptHashOk": true,
+          "manifestMatchesPrompt": true,
+          "missingEvidence": [],
+          "reduction": {
+            "unitTokens": 0,
+            "unitFileTokens": 0,
+            "unitRatio": null,
+            "manifestRatio": 1
+          }
+        }
+      ],
+      "staleDetected": true,
+      "movedDetected": true
+    },
+    {
+      "target": "core-src",
+      "files": 60,
+      "units": 656,
+      "exportedUnits": 338,
+      "fidelityChecked": 656,
+      "fidelityMismatches": [],
+      "scenarios": [
+        {
+          "target": "core-src",
+          "scenario": "function",
+          "expected": [
+            "src/verifiers/replay-scorer.ts#extractDeclaredFiles"
+          ],
+          "focused": [
+            "src/verifiers/replay-scorer.ts#extractDeclaredFiles"
+          ],
+          "focusOk": true,
+          "ungrounded": [],
+          "promptHashOk": true,
+          "manifestMatchesPrompt": true,
+          "missingEvidence": [],
+          "reduction": {
+            "unitTokens": 159,
+            "unitFileTokens": 2247,
+            "unitRatio": 0.07076101468624833,
+            "manifestRatio": 0.07076101468624833
+          }
+        },
+        {
+          "target": "core-src",
+          "scenario": "qualified-member",
+          "expected": [
+            "src/calculators/layer-resolver.ts#LayerResolver.plan",
+            "src/formatters/formatter-utils.ts#trimToMaxLines",
+            "src/managers/next-prompt-writer.ts#trimToMaxLines"
+          ],
+          "focused": [
+            "src/calculators/layer-resolver.ts#LayerResolver.plan",
+            "src/formatters/formatter-utils.ts#trimToMaxLines",
+            "src/managers/next-prompt-writer.ts#trimToMaxLines"
+          ],
+          "focusOk": true,
+          "ungrounded": [],
+          "promptHashOk": true,
+          "manifestMatchesPrompt": true,
+          "missingEvidence": [],
+          "reduction": {
+            "unitTokens": 478,
+            "unitFileTokens": 7835,
+            "unitRatio": 0.06100829610721123,
+            "manifestRatio": 0.06100829610721123
+          }
+        },
+        {
+          "target": "core-src",
+          "scenario": "proven-duplicates",
+          "expected": [
+            "src/formatters/plain-text-formatter.ts#MAX_FILES_TO_SHOW",
+            "src/managers/next-prompt-writer.ts#MAX_FILES_TO_SHOW"
+          ],
+          "focused": [
+            "src/formatters/plain-text-formatter.ts#MAX_FILES_TO_SHOW",
+            "src/managers/next-prompt-writer.ts#MAX_FILES_TO_SHOW"
+          ],
+          "focusOk": true,
+          "ungrounded": [],
+          "promptHashOk": true,
+          "manifestMatchesPrompt": true,
+          "missingEvidence": [],
+          "reduction": {
+            "unitTokens": 51,
+            "unitFileTokens": 4012,
+            "unitRatio": 0.012711864406779662,
+            "manifestRatio": 0.012711864406779662
+          }
+        },
+        {
+          "target": "core-src",
+          "scenario": "unproven-twins",
+          "expected": [],
+          "focused": [],
+          "focusOk": true,
+          "ungrounded": [],
+          "promptHashOk": true,
+          "manifestMatchesPrompt": true,
+          "missingEvidence": [],
+          "reduction": {
+            "unitTokens": 0,
+            "unitFileTokens": 0,
+            "unitRatio": null,
+            "manifestRatio": null
+          }
+        },
+        {
+          "target": "core-src",
+          "scenario": "backticked",
+          "expected": [
+            "src/annotation/unit-extractor.ts#contentHash"
+          ],
+          "focused": [
+            "src/annotation/unit-extractor.ts#contentHash"
+          ],
+          "focusOk": true,
+          "ungrounded": [],
+          "promptHashOk": true,
+          "manifestMatchesPrompt": true,
+          "missingEvidence": [],
+          "reduction": {
+            "unitTokens": 77,
+            "unitFileTokens": 3312,
+            "unitRatio": 0.0232487922705314,
+            "manifestRatio": 0.0232487922705314
+          }
+        }
+      ],
+      "staleDetected": true,
+      "movedDetected": true
+    }
+  ]
+}

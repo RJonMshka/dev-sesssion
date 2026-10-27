@@ -281,3 +281,40 @@ describe("AutoExtractor.extractDirectory", () => {
 		expect(goodResult).toBeDefined();
 	});
 });
+
+describe("AutoExtractor.extractFile — secrets in extracted text (REQ-PROV-14)", () => {
+	// Built at runtime so no scanner-shaped token sits in the source (gitleaks).
+	const token = `ghp_${"Ab3".repeat(12)}`;
+
+	it("redacts a token in a summary, module summary and signature (REQ-PROV-14)", () => {
+		const file = writeTsFile(
+			"deploy.ts",
+			[
+				"/**",
+				` * Deploys with ${token}.`,
+				" *",
+				" * @packageDocumentation",
+				" */",
+				"",
+				`/** @ai-summary deploy with token ${token} */`,
+				`export function deploy(t = "${token}"): void {}`,
+				"",
+			].join("\n"),
+		);
+		const parsed = new AutoExtractor().extractFile(file);
+
+		expect(JSON.stringify(parsed)).not.toContain(token);
+		expect(parsed.moduleSummary).toContain("ghp_*");
+		expect(parsed.exports[0]?.summary).toContain("ghp_*");
+		expect(parsed.exports[0]?.signature).toContain("ghp_*");
+		expect(parsed.secrets).toEqual(["GitHub PAT (classic)"]);
+	});
+
+	it("leaves a clean file without a secrets list (REQ-PROV-14)", () => {
+		const parsed = new AutoExtractor().extractFile(
+			writeTsFile("clean.ts", "/** Parses a JSON body. */\nexport function parse(): void {}\n"),
+		);
+		expect(parsed.exports[0]?.summary).toBe("Parses a JSON body.");
+		expect(parsed.secrets).toBeUndefined();
+	});
+});

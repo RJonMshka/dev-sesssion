@@ -13,7 +13,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { confirm, log, spinner } from "@clack/prompts";
 import type { BoundaryResult, PlanChunk, PlanIngestResult } from "@dev-session/core";
-import { formatCandidates, PlanParser, parsePlan } from "@dev-session/core";
+import { describeExclusion, formatCandidates, PlanParser, parsePlan } from "@dev-session/core";
 import type { ValidatedPath } from "@dev-session/security";
 import { AtomicWriter, CliError, isParseError, PathValidator } from "@dev-session/security";
 import { dryRunWrite } from "../utils/dry-run.js";
@@ -110,10 +110,12 @@ export async function splitPlan(
 	// otherwise lose without any diagnostic.
 	for (const excluded of result.excluded) {
 		if (excluded.taskCount > 0) {
+			// REQ-PS-20 — say which reason applies; "Phase 0" declares a number.
+			const why = describeExclusion(excluded.reason);
 			log.warn(
 				`Skipped "${excluded.heading}" (line ${excluded.line}) and its ${excluded.taskCount} task${
 					excluded.taskCount === 1 ? "" : "s"
-				} — the heading declares no chunk number.`,
+				} — ${why}`,
 			);
 		}
 	}

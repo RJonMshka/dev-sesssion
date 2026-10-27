@@ -13,6 +13,7 @@ import * as path from "node:path";
 import type { ValidatedPath } from "@dev-session/security";
 import { AtomicWriter, FrontmatterParser, ParseError } from "@dev-session/security";
 
+import { isDerivedNote, isProgressNote } from "../formatters/formatter-utils.js";
 import type { SessionState, Task } from "../schemas/index.js";
 import { MAX_PROMPT_LINES, SessionStateSchema, TaskStatus } from "../schemas/index.js";
 
@@ -24,6 +25,17 @@ const SESSION_STATE_FILENAME = "SESSION_STATE.md";
  * saving to disk, and pure in-memory state transitions.
  */
 export const SessionStateManager = {
+	/**
+	 * Serializes a state exactly as {@link SessionStateManager.save} writes it.
+	 * Pure; the budget counts this text (LLD-budget.md, REQ-BUD-1).
+	 *
+	 * @param state - The session state.
+	 * @returns The `SESSION_STATE.md` content.
+	 */
+	toMarkdown(state: SessionState): string {
+		return serializeToMarkdown(state);
+	},
+
 	/**
 	 * Loads and validates SESSION_STATE.md from the given session directory.
 	 *
@@ -75,6 +87,23 @@ export const SessionStateManager = {
 	},
 
 	/**
+	 * Adds a task, as todo, when the state lists none with that exact text.
+	 *
+	 * Pure function — performs no I/O. Used before marking a task of the active
+	 * chunk that state does not hold yet (REQ-WF-10).
+	 *
+	 * @param state - The current session state.
+	 * @param taskText - The exact text of the task.
+	 * @returns The state unchanged if it already lists the task, else with it appended.
+	 */
+	adoptTask(state: SessionState, taskText: string): SessionState {
+		if (state.tasks.some((task) => task.text === taskText)) {
+			return state;
+		}
+		return { ...state, tasks: [...state.tasks, { text: taskText, status: TaskStatus.TODO }] };
+	},
+
+	/**
 	 * Marks a task as in-progress by matching on its text.
 	 *
 	 * Pure function — performs no I/O. If no task matches, returns state unchanged.
@@ -123,55 +152,37 @@ export const SessionStateManager = {
 	},
 
 	/**
-	 * Compacts the session state by removing detailed task lists from completed chunks.
-	 *
-	 * Completed chunk tasks are archived to DONE_LOG.md (if not already archived),
-	 * and the in-memory state is trimmed to keep only the active chunk's tasks,
-	 * a summary note per completed chunk, and essential metadata.
-	 *
-	 * This prevents SESSION_STATE.md from growing unboundedly as chunks accumulate.
+	 * Removes the notes the tool wrote to record progress (REQ-WF-6). Earlier
+	 * versions added a `Completed: Chunks …` note here; it repeated the
+	 * prompt's `Resume:` line and went stale, so nothing adds one now (REQ-WF-4).
 	 *
 	 * Pure function — performs no I/O. Call `save()` separately to persist.
 	 *
-	 * @param state - The current session state (may have stale task lists).
-	 * @returns A new session state with only the active chunk's tasks, plus compact summaries.
+	 * @param state - The current session state.
+	 * @returns The state without progress-shaped notes.
 	 */
 	compact(state: SessionState): SessionState {
-		// Keep only tasks that belong to the active chunk.
-		// Since all completed chunk tasks should have already been archived via
-		// PlanChunkManager.archive(), we clear them from the state.
-		// We preserve any existing notes and add a compact summary if not already present.
+		return { ...state, notes: state.notes.filter((n) => !isProgressNote(n)) };
+	},
 
-		const completedKeys = Object.keys(state.completed_chunks);
-		const hasSummary = state.notes.some((n) => n.startsWith("Completed:"));
-
-		const notes = [...state.notes];
-
-		if (completedKeys.length > 0 && !hasSummary) {
-			const sortedKeys = completedKeys
-				.map((k) => Number.parseInt(k, 10))
-				.filter((n) => !Number.isNaN(n))
-				.sort((a, b) => a - b);
-
-			if (sortedKeys.length > 0) {
-				const first = sortedKeys[0] as number;
-				const last = sortedKeys[sortedKeys.length - 1] as number;
-				const isConsecutive = last - first === sortedKeys.length - 1;
-
-				const rangeStr =
-					isConsecutive && sortedKeys.length > 1
-						? `${String(first)}-${String(last)}`
-						: sortedKeys.map(String).join(", ");
-
-				notes.unshift(`Completed: Chunks ${rangeStr}. See DONE_LOG.md for details.`);
-			}
-		}
-
-		// Clear last_worked_files from old chunks since they're no longer relevant
-		// after advancing. Keep them if we haven't advanced (active chunk is still current).
+	/**
+	 * Splits the notes when a chunk is archived (REQ-WF-5, 6): the owner's
+	 * notes leave the state for the chunk's `DONE_LOG.md` entry, notes derived
+	 * from a file stay, and progress notes are dropped.
+	 *
+	 * Pure function — performs no I/O.
+	 *
+	 * @param state - The current session state.
+	 * @returns The state keeping only derived notes, and the owner's notes in the order added.
+	 */
+	takeChunkNotes(state: SessionState): {
+		readonly state: SessionState;
+		readonly archived: readonly string[];
+	} {
+		const kept = state.notes.filter((n) => !isProgressNote(n));
 		return {
-			...state,
-			notes,
+			state: { ...state, notes: kept.filter(isDerivedNote) },
+			archived: kept.filter((n) => !isDerivedNote(n)),
 		};
 	},
 } as const;
@@ -303,8 +314,36 @@ function serializeYaml(state: SessionState): string {
 	if (state.project_name !== undefined) {
 		lines.push(`project_name: ${yamlString(state.project_name)}`);
 	}
+	// Guarded on the type, as above: a hand-built state may omit it (REQ-WF-18).
+	if (Array.isArray(state.workflow)) {
+		lines.push(...serializeStringArrayYaml("workflow", state.workflow));
+	}
+	lines.push(...serializeSessionBaseYaml(state.session_base));
 
 	return `${lines.join("\n")}\n`;
+}
+
+/**
+ * Serializes the session base (REQ-IDX-19). Written only when present, like
+ * `project_name`, so state from before tagging on touch saves unchanged.
+ *
+ * @param base - The recorded base, if any.
+ * @returns YAML lines; none when there is no base.
+ */
+export function serializeSessionBaseYaml(base: SessionState["session_base"]): string[] {
+	if (base === undefined) return [];
+	const lines = ["session_base:"];
+	if (base.commit !== undefined) lines.push(`  commit: ${yamlString(base.commit)}`);
+	if (base.dirty.length === 0) {
+		lines.push("  dirty: []");
+		return lines;
+	}
+	lines.push("  dirty:");
+	for (const d of base.dirty) {
+		lines.push(`    - path: ${yamlString(d.path)}`);
+		lines.push(`      hash: ${yamlString(d.hash)}`);
+	}
+	return lines;
 }
 
 /**

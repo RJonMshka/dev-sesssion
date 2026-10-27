@@ -3,21 +3,15 @@ import { z } from "zod";
 /**
  * Default context budget in estimated tokens.
  *
- * This caps the token cost of the *generated bootstrap context* that
- * `dev-sesssion` produces (SESSION_STATE summary, plan chunk summary,
- * always-include file references, and context file metadata). It is
- * **not** the full AI context window — source files listed in the
- * bootstrap are loaded separately by the AI.
+ * This caps what one chunk brings into context: SESSION_STATE.md, the
+ * active plan chunk, and the chunk's files at their loaded layer. Always-include
+ * files (`CLAUDE.md`) are reported beside it, not counted toward it — they
+ * load in every chunk, so no trim or split can reduce them (LLD-budget.md,
+ * REQ-BUD-6).
  *
- * Measured against this project's own bootstrap:
- * - SESSION_STATE metadata:  ~50–150 tokens (YAML frontmatter + task list)
- * - Plan chunk summary:      ~100–300 tokens (title + task markdown)
- * - Always-include refs:     ~200–400 tokens (CLAUDE.md, SESSION_STATE.md paths)
- * - File index metadata:     ~50–100 tokens per file (path + purpose + chunk tags)
- *
- * A typical 10-file chunk generates ~1,500–2,500 bootstrap tokens.
- * 4,000 provides ~60% headroom for larger chunks before triggering
- * an over-budget warning. Projects can override via `budgetCap` param.
+ * On DevNexus, a 195-file monorepo, chunks came to ~950–2,550 tokens under
+ * this cap; the one chunk over it (~6,100) loads a 17 KB design doc whole.
+ * Projects can override via the `budgetCap` param.
  *
  * When accurate counting is available (via {@link TokenCounter}),
  * this default may be adjusted — but the heuristic estimate validated
@@ -71,9 +65,15 @@ export type ContextBudgetSummary = z.infer<typeof ContextBudgetSummarySchema>;
 export interface ContextBudget {
 	/** Total estimated token cost across all loaded context. */
 	readonly totalTokens: number;
+	/**
+	 * The tokens judged against the cap: everything but always-include files,
+	 * which load in every chunk and so cannot make a chunk too heavy
+	 * (LLD-budget.md, REQ-BUD-6). Equals `totalTokens - breakdown.alwaysInclude`.
+	 */
+	readonly cappedTokens: number;
 	/** Detailed per-category breakdown. */
 	readonly breakdown: ContextBudgetBreakdown;
-	/** Whether the total exceeds the configured budget cap. */
+	/** Whether {@link cappedTokens} exceeds the configured budget cap. */
 	readonly overBudget: boolean;
 	/** The configured budget cap in tokens. */
 	readonly budgetCap: number;

@@ -87,6 +87,7 @@ function generate() {
 		alwaysIncludeFiles,
 		budget: {
 			totalTokens: 1000,
+			cappedTokens: 950,
 			breakdown: { sessionState: 100, planChunk: 100, files: new Map(), alwaysInclude: 50 },
 			overBudget: false,
 			budgetCap: 50000,
@@ -206,6 +207,7 @@ describe("ContextManifest.build without an ai-index", () => {
 			alwaysIncludeFiles,
 			budget: {
 				totalTokens: 1000,
+				cappedTokens: 999,
 				breakdown: { sessionState: 1, planChunk: 1, files: new Map(), alwaysInclude: 1 },
 				overBudget: false,
 				budgetCap: 50000,

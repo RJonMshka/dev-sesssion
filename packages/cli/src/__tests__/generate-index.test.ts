@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { select } from "@clack/prompts";
 import type { PlanChunk } from "@dev-session/core";
 import type { ValidatedPath } from "@dev-session/security";
 import { PathValidator } from "@dev-session/security";
@@ -62,7 +63,6 @@ afterEach(() => {
 describe("generateIndex", () => {
 	it("tags each file in --yes mode to the chunk whose task names it (REQ-RUN-1)", async () => {
 		const result = await generateIndex(sessionDir, SAMPLE_CHUNKS, {
-			yes: true,
 			dryRun: false,
 			verbose: false,
 			cwd: tmpDir,
@@ -81,7 +81,6 @@ describe("generateIndex", () => {
 		fs.writeFileSync(path.join(tmpDir, "src", "unused.ts"), "export {};\n");
 
 		const result = await generateIndex(sessionDir, SAMPLE_CHUNKS, {
-			yes: true,
 			dryRun: false,
 			verbose: false,
 			cwd: tmpDir,
@@ -90,9 +89,36 @@ describe("generateIndex", () => {
 		expect(result.entries.map((e) => e.filepath)).not.toContain("src/unused.ts");
 	});
 
+	it("tags from the plan and asks no tagging question, with or without --yes (REQ-IDX-42)", async () => {
+		vi.mocked(select).mockClear();
+		vi.mocked(select).mockResolvedValue("1");
+		const result = await generateIndex(sessionDir, SAMPLE_CHUNKS, {
+			dryRun: true,
+			verbose: false,
+			cwd: tmpDir,
+		});
+		const tags = Object.fromEntries(result.entries.map((e) => [e.filepath, e.chunk_tags]));
+		expect(tags).toEqual({ "package.json": [1], "src/app.ts": [2], "src/index.ts": [1] });
+		expect(select).not.toHaveBeenCalled();
+	});
+
+	it("does not tag a file because of the directory it is in (REQ-IDX-43)", async () => {
+		// The old prompt offered src/ as one choice; answering chunk 1 tagged
+		// src/app.ts too, though only chunk 2 names it.
+		vi.mocked(select).mockResolvedValue("1");
+		fs.writeFileSync(path.join(tmpDir, "src", "unnamed.ts"), "export const x = 1;\n");
+		const result = await generateIndex(sessionDir, SAMPLE_CHUNKS, {
+			dryRun: true,
+			verbose: false,
+			cwd: tmpDir,
+		});
+		const tags = Object.fromEntries(result.entries.map((e) => [e.filepath, e.chunk_tags]));
+		expect(tags["src/unnamed.ts"]).toBeUndefined();
+		expect(tags["src/app.ts"]).toEqual([2]);
+	});
+
 	it("writes FILE_INDEX.md in non-dry-run mode", async () => {
 		await generateIndex(sessionDir, SAMPLE_CHUNKS, {
-			yes: true,
 			dryRun: false,
 			verbose: false,
 			cwd: tmpDir,
@@ -103,7 +129,6 @@ describe("generateIndex", () => {
 
 	it("dry-run mode writes no files", async () => {
 		const result = await generateIndex(sessionDir, SAMPLE_CHUNKS, {
-			yes: true,
 			dryRun: true,
 			verbose: false,
 			cwd: tmpDir,
@@ -115,7 +140,6 @@ describe("generateIndex", () => {
 
 	it("entries have token_cost populated", async () => {
 		const result = await generateIndex(sessionDir, SAMPLE_CHUNKS, {
-			yes: true,
 			dryRun: false,
 			verbose: false,
 			cwd: tmpDir,
@@ -130,7 +154,6 @@ describe("generateIndex", () => {
 
 	it("entries have purpose inferred", async () => {
 		const result = await generateIndex(sessionDir, SAMPLE_CHUNKS, {
-			yes: true,
 			dryRun: false,
 			verbose: false,
 			cwd: tmpDir,
@@ -154,7 +177,6 @@ describe("generateIndex", () => {
 
 		try {
 			const result = await generateIndex(emptySessionDir, SAMPLE_CHUNKS, {
-				yes: true,
 				dryRun: false,
 				verbose: false,
 				cwd: emptyDir,
