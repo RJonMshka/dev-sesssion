@@ -13,3 +13,4 @@ export {
 	installSignalHandlers,
 	onCleanup,
 } from "./signal-handler.js";
+export { requireTerminal } from "./terminal.js";

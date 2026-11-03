@@ -149,6 +149,10 @@ REQ-PLA-10 turn "the skill is cheap" from a claim into a test.
   or leaves a gap.
 - **REQ-ORC-7** — While a chunk with a higher id than the active one exists,
   `advance` shall not report `allChunksComplete`.
+- **REQ-ORC-9** — If `init`, `update` or `trim` would prompt and stdin is not a
+  TTY, then it shall exit non-zero before writing anything, and name the flag
+  that runs it without prompting. (Found 2026-11-03: all three exited 0
+  mid-question, and `init` created no `.session/` — a harness read success.)
 
 REQ-ORC-3 adds a message and changes no outcome: `init -y` still scaffolds its
 placeholder chunk and exits 0, so nothing in this LLD is a breaking change.

@@ -35,6 +35,7 @@ import { createAdapterReadFile, createAdapterWriteFile } from "../utils/adapter-
 import { dryRunSkipWrite } from "../utils/dry-run.js";
 import { handleError } from "../utils/error-handler.js";
 import { resolveAdapter } from "../utils/resolve-adapter.js";
+import { requireTerminal } from "../utils/terminal.js";
 import { regeneratePrompt } from "./regenerate-prompt.js";
 import { tagTouchedFiles, withSessionBase } from "./touch-tagging.js";
 
@@ -107,6 +108,13 @@ export interface UpdateResult {
  */
 export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 	const sessionDir = resolveSessionDir(options.cwd);
+	// Before tagging writes FILE_INDEX.md, so a refused run changes nothing (REQ-ORC-9).
+	if (!options.yes) {
+		requireTerminal(
+			"update",
+			"Pass --yes to tag this session's files and regenerate the prompt without asking.",
+		);
+	}
 
 	let state = SessionStateManager.load(sessionDir);
 	const chunk = PlanChunkManager.loadActive(sessionDir, state);

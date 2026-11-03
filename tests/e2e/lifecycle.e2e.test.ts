@@ -194,6 +194,38 @@ describe("dev-sesssion advance", () => {
 		expect(await activeChunk()).toBe(1);
 	});
 
+	it("init without a TTY exits non-zero, writes no .session/, names --yes (REQ-ORC-9)", async () => {
+		writePackageJson(tmpDir);
+		writePlan(tmpDir);
+		// execa pipes stdin, so the child sees no TTY.
+		const result = await runCli(["init", "--cwd", tmpDir]);
+		expect(result.exitCode).not.toBe(0);
+		expect(result.stdout + result.stderr).toContain("--yes");
+		expect(fs.existsSync(path.join(tmpDir, ".session"))).toBe(false);
+	});
+
+	it("update without a TTY exits non-zero, leaves state unchanged, names --yes (REQ-ORC-9)", async () => {
+		await initProject();
+		const sessionDir = path.join(tmpDir, ".session");
+		fs.writeFileSync(path.join(tmpDir, "new-file.ts"), "export const x = 1;\n");
+		const read = (): string[] =>
+			fs
+				.readdirSync(sessionDir)
+				.map((f) => `${f}:${fs.readFileSync(path.join(sessionDir, f), "utf-8")}`);
+		const before = read();
+		const result = await runCli(["update", "--cwd", tmpDir]);
+		expect(result.exitCode).not.toBe(0);
+		expect(result.stdout + result.stderr).toContain("--yes");
+		expect(read()).toEqual(before);
+	});
+
+	it("interactive trim without a TTY exits non-zero and names --budget (REQ-ORC-9)", async () => {
+		await initProject();
+		const result = await runCli(["trim", "--cwd", tmpDir]);
+		expect(result.exitCode).not.toBe(0);
+		expect(result.stdout + result.stderr).toContain("--budget");
+	});
+
 	it("fails when there is no session", async () => {
 		writePackageJson(tmpDir);
 		const result = await runCli(["advance", "--yes", "--cwd", tmpDir]);

@@ -36,6 +36,7 @@ import { CliError, ParseError, PathValidator, SecurityError } from "@dev-session
 import type { Command } from "commander";
 import { dryRunMkdir } from "../utils/dry-run.js";
 import { handleError } from "../utils/error-handler.js";
+import { requireTerminal } from "../utils/terminal.js";
 import { type DetectionResult, describePlanFile, runDetection } from "./detect.js";
 import { runFinalWrites } from "./final-writes.js";
 import { generateIndex } from "./generate-index.js";
@@ -83,6 +84,11 @@ export interface InitOptions {
  * @throws CliError if the project cannot be initialized
  */
 export async function runInit(options: InitOptions): Promise<void> {
+	// Before anything is written: a harness without --yes gets exit 1, not a
+	// silent exit 0 with no .session/ (REQ-ORC-9).
+	if (!options.yes) {
+		requireTerminal("init", "Pass --yes to accept the defaults: dev-sesssion init --yes");
+	}
 	intro("dev-sesssion init");
 
 	const s = spinner();
