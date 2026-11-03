@@ -173,7 +173,9 @@ export class SessionManager {
 
 		const index = this.loadIndex();
 
-		const key = path.relative(index.project_root, validated).replace(/\\/g, "/");
+		// Keyed against this root, not index.project_root: a teammate's clone or
+		// a moved checkout records a different one (REQ-SYM-19).
+		const key = path.relative(this.projectRoot, validated).replace(/\\/g, "/");
 		const entry = index.files[key];
 		if (!entry) {
 			throw new CliError({

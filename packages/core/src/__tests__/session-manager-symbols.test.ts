@@ -1,6 +1,6 @@
 /**
  * `SessionManager.symbolsForFile` / `symbolsByName` — the facade over
- * SymbolQuery (LLD-symbols.md, REQ-SYM-12, -16..18).
+ * SymbolQuery (LLD-symbols.md, REQ-SYM-12, -16..19).
  *
  * The index is built and saved by the real builder and manager, so what the
  * facade loads is what `dev-sesssion index` writes.
@@ -72,5 +72,12 @@ describe("SessionManager symbols facade", () => {
 		expect(report.path).toBe("src/nums.ts");
 		expect(report.freshness).toBe("current");
 		expect(SessionManager.create(root).symbolsByName("first").matches).toHaveLength(1);
+	});
+
+	it("reads layers 0 and 1 relative to the root it runs in, not the recorded one (REQ-SYM-19)", async () => {
+		await writeIndex(path.join(os.tmpdir(), "somewhere-else-entirely"));
+		const mgr = SessionManager.create(root);
+		expect(mgr.readFileLayer("src/nums.ts", 0)).toContain("src/nums.ts");
+		expect(mgr.readFileLayer("src/nums.ts", 1)).toContain("first");
 	});
 });

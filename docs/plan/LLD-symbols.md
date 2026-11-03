@@ -190,6 +190,11 @@ shall reject it with a `SecurityError`.
 relative to the project root the command runs in, not the root recorded in the
 index.
 
+**REQ-SYM-19** — `read_file_layer` (`SessionManager.readFileLayer`) at layer 0
+or 1 shall find the file's entry by its path relative to the project root it
+runs in, not the root recorded in the index. A team-mode index is committed, so
+every clone but the author's records a root that is not its own.
+
 No `.session/` at all is already handled: `SessionManager.create` throws a
 `CliError` naming `dev-sesssion init` (`session-manager.ts:96-101`). The e2e
 pins it, and it is expected to pass on first run.
@@ -414,6 +419,7 @@ METHOD.md's real-generator-output rule.
 | REQ-SYM-13..15 | unit | Edit a file after indexing → `stale`; delete it → `removed`, no rows; strip `hash` and `units` from the built entry → `unknown` and `units: null` |
 | REQ-SYM-16, 17 | unit | Facade: an unindexed path gives a `CliError`; `../x.ts` gives a `SecurityError` |
 | REQ-SYM-18 | unit | Built index whose `project_root` is replaced with another absolute path: `symbolsForFile` still finds the entry |
+| REQ-SYM-19 | unit | Same index: `readFileLayer` at layers 0 and 1 still renders the entry |
 | REQ-SYM-10, 11 | e2e | `tests/e2e/symbols.e2e.test.ts`: `init -y` on a copy of `simple-node-app`. `symbols src/… --json` stdout parses as one document whose units equal `ai-index.yaml` read back through core's `AiIndexBuilder.deserialize`. File list and mtimes under the temp dir unchanged after both modes |
 | REQ-SYM-6 | e2e | `--name doesNotExist --json` exits 1 and stdout parses with `matches: []` |
 | REQ-SYM-12 | e2e | Delete `.session/ai-index.yaml`: exit 1, output names `dev-sesssion index`, no file created |
@@ -444,10 +450,8 @@ commit as the code.
 - **Surfacing `ambiguous` in `update`/`preview` output.** This command lets a
   person ask. Printing every refused name on every regeneration is a separate
   decision about noise in those commands.
-- **`readFileLayer`'s `index.project_root` lookup** (`session-manager.ts:176`).
-  This is the same mistake REQ-SYM-18 avoids, and a one-line fix. It changes an
-  MCP tool's behaviour, so it gets its own commit and test, not a ride in this
-  one.
+- **`readFileLayer`'s `index.project_root` lookup** — fixed later as REQ-SYM-19,
+  in its own commit and test.
 - **Folding `index --show` / `--file` into `symbols`.** They overlap. REQ-SYM-9
   fixes their quoting, which is the part that is wrong. Removing or aliasing
   them changes an existing command surface and is a release-note decision.
