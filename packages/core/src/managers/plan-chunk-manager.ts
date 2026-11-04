@@ -300,14 +300,15 @@ export const PlanChunkManager = {
 	/**
 	 * Checks whether all tasks in a plan chunk are complete.
 	 *
-	 * Returns `true` if every task has status `"done"`, or if the
-	 * tasks array is empty.
+	 * Returns `true` if the chunk has tasks and every one has status
+	 * `"done"`. A chunk with no tasks is not complete: nothing says its work
+	 * happened (REQ-ORC-11).
 	 *
 	 * @param chunk - The plan chunk to check.
 	 * @returns `true` if the chunk is fully complete.
 	 */
 	isComplete(chunk: PlanChunk): boolean {
-		return chunk.tasks.every((task) => task.status === TaskStatus.DONE);
+		return chunk.tasks.length > 0 && chunk.tasks.every((task) => task.status === TaskStatus.DONE);
 	},
 
 	/**

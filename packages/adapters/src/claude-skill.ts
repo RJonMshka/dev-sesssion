@@ -135,8 +135,9 @@ Repeat:
 3. \`dev-sesssion advance --json\` moves on. Stop when \`allChunksComplete\` is
    true.
 
-If \`advance\` exits non-zero, the chunk still has open tasks. Send it back to a
-subagent, or ask the user before passing \`--yes\`, which advances past them.
+If \`advance\` exits non-zero, the chunk still has open tasks, or has none.
+Send it back to a subagent, or ask the user before passing \`--yes\`, which
+advances past it.
 
 Read only the JSON. Don't open chunk files or the session directory yourself.
 `;

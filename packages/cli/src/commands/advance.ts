@@ -105,8 +105,13 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 		const doneCount = currentChunk.tasks.filter((t) => t.status === TaskStatus.DONE).length;
 		const totalCount = currentChunk.tasks.length;
 
+		// A chunk with no tasks is not complete either: nothing says its work happened (REQ-ORC-11).
+		const why = totalCount === 0 ? "has no tasks" : "has incomplete tasks";
+
 		log.warn(
-			`Chunk ${String(currentChunkId)} has incomplete tasks: ${String(doneCount)}/${String(totalCount)} done`,
+			totalCount === 0
+				? `Chunk ${String(currentChunkId)} has no tasks, so nothing shows its work was done.`
+				: `Chunk ${String(currentChunkId)} has incomplete tasks: ${String(doneCount)}/${String(totalCount)} done`,
 		);
 
 		if (options.yes) {
@@ -117,12 +122,18 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 			// forever. Fail before anything is written (REQ-ORC-2).
 			if (process.stdin.isTTY !== true) {
 				throw new CliError({
-					message: `Chunk ${String(currentChunkId)} has incomplete tasks and stdin is not a terminal, so advance cannot ask to confirm.`,
-					suggestion: "Mark the tasks done first, or pass --yes to advance with them incomplete.",
+					message: `Chunk ${String(currentChunkId)} ${why} and stdin is not a terminal, so advance cannot ask to confirm.`,
+					suggestion:
+						totalCount === 0
+							? "Pass --yes if the chunk's work is done; it has no tasks to mark."
+							: "Mark the tasks done first, or pass --yes to advance with them incomplete.",
 				});
 			}
 			const forceResult = await confirm({
-				message: "Force advance with incomplete tasks?",
+				message:
+					totalCount === 0
+						? "Advance past a chunk with no tasks?"
+						: "Force advance with incomplete tasks?",
 			});
 
 			if (isCancel(forceResult) || !forceResult) {

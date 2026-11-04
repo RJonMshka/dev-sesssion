@@ -79,8 +79,11 @@ tasks, the paths it names), every section skipped and why, and dependencies on
 chunks the plan does not define.
 
 **Exit code:** `0` when the plan yields chunks and `init` would drop no task;
-`1` when it yields none, no format recognizes it, or a skipped section holds
-tasks. A skipped section with no tasks (an `## Overview`) does not fail it.
+`1` when it yields none, no format recognizes it, a skipped section holds
+tasks, or a chunk has no tasks. A skipped section with no tasks (an
+`## Overview`) does not fail it. Tasks are `- [ ]` checkboxes; plain `*` or `-`
+bullets are not read as tasks, and a chunk made only of them is named in a
+warning, since `advance` would have nothing to check.
 
 **`--json`** prints one document and nothing else:
 
@@ -239,7 +242,8 @@ Run this when all tasks in the active chunk are complete. The command:
 On the highest-numbered chunk it reports that all chunks are complete and
 exits 0 without changing anything.
 
-If the active chunk still has open tasks, `advance` asks before moving on.
+If the active chunk still has open tasks, or has no tasks at all, `advance`
+asks before moving on.
 `--yes` (global) skips the question and advances anyway. When stdin is not a
 terminal, as under a script or a coding harness, there is nobody to ask: it
 exits 1 without changing anything and names `--yes` as the override.

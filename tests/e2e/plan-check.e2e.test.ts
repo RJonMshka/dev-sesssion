@@ -91,6 +91,21 @@ describe("plan check", () => {
 		expect(`${bad.stdout}${bad.stderr}`).toContain("Milestone — Billing");
 	});
 
+	it("exits non-zero for a chunk with no tasks, naming it and the task form (REQ-ORC-10)", async () => {
+		fs.writeFileSync(
+			path.join(tmpDir, "bullets.md"),
+			"## Milestone 1 — Login\n\n* Build login page\n\n## Milestone 2 — Billing\n\n* Add stripe\n",
+		);
+
+		const r = await runCli(["plan", "check", "bullets.md", "--cwd", tmpDir]);
+
+		expect(r.exitCode).toBe(1);
+		const out = `${r.stdout}${r.stderr}`;
+		expect(out).toContain("Login");
+		expect(out).toContain("Billing");
+		expect(out).toContain("- [ ]");
+	});
+
 	it("creates and modifies no file (REQ-PLA-6)", async () => {
 		const before = snapshot(tmpDir);
 

@@ -194,6 +194,36 @@ describe("dev-sesssion advance", () => {
 		expect(await activeChunk()).toBe(1);
 	});
 
+	it("does not pass a chunk with no tasks as complete (REQ-ORC-11)", async () => {
+		writePackageJson(tmpDir);
+		fs.writeFileSync(
+			path.join(tmpDir, "PLAN.md"),
+			"# Plan\n\n## Chunk 1 — Login\n\n* Build login page\n\n## Chunk 2 — Billing\n\n- [ ] Add stripe\n",
+		);
+		expect((await runCli(["init", "--yes", "--cwd", tmpDir])).ok).toBe(true);
+
+		// The skill's loop: `advance --json`, no --yes, no TTY.
+		const refused = await runCli(["advance", "--json", "--cwd", tmpDir]);
+
+		expect(refused.exitCode).not.toBe(0);
+		expect(refused.stdout + refused.stderr).toMatch(/no tasks/i);
+		expect(refused.stdout + refused.stderr).toContain("--yes");
+		expect(await activeChunk()).toBe(1);
+	});
+
+	it("advances past a chunk with no tasks with --yes, as forced (REQ-ORC-11)", async () => {
+		writePackageJson(tmpDir);
+		fs.writeFileSync(
+			path.join(tmpDir, "PLAN.md"),
+			"# Plan\n\n## Chunk 1 — Login\n\n* Build login page\n\n## Chunk 2 — Billing\n\n- [ ] Add stripe\n",
+		);
+		expect((await runCli(["init", "--yes", "--cwd", tmpDir])).ok).toBe(true);
+
+		const json = await advanceJson();
+
+		expect(json).toMatchObject({ newChunkId: 2, forceAdvanced: true });
+	});
+
 	it("init without a TTY exits non-zero, writes no .session/, names --yes (REQ-ORC-9)", async () => {
 		writePackageJson(tmpDir);
 		writePlan(tmpDir);
