@@ -31,6 +31,7 @@ import type { Command } from "commander";
 import { dryRunSkipWrite } from "../utils/dry-run.js";
 import { handleError } from "../utils/error-handler.js";
 import { withStdoutOnStderr, writeJson } from "../utils/json-output.js";
+import { refreshIndexForPrompt } from "./refresh-index.js";
 import { regeneratePrompt } from "./regenerate-prompt.js";
 import { withSessionBase } from "./touch-tagging.js";
 
@@ -225,6 +226,12 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 
 	// Step 7: Load the new chunk and regenerate NEXT_PROMPT.md
 	const newChunk = PlanChunkManager.loadActive(sessionDir, state);
+	// The new chunk's prompt summarises files as the last chunk left them (REQ-SYM-20).
+	const index = await refreshIndexForPrompt(sessionDir, {
+		cwd: options.cwd,
+		dryRun,
+		strict: false,
+	});
 	const {
 		budget,
 		chunkFiles,
@@ -240,6 +247,7 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 		allChunks,
 		entries: allEntries,
 		excluded: [],
+		index,
 	});
 
 	// Step 7b: Append context log entry for the completed chunk

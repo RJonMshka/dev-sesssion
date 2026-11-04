@@ -186,8 +186,12 @@ dev-sesssion update [--no-tag]
 2. Lets you mark tasks done or in-progress
 3. Prompts for optional session notes
 4. Tags the files this session changed to the active chunk (below)
-5. Regenerates `NEXT_PROMPT.md` for the next session, loading the files just tagged
-6. Scans written content for secrets
+5. Brings `ai-index.yaml` up to date: files whose content changed are re-read,
+   new ones added, deleted ones dropped. The file is rewritten only when an
+   entry changed, so a committed team-mode index shows a diff only when the code
+   it describes did. `advance` does the same before writing the next prompt
+6. Regenerates `NEXT_PROMPT.md` for the next session, loading the files just tagged
+7. Scans written content for secrets
 
 **Tagging what the session touched.** In a git repository, `init`, `update`
 and `advance` record a session base in `SESSION_STATE.md`: `HEAD` and the files
@@ -291,7 +295,8 @@ dev-sesssion prompt | pbcopy
 ## dev-sesssion index
 
 Run on its own, `dev-sesssion index` rebuilds `.session/ai-index.yaml`
-(`--update` merges into the existing index) and then regenerates
+(`--update` re-reads only the files whose content changed and keeps the other
+entries, and says how many of each) and then regenerates
 `NEXT_PROMPT.md` and `context-manifest.json` from it, so the prompt focuses
 units added since the last run. `--dry-run` writes none of them.
 
@@ -402,6 +407,7 @@ dev-sesssion health [--fix] [--json]
 | FILE_INDEX has more than 500 entries | `FILE_INDEX_LARGE` | info |
 | All tasks in the active chunk are done | `ALL_TASKS_DONE` | info |
 | SESSION_STATE not updated in > 7 days | `SESSION_STALE` | info |
+| ai-index entries whose file changed or is gone, judged by content hash as `symbols` does | `AI_INDEX_STALE` | warning |
 
 `PROMPT_TOO_LONG` is measured against `max_prompt_lines` from `SESSION_STATE.md`
 frontmatter when set, and against the default of 20 otherwise. `dev-sesssion

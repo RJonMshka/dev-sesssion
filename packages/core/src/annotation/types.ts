@@ -200,4 +200,6 @@ export interface AiIndex {
 	readonly project_root: string;
 	/** All indexed files, keyed by relative path from project root. */
 	readonly files: Readonly<Record<string, FileEntry>>;
+	/** The file cap the index was built with (`init --max-files`); a refresh keeps to it. Absent when uncapped. */
+	readonly max_files?: number;
 }

@@ -26,6 +26,7 @@ export type {
 } from "./adapters/adapter.js";
 export type {
 	AiIndex,
+	AiIndexRefresh,
 	FileAnnotations,
 	FileEntry,
 	Freshness,

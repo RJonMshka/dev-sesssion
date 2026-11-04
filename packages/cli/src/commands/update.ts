@@ -36,6 +36,7 @@ import { dryRunSkipWrite } from "../utils/dry-run.js";
 import { handleError } from "../utils/error-handler.js";
 import { resolveAdapter } from "../utils/resolve-adapter.js";
 import { requireTerminal } from "../utils/terminal.js";
+import { refreshIndexForPrompt } from "./refresh-index.js";
 import { regeneratePrompt } from "./regenerate-prompt.js";
 import { tagTouchedFiles, withSessionBase } from "./touch-tagging.js";
 
@@ -201,6 +202,13 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 		log.info(`Last-worked files updated: ${lastWorkedUpdated ? "yes" : "no"}`);
 	}
 
+	// The prompt summarises files as they are now, not as init saw them (REQ-SYM-20).
+	const index = await refreshIndexForPrompt(sessionDir, {
+		cwd: options.cwd,
+		dryRun,
+		strict: options.strict,
+	});
+
 	// Steps 5–7: Regenerate, scan and write NEXT_PROMPT.md + manifest
 	const {
 		budget,
@@ -218,6 +226,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateResult> {
 		chunk: PlanChunkManager.withSessionStatus(chunk, state.tasks),
 		// The entries just tagged, so the prompt loads them (REQ-IDX-36).
 		entries: touched.entries,
+		index,
 	});
 
 	log.info(ContextBudgetCalculator.formatSummary(budget));

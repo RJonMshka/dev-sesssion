@@ -136,20 +136,24 @@ export class AutoExtractor {
 		root: ValidatedPath,
 		options?: { maxFiles?: number },
 	): Promise<ParsedFile[]> {
+		return this.listFiles(root, options?.maxFiles).map((abs) => this.extractFile(abs));
+	}
+
+	/**
+	 * The files {@link extractDirectory} would extract, in walk order.
+	 *
+	 * @param root - Validated absolute path to the project root.
+	 * @param maxFiles - Optional cap on the number of files.
+	 * @returns Absolute paths of supported files, `.gitignore`-aware.
+	 */
+	listFiles(root: ValidatedPath, maxFiles?: number): ValidatedPath[] {
 		const files = GitignoreAwareWalker.walk(root as string, {
 			extensions: [...SUPPORTED_EXTENSIONS],
 		});
-
-		const limit = options?.maxFiles ?? Number.MAX_SAFE_INTEGER;
-		const results: ParsedFile[] = [];
-
-		for (const walkedFile of files.slice(0, limit)) {
-			// Cast absolute path: walker resolved it from filesystem, so it's valid
-			const absPath = walkedFile.absolutePath as ValidatedPath;
-			results.push(this.extractFile(absPath));
-		}
-
-		return results;
+		// Cast absolute path: walker resolved it from filesystem, so it's valid
+		return files
+			.slice(0, maxFiles ?? Number.MAX_SAFE_INTEGER)
+			.map((f) => f.absolutePath as ValidatedPath);
 	}
 }
 
