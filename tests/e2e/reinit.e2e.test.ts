@@ -8,6 +8,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { execa } from "execa";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { SessionStateManager } from "../../packages/core/src/managers/session-state-manager.js";
 import type { ValidatedPath } from "../../packages/security/src/validators/path-validator.js";
@@ -135,5 +136,22 @@ describe("init on an existing session", () => {
 		expect(r.exitCode).toBe(0);
 		expect(fs.existsSync(session("SESSION_STATE.md"))).toBe(true);
 		expect(backups()).toEqual([]);
+	});
+});
+
+describe("session files in git", () => {
+	it.each([
+		[[] as string[]],
+		[["--team"]],
+	])("init %j ignores CONTEXT_LOG.md, so update leaves it out of git status (REQ-RUN-39)", async (extra) => {
+		await execa("git", ["init", "--quiet"], { cwd: tmpDir });
+		await runCli(["init", "--yes", ...extra, "--cwd", tmpDir]);
+		await runCli(["update", "--yes", "--cwd", tmpDir]);
+		expect(fs.existsSync(session("CONTEXT_LOG.md"))).toBe(true);
+
+		const { stdout } = await execa("git", ["status", "--porcelain", "--untracked-files=all"], {
+			cwd: tmpDir,
+		});
+		expect(stdout).not.toContain("CONTEXT_LOG.md");
 	});
 });

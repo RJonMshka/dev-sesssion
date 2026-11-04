@@ -289,6 +289,19 @@ from the set the extractor uses, so the message cannot drift from the code.
 `generateIndex` returns the walked paths it already holds; `init` counts those
 whose extension is not indexed.
 
+### Session files in git (added 2026-11-03)
+
+`.session/CONTEXT_LOG.md` is written by `update` and `advance` (an append-only
+log of what each session loaded), but neither `.gitignore` list in
+`final-writes.ts` names it, so in personal mode it showed up as untracked
+after the first `update`, beside files that are ignored.
+
+**REQ-RUN-39** — When `init` patches `.gitignore`, in personal or team mode, the
+entries shall include `.session/CONTEXT_LOG.md`.
+
+An existing `.gitignore` that already has dev-sesssion entries is not patched
+again (`final-writes.ts`, `alreadyPatched`), so this reaches new projects only.
+
 ### Re-running init (added 2026-11-03)
 
 Found in the overnight eval of 2026-11-03. On a session at chunk 2,
