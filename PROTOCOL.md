@@ -44,7 +44,7 @@ is specific to it. This document describes version **1.0** of the format.
 ├── ai-index.yaml        # OPTIONAL — extracted symbol index (layered loading)
 ├── context-manifest.json # OPTIONAL — what the current NEXT_PROMPT.md loads, and why
 ├── trim-overrides.json  # OPTIONAL — per-file context exclusions
-└── backups/             # OPTIONAL — pre-compaction file backups
+└── backups/             # OPTIONAL — earlier sessions, moved aside by `init --fresh`; never committed
 ```
 
 A directory is a valid v1.0 session if and only if the four REQUIRED artifacts

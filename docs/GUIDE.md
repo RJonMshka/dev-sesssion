@@ -458,7 +458,7 @@ It will show you the stale entries and ask if you want to remove them. Answer ye
 
 You've completed all your planned chunks. This is a good problem to have! You have two options:
 - Create a new `PLAN_N.md` manually for the next phase of work
-- Run `dev-sesssion init` again to scaffold a new plan (it will ask before overwriting)
+- Run `dev-sesssion init --fresh` to start over from a new plan. The old session is moved to `.session/backups/` first, so nothing is lost
 
 ---
 
@@ -471,7 +471,7 @@ Run `dev-sesssion update`, press Enter through the task checklist (select nothin
 **Q: Someone else on my team committed `FILE_INDEX.md` with different entries. I have a merge conflict.**
 
 If you enabled team mode, this shouldn't happen — the `.gitattributes` rule uses `merge=ours`. If you didn't enable team mode, either:
-- Re-run `dev-sesssion init --team` to apply the patches, then resolve the conflict manually this once
+- Re-run `dev-sesssion init --team --fresh` to apply the patches (this starts the session over; the old one is moved to `.session/backups/`), then resolve the conflict manually this once
 - Manually add `.session/FILE_INDEX.md merge=ours` to your `.gitattributes`
 
 ---

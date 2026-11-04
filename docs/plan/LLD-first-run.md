@@ -269,6 +269,57 @@ DevNexus, `init --yes --chunk 8` recorded chunks 1–7 as completed, and
 The prompt for chunk 8 still names only `CLAUDE.md`: every file phase 8 lists
 is one it is meant to *create*, and nothing tags a file that does not exist yet.
 
+### Re-running init (added 2026-11-03)
+
+Found in the overnight eval of 2026-11-03. On a session at chunk 2,
+`init -y` reset it to chunk 1 with a new `session_id` and an empty
+`completed_chunks`. The only sign was one log line (`init.ts:126`). Everything
+else went too: ticked tasks, hand-set `workflow`, `notes` and
+`max_prompt_lines`, and the tags `FILE_INDEX.md` learned on touch (already
+noted in LLD-tagging's "Out of scope"). In personal mode `SESSION_STATE.md` is
+gitignored, so none of it can be recovered. An agent told "run init" does
+exactly this, and `--yes` skips the only question that asks.
+
+The owner chose: rerunning init changes nothing unless the caller asks to start
+over, and starting over keeps the old state. Carrying progress into a re-read
+plan (tasks matched by text) is a later feature, not this fix.
+
+A session exists when `.session/SESSION_STATE.md` does. A `.session/` without
+it has no progress to lose, so `init` proceeds as on a new project.
+
+**REQ-RUN-32** — While a session exists, when `init` runs with `--yes` and
+without `--fresh`, `init` shall write no file, shall exit 0, and shall say that
+the project is already set up, which chunk is active, and that `--fresh` starts
+over.
+
+**REQ-RUN-33** — When `init` starts over an existing session, it shall first
+move every entry in `.session/` except `backups/` into a new directory
+`.session/backups/<UTC time>/`, and shall say where.
+
+**REQ-RUN-34** — When `init` creates `.session/backups/`, it shall write a
+`.gitignore` there that ignores everything, so a backup is never committed,
+whatever the project's own `.gitignore` says.
+
+**REQ-RUN-35** — Where `--fresh` is given, `init` shall start over without
+asking.
+
+**REQ-RUN-36** — While a session exists, when `init` runs without `--yes` and
+without `--fresh`, it shall ask before starting over, and the question shall say
+that the current state is moved to `.session/backups/`.
+
+**REQ-RUN-37** — Where `--dry-run` is given, `init` shall report the backup it
+would make and shall move nothing.
+
+*Design.* `SessionBackup` in `core/src/managers/session-backup.ts`:
+`exists(sessionDir)` and `moveAside(sessionDir, now)`, which returns the new
+directory relative to `.session/` and the names it moved. Moving rather than
+copying is deliberate: a copy would leave `PLAN_5.md` from an older, longer plan
+for `advance` to walk into. If init then fails, for example on a bad `--chunk`,
+the old state is intact in the backup and `SESSION_STATE.md` is absent, so the
+next `init` proceeds without asking. Directory names use `-` for `:` so they are
+valid on Windows; a second start-over in the same second gets a `-2` suffix.
+REQ-RUN-36 is an interactive prompt and has no automated test.
+
 ## Design
 
 ### File references — new `core/src/calculators/file-reference.ts`

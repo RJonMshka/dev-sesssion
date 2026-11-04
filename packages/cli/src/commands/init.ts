@@ -30,6 +30,8 @@ import {
 	noPlanDirection,
 	PlanChunkManager,
 	ProjectDetector,
+	SessionBackup,
+	SessionStateManager,
 } from "@dev-session/core";
 import type { ValidatedPath } from "@dev-session/security";
 import { CliError, ParseError, PathValidator, SecurityError } from "@dev-session/security";
@@ -70,6 +72,8 @@ export interface InitOptions {
 	readonly maxFiles?: number;
 	/** The chunk to start at (`--chunk`); asked for interactively when absent (REQ-RUN-27, -31). */
 	readonly chunk?: number;
+	/** Start over an existing session, moving it to `.session/backups/` first (`--fresh`, REQ-RUN-33, -35). */
+	readonly fresh?: boolean;
 	/** The plan file to ingest (`--plan`), relative to `cwd`; replaces the PLAN.md search (REQ-PLA-7). */
 	readonly plan?: string;
 }
@@ -121,21 +125,10 @@ export async function runInit(options: InitOptions): Promise<void> {
 		}
 	}
 
-	// Phase 1b: Handle existing .session/ directory
-	if (detection.session.exists) {
-		if (options.yes) {
-			log.warn("Existing .session/ found. Reinitializing in --yes mode.");
-		} else {
-			const reinit = await confirm({
-				message: "A .session/ directory already exists. Reinitialize?",
-			});
-
-			if (isCancel(reinit) || !reinit) {
-				cancel("Init cancelled.");
-				outro("No changes made.");
-				return;
-			}
-		}
+	// Phase 1b: an existing session is kept unless the caller asks to start over
+	// (REQ-RUN-32..37).
+	if (detection.session.exists && !(await startOverIfAsked(options))) {
+		return;
 	}
 
 	// Phase 1c: Team vs personal mode selection
@@ -277,6 +270,67 @@ async function buildInitIndex(
 			`Could not build ai-index (${safeReason(cause)}). The first prompt is written without it; run \`dev-sesssion index\` once the cause is fixed.`,
 		);
 		return null;
+	}
+}
+
+/**
+ * Decides what to do with an existing session, and moves it aside when init is
+ * to start over. A `.session/` without `SESSION_STATE.md` has nothing to lose,
+ * so init proceeds as on a new project.
+ *
+ * @param options - Init options.
+ * @returns True when init should go on writing, false when it should stop.
+ * @throws {SecurityError} If a `.session/` entry name would escape the directory.
+ */
+async function startOverIfAsked(options: InitOptions): Promise<boolean> {
+	const sessionDir = PathValidator.safeResolvePath(".session", options.cwd);
+	if (!SessionBackup.exists(sessionDir)) return true;
+
+	if (options.fresh !== true) {
+		if (options.yes) {
+			// REQ-RUN-32: nothing is written.
+			log.info(`Already set up${activeChunkLabel(sessionDir)}. Nothing changed.`);
+			outro("To start over, pass --fresh; the current state is moved to .session/backups/ first.");
+			return false;
+		}
+		// REQ-RUN-36
+		const again = await confirm({
+			message:
+				"This project is already set up. Start over? The current state is moved to .session/backups/ first.",
+			initialValue: false,
+		});
+		if (isCancel(again) || !again) {
+			cancel("Init cancelled.");
+			outro("No changes made.");
+			return false;
+		}
+	}
+
+	const now = new Date();
+	if (options.dryRun) {
+		// REQ-RUN-37
+		log.info(
+			`[dry-run] Would move the current session to .session/${SessionBackup.plannedDir(sessionDir, now)}/`,
+		);
+		return true;
+	}
+	const backup = SessionBackup.moveAside(sessionDir, now);
+	log.info(`Moved the previous session to .session/${backup.relativeDir}/`);
+	return true;
+}
+
+/**
+ * ` at chunk N` for the session in `sessionDir`, or nothing if its state
+ * cannot be read.
+ *
+ * @param sessionDir - Validated path to `.session/`.
+ * @returns The label, with a leading space, or an empty string.
+ */
+function activeChunkLabel(sessionDir: ValidatedPath): string {
+	try {
+		return ` at chunk ${String(SessionStateManager.load(sessionDir).active_chunk)}`;
+	} catch {
+		return "";
 	}
 }
 
@@ -424,7 +478,12 @@ export function registerInitCommand(program: Command): void {
 			undefined,
 		)
 		.option("--chunk <id>", "Start at this chunk; lower-numbered chunks are recorded as completed")
-		.option("--plan <file>", "Read this plan file instead of looking for PLAN.md or docs/PLAN.md");
+		.option("--plan <file>", "Read this plan file instead of looking for PLAN.md or docs/PLAN.md")
+		.option(
+			"--fresh",
+			"Start over an existing session; the current state is moved to .session/backups/ first",
+			false,
+		);
 
 	cmd.action(async () => {
 		const globalOpts = program.opts<{
@@ -441,6 +500,7 @@ export function registerInitCommand(program: Command): void {
 			maxFiles?: string;
 			chunk?: string;
 			plan?: string;
+			fresh: boolean;
 		}>();
 		const chunk = cmdOpts.chunk !== undefined ? Number.parseFloat(cmdOpts.chunk) : undefined;
 		if (chunk !== undefined && Number.isNaN(chunk)) {
@@ -463,6 +523,7 @@ export function registerInitCommand(program: Command): void {
 			...(maxFiles !== undefined && !Number.isNaN(maxFiles) ? { maxFiles } : {}),
 			...(chunk !== undefined ? { chunk } : {}),
 			...(cmdOpts.plan !== undefined ? { plan: cmdOpts.plan } : {}),
+			fresh: cmdOpts.fresh,
 		};
 
 		try {

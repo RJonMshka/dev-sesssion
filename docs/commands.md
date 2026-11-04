@@ -29,6 +29,7 @@ dev-sesssion init [options]
 | `--max-files <n>` | Cap the number of files indexed, in `FILE_INDEX.md` and the ai-index (useful for large repos) |
 | `--chunk <id>` | Start at this chunk instead of the lowest-numbered. Lower-numbered chunks are recorded in `completed_chunks` (dated today, task statuses untouched) and get no files tagged. An id the plan does not define is an error, listing the ids it does. Without `--yes`, init asks |
 | `--plan <file>` | Read this plan instead of looking for `PLAN.md` and `docs/PLAN.md`. The path is relative to the project root; one that leads outside it is refused (exit 3) before anything is written. Use it when `PLAN.md` already holds something else, such as a spec or a roadmap |
+| `--fresh` | Start over an existing session. The current `.session/` contents are first moved to `.session/backups/<UTC time>/`, which git ignores. Without it, `init --yes` on a project that is already set up changes nothing and exits 0; without `--yes`, init asks |
 
 **What it does:**
 

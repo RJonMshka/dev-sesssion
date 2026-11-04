@@ -182,6 +182,8 @@ export type {
 } from "./managers/prompt-assembler.js";
 export { PromptAssembler } from "./managers/prompt-assembler.js";
 export { RoutinesWriter } from "./managers/routines-writer.js";
+export type { SessionBackupResult } from "./managers/session-backup.js";
+export { SESSION_BACKUP_DIRNAME, SessionBackup } from "./managers/session-backup.js";
 export type {
 	ActiveChunkInfo,
 	IndexQuery,
