@@ -226,6 +226,36 @@ base yet: it tags nothing, says `no-base`, and records one.
 
 ---
 
+## dev-sesssion task done
+
+Mark one task of the active chunk done, without the interactive checklist.
+
+```bash
+dev-sesssion task done <n | text> [--json]
+```
+
+`<n>` is the task's number in the active chunk, counting from 1 in plan order.
+Anything else is matched against task text: an exact match first, then the one
+task whose text contains it, ignoring case (`task done tooling`). Several words
+need no quotes. A selector that matches no task, or more than one, exits 1,
+changes nothing, and lists the tasks with their numbers.
+
+The task is recorded in `SESSION_STATE.md` exactly as the MCP `mark_task_done`
+tool records it, and `NEXT_PROMPT.md` is regenerated. A task that is already
+done is left alone (exit 0). When the last open task is marked, it says so and
+names `dev-sesssion advance`. `--dry-run` names the task and writes nothing.
+
+**`--json`** prints one document, whether a task was marked or not:
+
+```json
+{ "ok": true, "number": 2, "task": "Configure tooling", "alreadyDone": false,
+  "done": 2, "total": 2, "chunkComplete": true }
+{ "ok": false, "error": "No task of the active chunk matches \"9\".",
+  "tasks": [{ "number": 1, "text": "Initialize project", "status": "done" }] }
+```
+
+---
+
 ## dev-sesssion advance
 
 Archive the active chunk and move to the next one.

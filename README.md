@@ -105,6 +105,7 @@ The next session opens on the Webhooks chunk. No manual file wrangling, no stale
 | `dev-sesssion init` | Initialize `.session/` — wizard: plan, mode, file index |
 | `dev-sesssion status` | Task progress, context budget, health warnings |
 | `dev-sesssion update` | Mark tasks done interactively, add notes |
+| `dev-sesssion task done <n\|text>` | Mark one task of the active chunk done, by number or text (`--json` for scripts) |
 | `dev-sesssion advance` | Archive current chunk, move to next, regenerate prompt |
 | `dev-sesssion prompt` | Print `NEXT_PROMPT.md` to stdout |
 | `dev-sesssion index add <filepath>` | Add a file to `FILE_INDEX.md` |

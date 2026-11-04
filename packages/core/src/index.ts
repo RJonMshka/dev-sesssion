@@ -198,6 +198,8 @@ export {
 	SessionStateManager,
 	serializeSessionBaseYaml,
 } from "./managers/session-state-manager.js";
+export type { TaskSelection } from "./managers/task-selector.js";
+export { TaskSelector } from "./managers/task-selector.js";
 // Trim overrides
 export { TrimOverridesManager } from "./managers/trim-overrides-manager.js";
 // Parsers
