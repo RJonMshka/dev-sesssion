@@ -7,7 +7,7 @@
  */
 
 import { renderPlanSkill } from "@dev-session/adapters";
-import { noPlanDirection } from "@dev-session/core";
+import { noPlanDirection, sessionLoopLines } from "@dev-session/core";
 import type { Command } from "commander";
 import { describe, expect, it } from "vitest";
 import { createProgram } from "../cli.js";
@@ -109,6 +109,29 @@ describe("the plan skill", () => {
 		const names = findInvocations(text).map((inv) => inv.tokens[0]);
 		// The skill drives the whole loop; a resolver that found nothing would pass vacuously.
 		for (const cmd of ["plan", "init", "status", "prompt", "advance"]) expect(names).toContain(cmd);
+		expect(unresolved(text)).toEqual([]);
+	});
+});
+
+describe("npx in agent-facing text", () => {
+	/** Code spans holding a command, and whether each is written with npx. */
+	const commandSpans = (text: string): string[] =>
+		[...text.matchAll(/`([^`\n]+)`/g)]
+			.map((m) => m[1] ?? "")
+			.filter((span) => /(?<![\w/-])dev-sesssion /.test(span));
+
+	it("the plan skill writes every command as npx dev-sesssion (REQ-PLA-15)", () => {
+		const spans = commandSpans(renderPlanSkill("9.9.9"));
+		expect(spans.length).toBeGreaterThanOrEqual(5);
+		for (const span of spans) expect(span).toMatch(/^npx dev-sesssion /);
+	});
+});
+
+describe("the session loop adapters write", () => {
+	it("names only commands and flags the CLI registers (REQ-TASK-13)", () => {
+		const text = sessionLoopLines(".session", "markdown").join("\n");
+		const names = findInvocations(text).map((inv) => inv.tokens[0]);
+		for (const cmd of ["prompt", "task", "update"]) expect(names).toContain(cmd);
 		expect(unresolved(text)).toEqual([]);
 	});
 });

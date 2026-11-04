@@ -131,6 +131,10 @@ REQ-PLA-10 turn "the skill is cheap" from a claim into a test.
   was skipped.
 - **REQ-PLA-14** — When a skill file carries the managed marker of an older
   version, init and `update` shall replace it.
+- **REQ-PLA-15** — The skill shall write each command as `npx dev-sesssion …`.
+  (Found 2026-11-03: the skill said `dev-sesssion status --json`, which fails
+  where the tool is only ever run through `npx`, as the README installs it.
+  Init's no-plan direction uses the same constants, so it changes too.)
 
 ### Orchestration (`ORC`)
 
