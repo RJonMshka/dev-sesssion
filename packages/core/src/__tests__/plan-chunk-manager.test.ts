@@ -187,9 +187,9 @@ describe("PlanChunkManager", () => {
 			expect(PlanChunkManager.isComplete(chunk)).toBe(true);
 		});
 
-		it("returns true when tasks array is empty", () => {
+		it("returns false when the chunk has no tasks (REQ-ORC-11)", () => {
 			const chunk: PlanChunk = { chunk_id: 1, title: "Test", depends_on: [], tasks: [] };
-			expect(PlanChunkManager.isComplete(chunk)).toBe(true);
+			expect(PlanChunkManager.isComplete(chunk)).toBe(false);
 		});
 
 		it("returns false when any task is not done", () => {

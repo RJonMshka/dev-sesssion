@@ -321,7 +321,9 @@ describe("AiIndexBuilder.deserialize", () => {
 		const restored = AiIndexBuilder.deserialize(yaml);
 
 		expect(restored.version).toBe("2");
-		expect(restored.project_root).toBe(PROJECT_ROOT);
+		// Saved as ".", never the absolute root (REQ-SYM-27).
+		expect(restored.project_root).toBe(".");
+		expect(yaml).not.toContain(PROJECT_ROOT);
 		expect(restored.files["src/a.ts"]).toBeDefined();
 		expect(restored.files["src/a.ts"]?.module_summary).toBe("Module A");
 		expect(restored.files["src/a.ts"]?.token_cost).toBe(128);

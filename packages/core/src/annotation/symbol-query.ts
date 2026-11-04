@@ -292,6 +292,19 @@ function toMatch(
 /** Queries over a loaded ai-index. Pure apart from the freshness reads. */
 export const SymbolQuery = {
 	/**
+	 * Compares one indexed file with what is on disk now, the way `symbols`
+	 * does; `health` uses it too, so the two cannot disagree (REQ-SYM-24).
+	 *
+	 * @param key - Repo-relative path from the index.
+	 * @param entry - The file's index entry.
+	 * @param projectRoot - The project root the command runs in.
+	 * @returns The file's freshness.
+	 */
+	freshness(key: string, entry: FileEntry, projectRoot: ValidatedPath): Freshness {
+		return freshnessOf(key, entry, projectRoot);
+	},
+
+	/**
 	 * Reports what the index holds for one file.
 	 *
 	 * @param index - The loaded ai-index.

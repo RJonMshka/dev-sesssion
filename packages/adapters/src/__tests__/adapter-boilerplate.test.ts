@@ -1,4 +1,4 @@
-import { DEFAULT_MAX_PROMPT_LINES } from "@dev-session/core";
+import { sessionLoopLines } from "@dev-session/core";
 import { describe, expect, it } from "vitest";
 import { generateSessionSection as claudeSection } from "../claude-adapter.js";
 import { generateSessionSection as cursorSection } from "../cursor-adapter.js";
@@ -8,8 +8,8 @@ import { generateSessionSection as windsurfSection } from "../windsurf-adapter.j
 /**
  * The instruction boilerplate each adapter writes into its rules file used to
  * hardcode "15 lines" while the code enforced 20, and it drifted silently
- * because nothing asserted on it. These tie the rendered text to the constant
- * so the two cannot diverge again.
+ * because nothing asserted on it. It now comes from one core function and
+ * tells the agent to let the CLI write the prompt, so it states no cap at all.
  */
 const SECTIONS = [
 	["claude", claudeSection],
@@ -21,20 +21,13 @@ const SECTIONS = [
 describe.each(SECTIONS)("%s adapter boilerplate", (_name, generate) => {
 	const section = generate("demo-project", ".session");
 
-	it("states the prompt line cap using the shared constant", () => {
-		expect(section).toContain(String(DEFAULT_MAX_PROMPT_LINES));
+	it("carries the shared session loop verbatim (REQ-TASK-14)", () => {
+		const style = _name === "cursor" || _name === "windsurf" ? "plain" : "markdown";
+		for (const line of sessionLoopLines(".session", style)) expect(section).toContain(line);
 	});
 
-	it("does not hardcode a line cap that disagrees with the constant", () => {
-		const caps = [...section.matchAll(/(?:≤|max )(\d+) lines/g)].map((m) => Number(m[1]));
-		expect(caps.length).toBeGreaterThan(0);
-		for (const cap of caps) {
-			expect(cap).toBe(DEFAULT_MAX_PROMPT_LINES);
-		}
-	});
-
-	it("describes the cap as a default, since max_prompt_lines is configurable", () => {
-		expect(section).toMatch(/lines by default/);
+	it("states no prompt line cap: the tool writes the prompt, not the agent (REQ-TASK-10)", () => {
+		expect(section).not.toMatch(/\d+ lines/);
 	});
 
 	it("points at the real repository if it links one at all", () => {

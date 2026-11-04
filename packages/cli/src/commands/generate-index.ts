@@ -30,6 +30,8 @@ export interface GenerateIndexResult {
 	readonly fileCount: number;
 	/** Number of always-include files. */
 	readonly alwaysIncludeCount: number;
+	/** Every path the walk found, relative to the root (REQ-RUN-38). */
+	readonly walkedPaths: readonly string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -115,7 +117,7 @@ export async function generateIndex(
 	const left =
 		files.length - tagged.length - files.filter((f) => always.has(f.relativePath)).length;
 	log.info(
-		`Tagged ${String(tagged.length)} file${tagged.length === 1 ? "" : "s"} to chunks from the plan; ${String(left)} left to the ai-index.`,
+		`Tagged ${String(tagged.length)} file${tagged.length === 1 ? "" : "s"} to chunks from the plan; ${String(left)} not tagged.`,
 	);
 
 	// --- Write FILE_INDEX.md ---
@@ -138,5 +140,6 @@ export async function generateIndex(
 		entries,
 		fileCount: indexedCount,
 		alwaysIncludeCount,
+		walkedPaths: files.map((f) => f.relativePath),
 	};
 }

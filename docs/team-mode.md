@@ -38,6 +38,8 @@ Adds personal session files to `.gitignore`:
 .session/SESSION_STATE.md
 .session/NEXT_PROMPT.md
 .session/DONE_LOG.md
+.session/CONTEXT_LOG.md
+.session/context-manifest.json
 ```
 
 These files are generated locally on each developer's machine. They are never committed.
@@ -75,6 +77,9 @@ In team mode, the `.gitignore` patch is applied automatically (no confirmation p
 | `.session/NEXT_PROMPT.md` | No | Per-developer generated prompt |
 | `.session/ai-index.yaml` | Yes | Shared symbol index (gitignored in personal mode) |
 | `.session/DONE_LOG.md` | No | Per-developer archive |
+| `.session/CONTEXT_LOG.md` | No | Per-developer log of what each session loaded |
+| `.session/context-manifest.json` | No | What the current prompt loads, and why |
+| `.session/backups/` | No | Sessions moved aside by `init --fresh`; ignores itself |
 
 ---
 

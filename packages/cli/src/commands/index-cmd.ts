@@ -2,7 +2,7 @@
  * `dev-sesssion index` commands.
  *
  * - `index` — full regen of ai-index.yaml (AutoExtractor → AiIndexBuilder → save)
- * - `index --update` — incremental regen (mtime-based, skips unchanged files)
+ * - `index --update` — incremental regen (re-reads only files whose content hash changed)
  * - `index --dry-run` — show what would be written without writing
  * - `index --file <path>` — extract and display a single file's index entry
  * - `index --show <path>` — print the existing index entry for a file
@@ -58,7 +58,7 @@ export interface IndexRegenOptions {
 	readonly verbose: boolean;
 	/** Block on secret detection. */
 	readonly strict: boolean;
-	/** Incremental update (mtime-based; skips unchanged files). */
+	/** Incremental update: re-read only files whose content hash changed (REQ-SYM-22). */
 	readonly update: boolean;
 	/** Extract and display a single file's entry. */
 	readonly file?: string;
@@ -123,30 +123,7 @@ export async function runIndex(options: IndexRegenOptions): Promise<void> {
 		return;
 	}
 
-	const s = spinner();
-	s.start("Scanning TypeScript/JS files…");
-
-	let scanned: AiIndex;
-	const secrets = secretWarnings();
-	try {
-		// Same builder as init, so the two cannot drift (REQ-RUN-10).
-		scanned = await AiIndexBuilder.fromDirectory(PathValidator.safeResolvePath(".", options.cwd), {
-			onSecret: secrets.onSecret,
-		});
-	} catch (cause: unknown) {
-		s.stop("Scan failed.");
-		throw new CliError({
-			message: "Failed to walk project directory during index regen",
-			cause,
-		});
-	}
-
-	s.stop(`Scanned ${String(Object.keys(scanned.files).length)} files.`);
-	secrets.report();
-
-	const existingIndex = AiIndexManager.load(sessionDir);
-	const builtIndex =
-		options.update && existingIndex ? AiIndexBuilder.merge(existingIndex, scanned) : scanned;
+	const builtIndex = await scanIndex(sessionDir, options);
 
 	const stats = AiIndexManager.stats(builtIndex);
 	const tokenStr = stats.totalTokenCost.toLocaleString();
@@ -177,7 +154,7 @@ export async function runIndex(options: IndexRegenOptions): Promise<void> {
 
 	if (stats.totalTokenCost > LAYER0_BUDGET_WARNING) {
 		log.warn(
-			`Layer 0 token cost (${tokenStr}) exceeds adapter budget warning threshold (${String(LAYER0_BUDGET_WARNING)}). Consider using --update or excluding large files.`,
+			`Layer 0 token cost (${tokenStr}) exceeds adapter budget warning threshold (${String(LAYER0_BUDGET_WARNING)}). Consider excluding large files.`,
 		);
 	}
 
@@ -193,6 +170,43 @@ export async function runIndex(options: IndexRegenOptions): Promise<void> {
 				log.message(`  ${relPath}: ${String(cost)} tokens`);
 			}
 		}
+	}
+}
+
+/**
+ * Scans the tree into an index: a full build, or with `--update` and an index
+ * on disk, a refresh that re-reads only changed files (REQ-SYM-22).
+ *
+ * @param sessionDir - Validated path to `.session/`.
+ * @param options - Resolved CLI options.
+ * @returns The index to save.
+ * @throws {CliError} If the walk fails.
+ */
+async function scanIndex(sessionDir: ValidatedPath, options: IndexRegenOptions): Promise<AiIndex> {
+	const root = PathValidator.safeResolvePath(".", options.cwd);
+	const existing = options.update ? AiIndexManager.load(sessionDir) : null;
+	const s = spinner();
+	s.start("Scanning TypeScript/JS files…");
+	const secrets = secretWarnings();
+	try {
+		if (existing !== null) {
+			const r = await AiIndexBuilder.refresh(root, existing, { onSecret: secrets.onSecret });
+			const read = r.reread.length + r.added.length;
+			const kept = Object.keys(r.index.files).length - read;
+			s.stop(
+				`Re-read ${String(read)} changed file${read === 1 ? "" : "s"}, kept ${String(kept)}${r.dropped.length > 0 ? `, dropped ${String(r.dropped.length)}` : ""}.`,
+			);
+			return r.index;
+		}
+		// Same builder as init, so the two cannot drift (REQ-RUN-10).
+		const scanned = await AiIndexBuilder.fromDirectory(root, { onSecret: secrets.onSecret });
+		s.stop(`Scanned ${String(Object.keys(scanned.files).length)} files.`);
+		return scanned;
+	} catch (cause: unknown) {
+		s.stop("Scan failed.");
+		throw new CliError({ message: "Failed to walk project directory during index regen", cause });
+	} finally {
+		secrets.report();
 	}
 }
 
@@ -236,8 +250,8 @@ async function runIndexFile(
 	// Also save to existing index if it exists
 	const existingIndex = AiIndexManager.load(sessionDir);
 	if (existingIndex) {
-		const projectRoot = existingIndex.project_root;
-		const relPath = path.relative(projectRoot, absPath).replace(/\\/g, "/");
+		// The root this runs in, not the one recorded in the index (REQ-SYM-28).
+		const relPath = path.relative(path.resolve(cwd), absPath).replace(/\\/g, "/");
 		log.info(`Would update index entry: ${relPath}`);
 	}
 }
@@ -528,7 +542,7 @@ export function registerIndexCommand(program: Command): void {
 		.description(
 			"Generate/update ai-index.yaml (full regen by default; see subcommands for file-level ops)",
 		)
-		.option("--update", "Incremental update — only re-extract changed files", false)
+		.option("--update", "Re-read only files whose content changed since the last index", false)
 		.option("--file <path>", "Extract and display a single file's index entry")
 		.option("--show <path>", "Print the existing index entry for a path (no extraction)")
 		.action(async (cmdOptions: { update?: boolean; file?: string; show?: string }) => {

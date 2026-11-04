@@ -30,7 +30,8 @@ import { CliError, PathValidator, type ValidatedPath } from "@dev-session/securi
 import type { Command } from "commander";
 import { dryRunSkipWrite } from "../utils/dry-run.js";
 import { handleError } from "../utils/error-handler.js";
-import { withStdoutOnStderr, writeJson } from "../utils/json-output.js";
+import { jsonFailure, withStdoutOnStderr, writeJson } from "../utils/json-output.js";
+import { refreshIndexForPrompt } from "./refresh-index.js";
 import { regeneratePrompt } from "./regenerate-prompt.js";
 import { withSessionBase } from "./touch-tagging.js";
 
@@ -105,8 +106,13 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 		const doneCount = currentChunk.tasks.filter((t) => t.status === TaskStatus.DONE).length;
 		const totalCount = currentChunk.tasks.length;
 
+		// A chunk with no tasks is not complete either: nothing says its work happened (REQ-ORC-11).
+		const why = totalCount === 0 ? "has no tasks" : "has incomplete tasks";
+
 		log.warn(
-			`Chunk ${String(currentChunkId)} has incomplete tasks: ${String(doneCount)}/${String(totalCount)} done`,
+			totalCount === 0
+				? `Chunk ${String(currentChunkId)} has no tasks, so nothing shows its work was done.`
+				: `Chunk ${String(currentChunkId)} has incomplete tasks: ${String(doneCount)}/${String(totalCount)} done`,
 		);
 
 		if (options.yes) {
@@ -117,12 +123,18 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 			// forever. Fail before anything is written (REQ-ORC-2).
 			if (process.stdin.isTTY !== true) {
 				throw new CliError({
-					message: `Chunk ${String(currentChunkId)} has incomplete tasks and stdin is not a terminal, so advance cannot ask to confirm.`,
-					suggestion: "Mark the tasks done first, or pass --yes to advance with them incomplete.",
+					message: `Chunk ${String(currentChunkId)} ${why} and stdin is not a terminal, so advance cannot ask to confirm.`,
+					suggestion:
+						totalCount === 0
+							? "Pass --yes if the chunk's work is done; it has no tasks to mark."
+							: "Mark the tasks done first, or pass --yes to advance with them incomplete.",
 				});
 			}
 			const forceResult = await confirm({
-				message: "Force advance with incomplete tasks?",
+				message:
+					totalCount === 0
+						? "Advance past a chunk with no tasks?"
+						: "Force advance with incomplete tasks?",
 			});
 
 			if (isCancel(forceResult) || !forceResult) {
@@ -214,6 +226,12 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 
 	// Step 7: Load the new chunk and regenerate NEXT_PROMPT.md
 	const newChunk = PlanChunkManager.loadActive(sessionDir, state);
+	// The new chunk's prompt summarises files as the last chunk left them (REQ-SYM-20).
+	const index = await refreshIndexForPrompt(sessionDir, {
+		cwd: options.cwd,
+		dryRun,
+		strict: false,
+	});
 	const {
 		budget,
 		chunkFiles,
@@ -229,6 +247,7 @@ export async function runAdvance(options: AdvanceOptions): Promise<AdvanceResult
 		allChunks,
 		entries: allEntries,
 		excluded: [],
+		index,
 	});
 
 	// Step 7b: Append context log entry for the completed chunk
@@ -325,15 +344,16 @@ export function registerAdvanceCommand(program: Command): void {
 				return;
 			}
 
-			// One JSON document on stdout; progress and errors go to stderr (REQ-ORC-1).
-			const result = await withStdoutOnStderr(async () => {
+			// One JSON document on stdout, advanced or not; progress and errors
+			// go to stderr (REQ-ORC-1, REQ-ORC-12).
+			const outcome = await withStdoutOnStderr(async () => {
 				try {
-					return await runAdvance(advanceOptions);
+					return { ok: true as const, ...(await runAdvance(advanceOptions)) };
 				} catch (error: unknown) {
-					handleError(error);
-					return undefined;
+					process.exitCode = handleError(error, { exit: false });
+					return jsonFailure(error);
 				}
 			});
-			if (result !== undefined) writeJson(result);
+			writeJson(outcome);
 		});
 }

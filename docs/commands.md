@@ -29,6 +29,7 @@ dev-sesssion init [options]
 | `--max-files <n>` | Cap the number of files indexed, in `FILE_INDEX.md` and the ai-index (useful for large repos) |
 | `--chunk <id>` | Start at this chunk instead of the lowest-numbered. Lower-numbered chunks are recorded in `completed_chunks` (dated today, task statuses untouched) and get no files tagged. An id the plan does not define is an error, listing the ids it does. Without `--yes`, init asks |
 | `--plan <file>` | Read this plan instead of looking for `PLAN.md` and `docs/PLAN.md`. The path is relative to the project root; one that leads outside it is refused (exit 3) before anything is written. Use it when `PLAN.md` already holds something else, such as a spec or a roadmap |
+| `--fresh` | Start over an existing session. The current `.session/` contents are first moved to `.session/backups/<UTC time>/`, which git ignores. Without it, `init --yes` on a project that is already set up changes nothing and exits 0; without `--yes`, init asks |
 
 **What it does:**
 
@@ -78,8 +79,11 @@ tasks, the paths it names), every section skipped and why, and dependencies on
 chunks the plan does not define.
 
 **Exit code:** `0` when the plan yields chunks and `init` would drop no task;
-`1` when it yields none, no format recognizes it, or a skipped section holds
-tasks. A skipped section with no tasks (an `## Overview`) does not fail it.
+`1` when it yields none, no format recognizes it, a skipped section holds
+tasks, or a chunk has no tasks. A skipped section with no tasks (an
+`## Overview`) does not fail it. Tasks are `- [ ]` checkboxes; plain `*` or `-`
+bullets are not read as tasks, and a chunk made only of them is named in a
+warning, since `advance` would have nothing to check.
 
 **`--json`** prints one document and nothing else:
 
@@ -182,8 +186,12 @@ dev-sesssion update [--no-tag]
 2. Lets you mark tasks done or in-progress
 3. Prompts for optional session notes
 4. Tags the files this session changed to the active chunk (below)
-5. Regenerates `NEXT_PROMPT.md` for the next session, loading the files just tagged
-6. Scans written content for secrets
+5. Brings `ai-index.yaml` up to date: files whose content changed are re-read,
+   new ones added, deleted ones dropped. The file is rewritten only when an
+   entry changed, so a committed team-mode index shows a diff only when the code
+   it describes did. `advance` does the same before writing the next prompt
+6. Regenerates `NEXT_PROMPT.md` for the next session, loading the files just tagged
+7. Scans written content for secrets
 
 **Tagging what the session touched.** In a git repository, `init`, `update`
 and `advance` record a session base in `SESSION_STATE.md`: `HEAD` and the files
@@ -218,6 +226,36 @@ base yet: it tags nothing, says `no-base`, and records one.
 
 ---
 
+## dev-sesssion task done
+
+Mark one task of the active chunk done, without the interactive checklist.
+
+```bash
+dev-sesssion task done <n | text> [--json]
+```
+
+`<n>` is the task's number in the active chunk, counting from 1 in plan order.
+Anything else is matched against task text: an exact match first, then the one
+task whose text contains it, ignoring case (`task done tooling`). Several words
+need no quotes. A selector that matches no task, or more than one, exits 1,
+changes nothing, and lists the tasks with their numbers.
+
+The task is recorded in `SESSION_STATE.md` exactly as the MCP `mark_task_done`
+tool records it, and `NEXT_PROMPT.md` is regenerated. A task that is already
+done is left alone (exit 0). When the last open task is marked, it says so and
+names `dev-sesssion advance`. `--dry-run` names the task and writes nothing.
+
+**`--json`** prints one document, whether a task was marked or not:
+
+```json
+{ "ok": true, "number": 2, "task": "Configure tooling", "alreadyDone": false,
+  "done": 2, "total": 2, "chunkComplete": true }
+{ "ok": false, "error": "No task of the active chunk matches \"9\".",
+  "tasks": [{ "number": 1, "text": "Initialize project", "status": "done" }] }
+```
+
+---
+
 ## dev-sesssion advance
 
 Archive the active chunk and move to the next one.
@@ -238,7 +276,8 @@ Run this when all tasks in the active chunk are complete. The command:
 On the highest-numbered chunk it reports that all chunks are complete and
 exits 0 without changing anything.
 
-If the active chunk still has open tasks, `advance` asks before moving on.
+If the active chunk still has open tasks, or has no tasks at all, `advance`
+asks before moving on.
 `--yes` (global) skips the question and advances anyway. When stdin is not a
 terminal, as under a script or a coding harness, there is nobody to ask: it
 exits 1 without changing anything and names `--yes` as the override.
@@ -251,6 +290,7 @@ exits 1 without changing anything and names `--yes` as the override.
 
 ```json
 {
+  "ok": true,
   "archivedChunkId": 1,
   "newChunkId": 2,
   "newChunkTitle": "Core",
@@ -262,6 +302,17 @@ exits 1 without changing anything and names `--yes` as the override.
 
 Stop when `allChunksComplete` is `true`. In that case `newChunkId` equals
 `archivedChunkId` and nothing was archived.
+
+When `advance` refuses or fails, stdout still carries one document, and the
+exit code is non-zero:
+
+```json
+{
+  "ok": false,
+  "error": "Chunk 1 has incomplete tasks and stdin is not a terminal, so advance cannot ask to confirm.",
+  "suggestion": "Mark the tasks done first, or pass --yes to advance with them incomplete."
+}
+```
 
 ---
 
@@ -286,13 +337,15 @@ dev-sesssion prompt | pbcopy
 ## dev-sesssion index
 
 Run on its own, `dev-sesssion index` rebuilds `.session/ai-index.yaml`
-(`--update` merges into the existing index) and then regenerates
+(`--update` re-reads only the files whose content changed and keeps the other
+entries, and says how many of each) and then regenerates
 `NEXT_PROMPT.md` and `context-manifest.json` from it, so the prompt focuses
 units added since the last run. `--dry-run` writes none of them.
 
 TypeScript and JavaScript files are indexed, and so are `.vue` and `.svelte`
 components: their `<script>` blocks are parsed in place, so units carry the
-component file's own line numbers.
+component file's own line numbers. Other languages are not read: their files
+appear in prompts by path only, and `init` says how many there are.
 
 The subcommands below manage `FILE_INDEX.md`.
 
@@ -397,6 +450,7 @@ dev-sesssion health [--fix] [--json]
 | FILE_INDEX has more than 500 entries | `FILE_INDEX_LARGE` | info |
 | All tasks in the active chunk are done | `ALL_TASKS_DONE` | info |
 | SESSION_STATE not updated in > 7 days | `SESSION_STALE` | info |
+| ai-index entries whose file changed or is gone, judged by content hash as `symbols` does | `AI_INDEX_STALE` | warning |
 
 `PROMPT_TOO_LONG` is measured against `max_prompt_lines` from `SESSION_STATE.md`
 frontmatter when set, and against the default of 20 otherwise. `dev-sesssion

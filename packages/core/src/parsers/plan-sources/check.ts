@@ -40,7 +40,7 @@ export interface PlanCheckCandidate {
 
 /** Everything a plan check reports. */
 export interface PlanCheckReport {
-	/** True when the plan yields chunks and loses no task (REQ-PLA-4). */
+	/** True when the plan yields chunks, loses no task, and every chunk has tasks (REQ-PLA-4, REQ-ORC-10). */
 	readonly ok: boolean;
 	/** The source selected, or null when none reached the threshold. */
 	readonly source: { readonly name: string; readonly confidence: number } | null;
@@ -64,6 +64,16 @@ export function describeExclusion(reason: ExclusionReason): string {
 	return reason === "unrepresentable-id"
 		? "chunk ids start at 1, so a chunk numbered below 1 cannot be stored."
 		: "the heading declares no chunk number.";
+}
+
+/**
+ * Says that a chunk has no tasks, and how to write one (REQ-ORC-10).
+ *
+ * @param chunk - The chunk with no tasks.
+ * @returns One warning line.
+ */
+export function describeEmptyChunk(chunk: PlanCheckChunk): string {
+	return `Chunk ${String(chunk.id)} (${chunk.title}) has no tasks, so advance would have nothing to check. Write each task as a checkbox: - [ ] <task>`;
 }
 
 /**
@@ -113,14 +123,16 @@ export function checkPlan(content: string): PlanCheckReport {
 		namedPaths: c.files ?? [],
 	}));
 	const losesWork = result.excluded.some((e) => e.taskCount > 0);
+	// REQ-ORC-10: a chunk with no tasks would pass advance at once.
+	const empty = chunks.filter((c) => c.taskCount === 0);
 
 	return {
-		ok: chunks.length > 0 && !losesWork,
+		ok: chunks.length > 0 && !losesWork && empty.length === 0,
 		source: { name: source.name, confidence: best?.detection.confidence ?? 0 },
 		candidates: toCandidates(candidates),
 		chunks,
 		excluded: result.excluded,
-		warnings: result.warnings,
+		warnings: [...result.warnings, ...empty.map(describeEmptyChunk)],
 	};
 }
 

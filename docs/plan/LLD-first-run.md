@@ -113,7 +113,9 @@ always-include files.
 with the same matcher as the file index generator.
 
 **REQ-RUN-6** — When `init` runs with `--yes`, `init` shall report how many
-files were tagged to a chunk and how many were left to the ai-index alone.
+files were tagged to a chunk and how many were not tagged. *(Amended
+2026-11-03: it said "left to the ai-index", which on a Java repo meant 7,766
+files the ai-index does not read. See REQ-RUN-38.)*
 
 ### Import
 
@@ -268,6 +270,88 @@ DevNexus, `init --yes --chunk 8` recorded chunks 1–7 as completed, and
 `health`, `verify` and a dry-run `advance` to chunk 9 all accepted the state.
 The prompt for chunk 8 still names only `CLAUDE.md`: every file phase 8 lists
 is one it is meant to *create*, and nothing tags a file that does not exist yet.
+
+### Saying what the ai-index covers (added 2026-11-03)
+
+Found in the overnight eval of 2026-11-03, on a copy of automq (7,768 files,
+Java): "Tagged 1 file to chunks from the plan; 7766 left to the ai-index", then
+"Built ai-index: 1 file" (a stray `.js` under `docs/`). The extractor reads
+`.ts .tsx .js .jsx .mts .mjs .vue .svelte` only (`auto-extractor.ts:37`), so
+Python, Go, Java and Rust repos get no summaries and no unit focus, and nothing
+says so. Adding languages is a feature for later; saying so is this fix.
+
+**REQ-RUN-38** — When `init` builds the ai-index, it shall name the file types
+the ai-index reads, and say how many of the files it walked are of other types
+and so have no summaries.
+
+*Design.* `INDEXED_EXTENSIONS` is exported from `auto-extractor.ts`, derived
+from the set the extractor uses, so the message cannot drift from the code.
+`generateIndex` returns the walked paths it already holds; `init` counts those
+whose extension is not indexed.
+
+### Session files in git (added 2026-11-03)
+
+`.session/CONTEXT_LOG.md` is written by `update` and `advance` (an append-only
+log of what each session loaded), but neither `.gitignore` list in
+`final-writes.ts` names it, so in personal mode it showed up as untracked
+after the first `update`, beside files that are ignored.
+
+**REQ-RUN-39** — When `init` patches `.gitignore`, in personal or team mode, the
+entries shall include `.session/CONTEXT_LOG.md`.
+
+An existing `.gitignore` that already has dev-sesssion entries is not patched
+again (`final-writes.ts`, `alreadyPatched`), so this reaches new projects only.
+
+### Re-running init (added 2026-11-03)
+
+Found in the overnight eval of 2026-11-03. On a session at chunk 2,
+`init -y` reset it to chunk 1 with a new `session_id` and an empty
+`completed_chunks`. The only sign was one log line (`init.ts:126`). Everything
+else went too: ticked tasks, hand-set `workflow`, `notes` and
+`max_prompt_lines`, and the tags `FILE_INDEX.md` learned on touch (already
+noted in LLD-tagging's "Out of scope"). In personal mode `SESSION_STATE.md` is
+gitignored, so none of it can be recovered. An agent told "run init" does
+exactly this, and `--yes` skips the only question that asks.
+
+The owner chose: rerunning init changes nothing unless the caller asks to start
+over, and starting over keeps the old state. Carrying progress into a re-read
+plan (tasks matched by text) is a later feature, not this fix.
+
+A session exists when `.session/SESSION_STATE.md` does. A `.session/` without
+it has no progress to lose, so `init` proceeds as on a new project.
+
+**REQ-RUN-32** — While a session exists, when `init` runs with `--yes` and
+without `--fresh`, `init` shall write no file, shall exit 0, and shall say that
+the project is already set up, which chunk is active, and that `--fresh` starts
+over.
+
+**REQ-RUN-33** — When `init` starts over an existing session, it shall first
+move every entry in `.session/` except `backups/` into a new directory
+`.session/backups/<UTC time>/`, and shall say where.
+
+**REQ-RUN-34** — When `init` creates `.session/backups/`, it shall write a
+`.gitignore` there that ignores everything, so a backup is never committed,
+whatever the project's own `.gitignore` says.
+
+**REQ-RUN-35** — Where `--fresh` is given, `init` shall start over without
+asking.
+
+**REQ-RUN-36** — While a session exists, when `init` runs without `--yes` and
+without `--fresh`, it shall ask before starting over, and the question shall say
+that the current state is moved to `.session/backups/`.
+
+**REQ-RUN-37** — Where `--dry-run` is given, `init` shall report the backup it
+would make and shall move nothing.
+
+*Design.* `SessionBackup` in `core/src/managers/session-backup.ts`:
+`exists(sessionDir)` and `moveAside(sessionDir, now)`, which returns the new
+directory relative to `.session/` and the names it moved. Moving rather than
+copying is deliberate: a copy would leave `PLAN_5.md` from an older, longer plan
+for `advance` to walk into. If init then fails, for example on a bad `--chunk`,
+the old state is intact in the backup and `SESSION_STATE.md` is absent, so the
+next `init` proceeds without asking. Directory names use `-` for `:` so they are
+valid on Windows; a second start-over in the same second gets a `-2` suffix.
+REQ-RUN-36 is an interactive prompt and has no automated test.
 
 ## Design
 

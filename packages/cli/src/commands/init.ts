@@ -27,15 +27,19 @@ import type { AiIndex, PlanChunk } from "@dev-session/core";
 import {
 	AiIndexBuilder,
 	AiIndexManager,
+	INDEXED_EXTENSIONS,
 	noPlanDirection,
 	PlanChunkManager,
 	ProjectDetector,
+	SessionBackup,
+	SessionStateManager,
 } from "@dev-session/core";
 import type { ValidatedPath } from "@dev-session/security";
 import { CliError, ParseError, PathValidator, SecurityError } from "@dev-session/security";
 import type { Command } from "commander";
 import { dryRunMkdir } from "../utils/dry-run.js";
 import { handleError } from "../utils/error-handler.js";
+import { requireTerminal } from "../utils/terminal.js";
 import { type DetectionResult, describePlanFile, runDetection } from "./detect.js";
 import { runFinalWrites } from "./final-writes.js";
 import { generateIndex } from "./generate-index.js";
@@ -69,6 +73,8 @@ export interface InitOptions {
 	readonly maxFiles?: number;
 	/** The chunk to start at (`--chunk`); asked for interactively when absent (REQ-RUN-27, -31). */
 	readonly chunk?: number;
+	/** Start over an existing session, moving it to `.session/backups/` first (`--fresh`, REQ-RUN-33, -35). */
+	readonly fresh?: boolean;
 	/** The plan file to ingest (`--plan`), relative to `cwd`; replaces the PLAN.md search (REQ-PLA-7). */
 	readonly plan?: string;
 }
@@ -83,6 +89,11 @@ export interface InitOptions {
  * @throws CliError if the project cannot be initialized
  */
 export async function runInit(options: InitOptions): Promise<void> {
+	// Before anything is written: a harness without --yes gets exit 1, not a
+	// silent exit 0 with no .session/ (REQ-ORC-9).
+	if (!options.yes) {
+		requireTerminal("init", "Pass --yes to accept the defaults: dev-sesssion init --yes");
+	}
 	intro("dev-sesssion init");
 
 	const s = spinner();
@@ -115,21 +126,10 @@ export async function runInit(options: InitOptions): Promise<void> {
 		}
 	}
 
-	// Phase 1b: Handle existing .session/ directory
-	if (detection.session.exists) {
-		if (options.yes) {
-			log.warn("Existing .session/ found. Reinitializing in --yes mode.");
-		} else {
-			const reinit = await confirm({
-				message: "A .session/ directory already exists. Reinitialize?",
-			});
-
-			if (isCancel(reinit) || !reinit) {
-				cancel("Init cancelled.");
-				outro("No changes made.");
-				return;
-			}
-		}
+	// Phase 1b: an existing session is kept unless the caller asks to start over
+	// (REQ-RUN-32..37).
+	if (detection.session.exists && !(await startOverIfAsked(options))) {
+		return;
 	}
 
 	// Phase 1c: Team vs personal mode selection
@@ -203,7 +203,7 @@ export async function runInit(options: InitOptions): Promise<void> {
 	const indexResult = await generateIndex(sessionDir, openChunks, generateOpts);
 
 	// Phase 4b: ai-index, so the first prompt can focus units (REQ-RUN-10)
-	const aiIndex = await buildInitIndex(sessionDir, options);
+	const aiIndex = await buildInitIndex(sessionDir, options, indexResult.walkedPaths);
 
 	// Phase 5: Final writes (SESSION_STATE, ROUTINES, NEXT_PROMPT, .gitignore)
 	await runFinalWrites(sessionDir, chunks, indexResult.entries, projectName, {
@@ -241,11 +241,13 @@ export async function runInit(options: InitOptions): Promise<void> {
  *
  * @param sessionDir - Validated path to `.session/`.
  * @param options - CLI options.
+ * @param walkedPaths - Every path the file-index walk found, for the coverage note.
  * @returns The index, or `null` if it could not be built or saved.
  */
 async function buildInitIndex(
 	sessionDir: ValidatedPath,
 	options: InitOptions,
+	walkedPaths: readonly string[],
 ): Promise<AiIndex | null> {
 	const s = spinner();
 	s.start("Building ai-index...");
@@ -264,6 +266,7 @@ async function buildInitIndex(
 			s.stop(`Built ai-index: ${String(fileCount)} file${fileCount === 1 ? "" : "s"}.`);
 		}
 		secrets.report();
+		log.info(coverageNote(walkedPaths));
 		return index;
 	} catch (cause: unknown) {
 		s.stop("ai-index not written.");
@@ -272,6 +275,94 @@ async function buildInitIndex(
 		);
 		return null;
 	}
+}
+
+/**
+ * Decides what to do with an existing session, and moves it aside when init is
+ * to start over. A `.session/` without `SESSION_STATE.md` has nothing to lose,
+ * so init proceeds as on a new project.
+ *
+ * @param options - Init options.
+ * @returns True when init should go on writing, false when it should stop.
+ * @throws {SecurityError} If a `.session/` entry name would escape the directory.
+ */
+async function startOverIfAsked(options: InitOptions): Promise<boolean> {
+	const sessionDir = PathValidator.safeResolvePath(".session", options.cwd);
+	if (!SessionBackup.exists(sessionDir)) return true;
+
+	if (options.fresh !== true) {
+		if (options.yes) {
+			// REQ-RUN-32: nothing is written.
+			log.info(`Already set up${activeChunkLabel(sessionDir)}. Nothing changed.`);
+			outro("To start over, pass --fresh; the current state is moved to .session/backups/ first.");
+			return false;
+		}
+		// REQ-RUN-36
+		const again = await confirm({
+			message:
+				"This project is already set up. Start over? The current state is moved to .session/backups/ first.",
+			initialValue: false,
+		});
+		if (isCancel(again) || !again) {
+			cancel("Init cancelled.");
+			outro("No changes made.");
+			return false;
+		}
+	}
+
+	const now = new Date();
+	if (options.dryRun) {
+		// REQ-RUN-37
+		log.info(
+			`[dry-run] Would move the current session to .session/${SessionBackup.plannedDir(sessionDir, now)}/`,
+		);
+		return true;
+	}
+	const backup = SessionBackup.moveAside(sessionDir, now);
+	log.info(`Moved the previous session to .session/${backup.relativeDir}/`);
+	return true;
+}
+
+/**
+ * ` at chunk N` for the session in `sessionDir`, or nothing if its state
+ * cannot be read.
+ *
+ * @param sessionDir - Validated path to `.session/`.
+ * @returns The label, with a leading space, or an empty string.
+ */
+function activeChunkLabel(sessionDir: ValidatedPath): string {
+	try {
+		return ` at chunk ${String(SessionStateManager.load(sessionDir).active_chunk)}`;
+	} catch {
+		return "";
+	}
+}
+
+/**
+ * Says which file types get summaries, and how many walked files do not
+ * (REQ-RUN-38). A Java or Python repo otherwise gets an index of almost
+ * nothing, silently.
+ *
+ * @param walkedPaths - Every path the walk found.
+ * @returns One line, naming up to three of the most common other extensions.
+ */
+function coverageNote(walkedPaths: readonly string[]): string {
+	const indexed = new Set(INDEXED_EXTENSIONS);
+	const others = new Map<string, number>();
+	for (const p of walkedPaths) {
+		const ext = path.extname(p) || "(no extension)";
+		if (!indexed.has(ext)) others.set(ext, (others.get(ext) ?? 0) + 1);
+	}
+	const reads = `Summaries cover ${INDEXED_EXTENSIONS.join(" ")}`;
+	const count = [...others.values()].reduce((a, b) => a + b, 0);
+	if (count === 0) return `${reads}.`;
+	const top = [...others.entries()]
+		.sort((a, b) => b[1] - a[1])
+		.slice(0, 3)
+		.map(([ext, n]) => `${ext} ${String(n)}`)
+		.join(", ");
+	const one = count === 1;
+	return `${reads}; ${String(count)} other file${one ? "" : "s"} (${top}${others.size > 3 ? ", …" : ""}) ha${one ? "s" : "ve"} no summaries and appear by path only.`;
 }
 
 /**
@@ -418,7 +509,12 @@ export function registerInitCommand(program: Command): void {
 			undefined,
 		)
 		.option("--chunk <id>", "Start at this chunk; lower-numbered chunks are recorded as completed")
-		.option("--plan <file>", "Read this plan file instead of looking for PLAN.md or docs/PLAN.md");
+		.option("--plan <file>", "Read this plan file instead of looking for PLAN.md or docs/PLAN.md")
+		.option(
+			"--fresh",
+			"Start over an existing session; the current state is moved to .session/backups/ first",
+			false,
+		);
 
 	cmd.action(async () => {
 		const globalOpts = program.opts<{
@@ -435,6 +531,7 @@ export function registerInitCommand(program: Command): void {
 			maxFiles?: string;
 			chunk?: string;
 			plan?: string;
+			fresh: boolean;
 		}>();
 		const chunk = cmdOpts.chunk !== undefined ? Number.parseFloat(cmdOpts.chunk) : undefined;
 		if (chunk !== undefined && Number.isNaN(chunk)) {
@@ -457,6 +554,7 @@ export function registerInitCommand(program: Command): void {
 			...(maxFiles !== undefined && !Number.isNaN(maxFiles) ? { maxFiles } : {}),
 			...(chunk !== undefined ? { chunk } : {}),
 			...(cmdOpts.plan !== undefined ? { plan: cmdOpts.plan } : {}),
+			fresh: cmdOpts.fresh,
 		};
 
 		try {

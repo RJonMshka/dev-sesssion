@@ -24,8 +24,11 @@ export type {
 	SessionLifecycleContext,
 	TransformStateContext,
 } from "./adapters/adapter.js";
+export type { SessionLoopStyle } from "./adapters/session-loop.js";
+export { CLI_COMMAND, sessionLoopLines } from "./adapters/session-loop.js";
 export type {
 	AiIndex,
+	AiIndexRefresh,
 	FileAnnotations,
 	FileEntry,
 	Freshness,
@@ -51,6 +54,7 @@ export {
 	AiIndexManager,
 	AnnotationParser,
 	AutoExtractor,
+	INDEXED_EXTENSIONS,
 	SymbolQuery,
 } from "./annotation/index.js";
 // Calculators
@@ -126,6 +130,7 @@ export {
 	formatQuotedNote,
 	formatQuotedSummary,
 	formatRefList,
+	formatResumeLine,
 	formatUnitRef,
 	formatWorkLines,
 	getPendingTasks,
@@ -182,6 +187,8 @@ export type {
 } from "./managers/prompt-assembler.js";
 export { PromptAssembler } from "./managers/prompt-assembler.js";
 export { RoutinesWriter } from "./managers/routines-writer.js";
+export type { SessionBackupResult } from "./managers/session-backup.js";
+export { SESSION_BACKUP_DIRNAME, SessionBackup } from "./managers/session-backup.js";
 export type {
 	ActiveChunkInfo,
 	IndexQuery,
@@ -195,6 +202,8 @@ export {
 	SessionStateManager,
 	serializeSessionBaseYaml,
 } from "./managers/session-state-manager.js";
+export type { TaskSelection } from "./managers/task-selector.js";
+export { TaskSelector } from "./managers/task-selector.js";
 // Trim overrides
 export { TrimOverridesManager } from "./managers/trim-overrides-manager.js";
 // Parsers

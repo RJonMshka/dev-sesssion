@@ -8,14 +8,16 @@
  * @packageDocumentation
  */
 
+import { CLI_COMMAND } from "../../adapters/session-loop.js";
+
 /** The places `init` looks for a plan when `--plan` is not given. */
 export const DEFAULT_PLAN_PATHS: readonly string[] = ["PLAN.md", "docs/PLAN.md"];
 
 /** Checks a plan without writing anything. Takes the file as its argument. */
-export const PLAN_CHECK_COMMAND = "dev-sesssion plan check";
+export const PLAN_CHECK_COMMAND = `${CLI_COMMAND} plan check`;
 
 /** Initializes a session from a named plan file. Takes the file as its argument. */
-export const INIT_WITH_PLAN_COMMAND = "dev-sesssion init --plan";
+export const INIT_WITH_PLAN_COMMAND = `${CLI_COMMAND} init --plan`;
 
 /** The heading shape every plan source scores highest. */
 export const CHUNK_HEADING_SHAPE = "## Chunk N — <title>";

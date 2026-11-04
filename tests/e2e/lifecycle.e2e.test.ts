@@ -160,6 +160,7 @@ describe("dev-sesssion advance", () => {
 		// The whole of stdout parses — no clack decoration around it.
 		const midJson = JSON.parse(mid.stdout) as AdvanceJson;
 		expect(midJson).toEqual({
+			ok: true,
 			archivedChunkId: 1,
 			newChunkId: 2,
 			newChunkTitle: "Core",
@@ -192,6 +193,80 @@ describe("dev-sesssion advance", () => {
 		expect(result.stdout + result.stderr).toContain("--yes");
 		expect(snapshot()).toEqual(before);
 		expect(await activeChunk()).toBe(1);
+	});
+
+	it("writes ok: false with the error as JSON when it refuses (REQ-ORC-12)", async () => {
+		await initProject();
+
+		const r = await runCli(["advance", "--json", "--cwd", tmpDir]);
+
+		expect(r.exitCode).toBe(1);
+		const json = JSON.parse(r.stdout) as { ok: boolean; error: string; suggestion?: string };
+		expect(json.ok).toBe(false);
+		expect(json.error).toMatch(/incomplete tasks/);
+		expect(json.suggestion).toContain("--yes");
+	});
+
+	it("does not pass a chunk with no tasks as complete (REQ-ORC-11)", async () => {
+		writePackageJson(tmpDir);
+		fs.writeFileSync(
+			path.join(tmpDir, "PLAN.md"),
+			"# Plan\n\n## Chunk 1 — Login\n\n* Build login page\n\n## Chunk 2 — Billing\n\n- [ ] Add stripe\n",
+		);
+		expect((await runCli(["init", "--yes", "--cwd", tmpDir])).ok).toBe(true);
+
+		// The skill's loop: `advance --json`, no --yes, no TTY.
+		const refused = await runCli(["advance", "--json", "--cwd", tmpDir]);
+
+		expect(refused.exitCode).not.toBe(0);
+		expect(refused.stdout + refused.stderr).toMatch(/no tasks/i);
+		expect(refused.stdout + refused.stderr).toContain("--yes");
+		expect(await activeChunk()).toBe(1);
+	});
+
+	it("advances past a chunk with no tasks with --yes, as forced (REQ-ORC-11)", async () => {
+		writePackageJson(tmpDir);
+		fs.writeFileSync(
+			path.join(tmpDir, "PLAN.md"),
+			"# Plan\n\n## Chunk 1 — Login\n\n* Build login page\n\n## Chunk 2 — Billing\n\n- [ ] Add stripe\n",
+		);
+		expect((await runCli(["init", "--yes", "--cwd", tmpDir])).ok).toBe(true);
+
+		const json = await advanceJson();
+
+		expect(json).toMatchObject({ newChunkId: 2, forceAdvanced: true });
+	});
+
+	it("init without a TTY exits non-zero, writes no .session/, names --yes (REQ-ORC-9)", async () => {
+		writePackageJson(tmpDir);
+		writePlan(tmpDir);
+		// execa pipes stdin, so the child sees no TTY.
+		const result = await runCli(["init", "--cwd", tmpDir]);
+		expect(result.exitCode).not.toBe(0);
+		expect(result.stdout + result.stderr).toContain("--yes");
+		expect(fs.existsSync(path.join(tmpDir, ".session"))).toBe(false);
+	});
+
+	it("update without a TTY exits non-zero, leaves state unchanged, names --yes (REQ-ORC-9)", async () => {
+		await initProject();
+		const sessionDir = path.join(tmpDir, ".session");
+		fs.writeFileSync(path.join(tmpDir, "new-file.ts"), "export const x = 1;\n");
+		const read = (): string[] =>
+			fs
+				.readdirSync(sessionDir)
+				.map((f) => `${f}:${fs.readFileSync(path.join(sessionDir, f), "utf-8")}`);
+		const before = read();
+		const result = await runCli(["update", "--cwd", tmpDir]);
+		expect(result.exitCode).not.toBe(0);
+		expect(result.stdout + result.stderr).toContain("--yes");
+		expect(read()).toEqual(before);
+	});
+
+	it("interactive trim without a TTY exits non-zero and names --budget (REQ-ORC-9)", async () => {
+		await initProject();
+		const result = await runCli(["trim", "--cwd", tmpDir]);
+		expect(result.exitCode).not.toBe(0);
+		expect(result.stdout + result.stderr).toContain("--budget");
 	});
 
 	it("fails when there is no session", async () => {

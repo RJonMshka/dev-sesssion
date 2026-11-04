@@ -17,6 +17,7 @@ import {
 	type AdapterReadFile,
 	type AdapterWriteFile,
 	CHUNK_HEADING_SHAPE,
+	CLI_COMMAND,
 	INIT_WITH_PLAN_COMMAND,
 	PLAN_CHECK_COMMAND,
 } from "@dev-session/core";
@@ -128,15 +129,16 @@ exists to keep small.
 
 Repeat:
 
-1. \`dev-sesssion status --json\` gives \`active_chunk\`.
-2. \`dev-sesssion prompt\` prints the chunk's prompt. Give it, unchanged, to a
+1. \`${CLI_COMMAND} status --json\` gives \`active_chunk\`.
+2. \`${CLI_COMMAND} prompt\` prints the chunk's prompt. Give it, unchanged, to a
    fresh subagent or session. It does the work and marks tasks done as the
    prompt says.
-3. \`dev-sesssion advance --json\` moves on. Stop when \`allChunksComplete\` is
+3. \`${CLI_COMMAND} advance --json\` moves on. Stop when \`allChunksComplete\` is
    true.
 
-If \`advance\` exits non-zero, the chunk still has open tasks. Send it back to a
-subagent, or ask the user before passing \`--yes\`, which advances past them.
+If \`advance\` exits non-zero, the chunk still has open tasks, or has none.
+Send it back to a subagent, or ask the user before passing \`--yes\`, which
+advances past it.
 
 Read only the JSON. Don't open chunk files or the session directory yourself.
 `;

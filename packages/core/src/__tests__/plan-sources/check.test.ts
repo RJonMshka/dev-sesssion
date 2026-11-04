@@ -111,6 +111,20 @@ describe("checkPlan — ok", () => {
 		expect(report.ok).toBe(true);
 	});
 
+	it("is not ok when a chunk has no tasks, and names it and the task form (REQ-ORC-10)", () => {
+		// A milestones plan as people write it: bullets, no checkboxes.
+		const content =
+			"## Milestone 1 — Login\n\n* Build login page\n* Wire auth\n\n## Milestone 2 — Billing\n\n- [ ] stripe\n";
+		const report = checkPlan(content);
+
+		expect(report.chunks.map((c) => c.taskCount)).toEqual([0, 1]);
+		expect(report.ok).toBe(false);
+		const warning = report.warnings.find((w) => w.includes("Login"));
+		expect(warning).toBeDefined();
+		expect(warning).toContain("- [ ]");
+		expect(report.warnings.some((w) => w.includes("Billing"))).toBe(false);
+	});
+
 	it("is not ok for empty content (REQ-PLA-4)", () => {
 		const report = checkPlan("   \n");
 

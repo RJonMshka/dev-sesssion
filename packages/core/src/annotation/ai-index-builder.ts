@@ -10,6 +10,7 @@
  * @packageDocumentation
  */
 
+import * as fs from "node:fs";
 import type { ValidatedPath } from "@dev-session/security";
 import { ParseError } from "@dev-session/security";
 import { AutoExtractor } from "./auto-extractor.js";
@@ -22,7 +23,7 @@ import type {
 	UnitEntry,
 	UnitKind,
 } from "./types.js";
-import { isUnitId } from "./unit-extractor.js";
+import { contentHash, isUnitId } from "./unit-extractor.js";
 import { deserializeFromYaml, serializeToYaml } from "./yaml-utils.js";
 
 // ---------------------------------------------------------------------------
@@ -131,7 +132,60 @@ export const AiIndexBuilder = {
 			if (file.secrets !== undefined)
 				opts?.onSecret?.(toRelativePath(file.path, root), file.secrets);
 		}
-		return AiIndexBuilder.build(files, root);
+		const index = AiIndexBuilder.build(files, root);
+		// Recorded so a refresh keeps to the same cap (REQ-SYM-23).
+		return opts?.maxFiles !== undefined ? { ...index, max_files: opts.maxFiles } : index;
+	},
+
+	/**
+	 * Bring an index up to date with the files under `root` (REQ-SYM-20, -22).
+	 *
+	 * Walks the same files {@link fromDirectory} would, within the index's
+	 * `max_files` cap (REQ-SYM-23). An entry whose `hash` matches the file's
+	 * content is kept as it is; every entry is computed from its own file only,
+	 * so keeping it is the same as re-reading it. Changed files, files with no
+	 * entry, and entries without a hash are extracted again.
+	 *
+	 * @param root - Validated absolute path to the project root.
+	 * @param previous - The index on disk.
+	 * @param opts - `onSecret`, called for each re-read file whose text had a secret redacted.
+	 * @returns The refreshed index and the relative paths re-read, added and dropped.
+	 * @throws {ParseError} If the directory cannot be walked or a file cannot be read.
+	 */
+	async refresh(
+		root: ValidatedPath,
+		previous: AiIndex,
+		opts?: { onSecret?: (relPath: string, patterns: readonly string[]) => void },
+	): Promise<AiIndexRefresh> {
+		const extractor = new AutoExtractor();
+		const toRead: ParsedFile[] = [];
+		const files: Record<string, FileEntry> = Object.create(null) as Record<string, FileEntry>;
+		const reread: string[] = [];
+		const added: string[] = [];
+
+		for (const abs of extractor.listFiles(root, previous.max_files)) {
+			const rel = toRelativePath(abs, root);
+			const old = previous.files[rel];
+			if (old?.hash !== undefined && old.hash === contentHash(fs.readFileSync(abs, "utf-8"))) {
+				files[rel] = old;
+				continue;
+			}
+			(old === undefined ? added : reread).push(rel);
+			const parsed = extractor.extractFile(abs);
+			if (parsed.secrets !== undefined) opts?.onSecret?.(rel, parsed.secrets);
+			toRead.push(parsed);
+		}
+		Object.assign(files, AiIndexBuilder.build(toRead, root).files);
+
+		const dropped = Object.keys(previous.files).filter((rel) => files[rel] === undefined);
+		const index: AiIndex = {
+			version: INDEX_VERSION,
+			generated_at: new Date().toISOString(),
+			project_root: root,
+			files: sortedByKey(files),
+			...(previous.max_files !== undefined ? { max_files: previous.max_files } : {}),
+		};
+		return { index, reread, added, dropped: dropped.sort() };
 	},
 
 	/**
@@ -176,8 +230,11 @@ export const AiIndexBuilder = {
 		const data: Record<string, unknown> = {
 			version: index.version,
 			generated_at: index.generated_at,
-			project_root: index.project_root,
+			// Never the absolute root: team mode commits this file, and entries
+			// are keyed relative to wherever the checkout is (REQ-SYM-27).
+			project_root: ".",
 			files: buildSerializableFiles(index.files),
+			...(index.max_files !== undefined ? { max_files: index.max_files } : {}),
 		};
 		return serializeToYaml(data);
 	},
@@ -210,18 +267,51 @@ export const AiIndexBuilder = {
 
 		const files = parseFiles(raw.files);
 
+		const maxFiles = raw.max_files;
 		return {
 			version: "2",
 			generated_at: typeof raw.generated_at === "string" ? raw.generated_at : "",
 			project_root: typeof raw.project_root === "string" ? raw.project_root : "",
 			files,
+			// A cap that is not a positive integer is ignored, not trusted (REQ-SYM-23).
+			...(typeof maxFiles === "number" && Number.isInteger(maxFiles) && maxFiles > 0
+				? { max_files: maxFiles }
+				: {}),
 		};
 	},
 } as const;
 
+/** What {@link AiIndexBuilder.refresh} changed. */
+export interface AiIndexRefresh {
+	/** The index, up to date with the tree. */
+	readonly index: AiIndex;
+	/** Indexed files whose content changed, re-extracted. */
+	readonly reread: readonly string[];
+	/** Files that had no entry, extracted. */
+	readonly added: readonly string[];
+	/** Entries whose file is gone or now outside the cap. */
+	readonly dropped: readonly string[];
+}
+
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
+
+/**
+ * The same entries, keyed in sorted order, so a refreshed index iterates as a
+ * built one does.
+ *
+ * @param files - Entries by relative path.
+ * @returns A null-prototype copy with sorted keys.
+ */
+function sortedByKey(files: Readonly<Record<string, FileEntry>>): Record<string, FileEntry> {
+	const out: Record<string, FileEntry> = Object.create(null) as Record<string, FileEntry>;
+	for (const key of Object.keys(files).sort()) {
+		const entry = files[key];
+		if (entry !== undefined) out[key] = entry;
+	}
+	return out;
+}
 
 /**
  * Convert a `ParsedFile.path` (absolute) to a relative path for the index key.

@@ -50,6 +50,7 @@ measures (feature 6).
 | 12 | Files a chunk will create | `LLD-new-files.md` | A phase whose files do not exist yet loads nothing for them — not even the code they sit beside |
 | 13 | Plan authoring and orchestration | `LLD-plan-authoring.md` | An agent cannot check a plan it wrote without running `init`, and a harness driving `advance` either hangs on a prompt or skips work |
 | 14 | No network, no API key | `LLD-offline.md` | `compact` needed its own API key and was the one command that sent data off the machine, in a tool used from inside a harness that already has a model |
+| 15 | `task done` | `LLD-task-done.md` | Ticking a task needs the interactive `update` checklist or an MCP server `init` never connects, so agents hand-edit YAML state |
 
 ### Status (2026-10-24)
 

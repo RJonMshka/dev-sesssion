@@ -60,7 +60,9 @@ function renderReport(report: PlanCheckReport): void {
 		log.success(
 			`${report.chunks.length} chunk${report.chunks.length === 1 ? "" : "s"}; init will read this plan.`,
 		);
-	else log.error("init would drop the tasks above. Give each of those sections a chunk number.");
+	else if (report.excluded.some((e) => e.taskCount > 0))
+		log.error("init would drop the tasks above. Give each of those sections a chunk number.");
+	else log.error("A chunk with no tasks would be passed by advance at once. Add tasks to each.");
 }
 
 /**

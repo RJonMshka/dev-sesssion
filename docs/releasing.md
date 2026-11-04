@@ -117,7 +117,7 @@ mkdir /tmp/ds-smoke && cd /tmp/ds-smoke && git init && npm init -y
 | 5 | `update` | `update` | interactive: mark a task done, add a note → `SESSION_STATE.md` + `NEXT_PROMPT.md` updated |
 | 6 | `advance` | `advance --yes` | chunk archived, advanced; exit 0 |
 | 7 | `prompt` | `prompt` | prints `NEXT_PROMPT.md` to stdout, pipeable |
-| 8 | `index` | `index` / `--update` / `--dry-run` | generates `ai-index.yaml`; `--update` skips unchanged (mtime); `--dry-run` writes nothing |
+| 8 | `index` | `index` / `--update` / `--dry-run` | generates `ai-index.yaml`; `--update` re-reads only files whose content hash changed; `--dry-run` writes nothing |
 | 9 | `health` | `health` / `--json` / `--fix` | audits session health; auto-fix repairs stale entries |
 | 10 | `verify` | `verify` / `--replay` / `--json` | reconciles state against git; exits non-zero only on an error finding |
 | 11 | `import` | `import --from claude` | external rules pulled into `.session/` |

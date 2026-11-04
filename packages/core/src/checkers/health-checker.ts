@@ -14,6 +14,7 @@ import * as path from "node:path";
 import type { ValidatedPath } from "@dev-session/security";
 
 import { AiIndexManager } from "../annotation/ai-index-manager.js";
+import { SymbolQuery } from "../annotation/symbol-query.js";
 import { NewFiles } from "../calculators/new-files.js";
 import { formatOverBudgetMessage } from "../formatters/formatter-utils.js";
 import { FILE_INDEX_PAGE_SIZE, FileIndexManager } from "../managers/file-index-manager.js";
@@ -97,6 +98,7 @@ export interface HealthReport {
  * 6. Active chunk task completion status
  * 7. NEXT_PROMPT.md line count (≤ the session's configured cap)
  * 8. Session staleness (last_updated within 7 days)
+ * 9. ai-index entries match the files they describe
  */
 export const HealthChecker = {
 	/**
@@ -146,6 +148,10 @@ export const HealthChecker = {
 		// 8. Staleness
 		checksRun++;
 		issues.push(...checkStaleness(state.last_updated));
+
+		// 9. ai-index freshness
+		checksRun++;
+		issues.push(...checkAiIndexFreshness(sessionDir));
 
 		return buildReport(issues, staleEntries, promptLineCount, checksRun);
 	},
@@ -414,6 +420,34 @@ function checkStaleness(lastUpdated: string): HealthIssue[] {
 			HealthSeverity.INFO,
 			"SESSION_STALE",
 			`Session not updated in ${String(diffDays)} days (last: ${lastUpdated})`,
+			false,
+		),
+	];
+}
+
+/**
+ * Check that every ai-index entry still matches its file (REQ-SYM-24).
+ *
+ * Judged as `symbols` judges it, by content hash. Entries only: the tree is
+ * not walked for files the index lacks.
+ *
+ * @param sessionDir - Validated path to `.session/`.
+ * @returns One warning naming how many files are behind, or none.
+ */
+function checkAiIndexFreshness(sessionDir: ValidatedPath): HealthIssue[] {
+	const index = safeLoad(() => AiIndexManager.load(sessionDir));
+	if (index === null) return [];
+	const root = path.dirname(sessionDir) as ValidatedPath;
+	const behind = Object.entries(index.files).filter(([key, entry]) => {
+		const f = SymbolQuery.freshness(key, entry, root);
+		return f === "stale" || f === "removed";
+	}).length;
+	if (behind === 0) return [];
+	return [
+		makeIssue(
+			HealthSeverity.WARNING,
+			"AI_INDEX_STALE",
+			`ai-index.yaml is behind ${String(behind)} file${behind === 1 ? "" : "s"} that changed or were removed; prompts summarise the old code. Run dev-sesssion index.`,
 			false,
 		),
 	];

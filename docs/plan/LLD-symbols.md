@@ -190,9 +190,86 @@ shall reject it with a `SecurityError`.
 relative to the project root the command runs in, not the root recorded in the
 index.
 
+**REQ-SYM-19** — `read_file_layer` (`SessionManager.readFileLayer`) at layer 0
+or 1 shall find the file's entry by its path relative to the project root it
+runs in, not the root recorded in the index. A team-mode index is committed, so
+every clone but the author's records a root that is not its own.
+
 No `.session/` at all is already handled: `SessionManager.create` throws a
 `CliError` naming `dev-sesssion init` (`session-manager.ts:96-101`). The e2e
 pins it, and it is expected to pass on first run.
+
+### Keeping the index fresh (added 2026-11-03)
+
+Found in the overnight eval of 2026-11-03. Chunk 1 added `complete()` and
+`remove()` to `store.ts`; chunk 2's prompt still summarised `store.ts` without
+them. `symbols` marked the file STALE (REQ-SYM-13), but `health` said
+"healthy", and only a manual `dev-sesssion index` fixed it. Nothing else
+refreshes `ai-index.yaml`. A full reindex of DevNexus takes 0.6 s. Separately,
+`index --update` says it re-extracts only changed files by mtime
+(`index-cmd.ts:5,61`), but it scans every file and `merge` keeps only the scan.
+
+The owner was asked whether `update` should write `ai-index.yaml` in team
+mode, where the file is committed. Chosen: refresh in both modes, and write the
+file only when an entry changed, so a committed index shows a diff only when
+the code it describes did.
+
+**REQ-SYM-20** — While `ai-index.yaml` exists, when `update` or `advance` runs,
+it shall bring the index up to date with the files on disk before building the
+prompt: re-extract each file whose content hash differs from its entry, add each
+supported file that has no entry, and drop each entry whose file is gone.
+
+**REQ-SYM-21** — If no entry was re-extracted, added or dropped, then the
+command shall not rewrite `ai-index.yaml`.
+
+**REQ-SYM-22** — Where `index --update` is given, `index` shall re-extract only
+files whose content hash differs from their entry or that have no entry, keep
+the other entries as they are, and say how many it re-read and kept.
+
+**REQ-SYM-23** — When an index is built with a file cap (`init --max-files`),
+it shall record the cap as `max_files`, and a refresh shall index no more files
+than that.
+
+**REQ-SYM-24** — While an ai-index entry's file is gone or its content hash
+differs from the entry's, `health` shall report the index as stale, with the
+number of such files, and name `dev-sesssion index`.
+
+**REQ-SYM-25** — Where `--dry-run` is given, `update` and `advance` shall not
+write `ai-index.yaml`.
+
+**REQ-SYM-26** — If the refresh fails, then `update` and `advance` shall warn,
+build the prompt from the index on disk, and carry on.
+
+*Design.* `AiIndexBuilder.refresh(root, previous, opts)` in core walks the same
+files `fromDirectory` does, reuses an entry whose `hash` equals the file's
+`contentHash`, extracts the rest, and returns the index with the paths it
+re-read, added and dropped. Reuse is safe because every entry, usage evidence
+included, is computed from its own file only (PROTOCOL.md, "kept per file").
+An entry without a `hash` (written before code units) is re-read. `freshnessOf`
+in `symbol-query.ts` is exported as `fileFreshness`, so `health` and `symbols`
+judge staleness the same way. `health` checks entries only; it does not walk
+the tree for unindexed files. REQ-SYM-26 has no automated test: a refresh that
+reads the tree `init` just indexed cannot be made to fail from outside.
+
+
+### No absolute path in the index (added 2026-11-03)
+
+`ai-index.yaml` recorded `project_root: "/Users/<name>/…"`, and team mode
+commits the file, so every clone carried the author's home directory. Since
+REQ-SYM-18 and -19 nothing looks entries up by it; the last reader,
+`index --file` (`index-cmd.ts:253`), computed its "would update" path against
+it and so named a `../` path on any other checkout.
+
+**REQ-SYM-27** — When the ai-index is saved, it shall record `project_root` as
+`.`, and no absolute path.
+
+**REQ-SYM-28** — `index --file <path>` shall name the entry by its path relative
+to the project root it runs in, not the root recorded in the index.
+
+*Design.* Only `serialize` changes; the in-memory `project_root` stays the root
+the index was built from. `"."` rather than dropping the key, so a reader that
+expects the string still finds one. An index already on disk loses the path the
+next time it is written, by `index` or by a refresh that changed an entry.
 
 ---
 
@@ -414,6 +491,7 @@ METHOD.md's real-generator-output rule.
 | REQ-SYM-13..15 | unit | Edit a file after indexing → `stale`; delete it → `removed`, no rows; strip `hash` and `units` from the built entry → `unknown` and `units: null` |
 | REQ-SYM-16, 17 | unit | Facade: an unindexed path gives a `CliError`; `../x.ts` gives a `SecurityError` |
 | REQ-SYM-18 | unit | Built index whose `project_root` is replaced with another absolute path: `symbolsForFile` still finds the entry |
+| REQ-SYM-19 | unit | Same index: `readFileLayer` at layers 0 and 1 still renders the entry |
 | REQ-SYM-10, 11 | e2e | `tests/e2e/symbols.e2e.test.ts`: `init -y` on a copy of `simple-node-app`. `symbols src/… --json` stdout parses as one document whose units equal `ai-index.yaml` read back through core's `AiIndexBuilder.deserialize`. File list and mtimes under the temp dir unchanged after both modes |
 | REQ-SYM-6 | e2e | `--name doesNotExist --json` exits 1 and stdout parses with `matches: []` |
 | REQ-SYM-12 | e2e | Delete `.session/ai-index.yaml`: exit 1, output names `dev-sesssion index`, no file created |
@@ -444,10 +522,8 @@ commit as the code.
 - **Surfacing `ambiguous` in `update`/`preview` output.** This command lets a
   person ask. Printing every refused name on every regeneration is a separate
   decision about noise in those commands.
-- **`readFileLayer`'s `index.project_root` lookup** (`session-manager.ts:176`).
-  This is the same mistake REQ-SYM-18 avoids, and a one-line fix. It changes an
-  MCP tool's behaviour, so it gets its own commit and test, not a ride in this
-  one.
+- **`readFileLayer`'s `index.project_root` lookup** — fixed later as REQ-SYM-19,
+  in its own commit and test.
 - **Folding `index --show` / `--file` into `symbols`.** They overlap. REQ-SYM-9
   fixes their quoting, which is the part that is wrong. Removing or aliasing
   them changes an existing command surface and is a release-note decision.

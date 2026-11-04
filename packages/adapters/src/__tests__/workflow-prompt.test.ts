@@ -278,3 +278,21 @@ describe.each(FORMATTERS)("%s formatter — prompt readers", (_name, formatter) 
 		}
 	});
 });
+
+describe.each(FORMATTERS)("%s formatter — resume line", (_name, formatter) => {
+	it("separates progress from completed chunks with a full stop (REQ-WF-23)", () => {
+		const prompt = formatter.generatePrompt(
+			withTasks([task("A", "done"), task("B", "todo")], {
+				state: makeState({ completed_chunks: { "1": "2026-11-01" } }),
+			}),
+		);
+		expect(lineStarting(prompt, "Resume:")).toBe("Resume: 1/2 tasks done. Chunk 1 done.");
+	});
+
+	it("ends a line with no completed chunks with a full stop too (REQ-WF-23)", () => {
+		const prompt = formatter.generatePrompt(
+			withTasks([task("A", "todo")], { state: makeState({ completed_chunks: {} }) }),
+		);
+		expect(lineStarting(prompt, "Resume:")).toBe("Resume: 0/1 tasks done.");
+	});
+});

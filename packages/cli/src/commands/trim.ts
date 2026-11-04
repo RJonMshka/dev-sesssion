@@ -30,6 +30,7 @@ import {
 import { CliError, PathValidator, type ValidatedPath } from "@dev-session/security";
 import type { Command } from "commander";
 import { handleError } from "../utils/error-handler.js";
+import { requireTerminal } from "../utils/terminal.js";
 import { refreshExistingPrompt } from "./regenerate-prompt.js";
 
 // ---------------------------------------------------------------------------
@@ -237,6 +238,7 @@ export async function runTrim(options: TrimOptions): Promise<TrimResult> {
 		log.info("Use --budget <N> with --yes to auto-trim. Interactive mode requires a terminal.");
 		return { excluded: [], restored: [], dryRun: options.dryRun };
 	}
+	requireTerminal("trim", "Pass --budget <N> to trim to a token budget without asking.");
 
 	const selectOptions = candidates.map((c) => ({
 		value: c.filepath,

@@ -75,6 +75,7 @@ const GITIGNORE_ENTRIES_PERSONAL = [
 	".session/SESSION_STATE.md",
 	".session/NEXT_PROMPT.md",
 	".session/DONE_LOG.md",
+	".session/CONTEXT_LOG.md",
 	".session/ai-index.yaml",
 	".session/context-manifest.json",
 ] as const;
@@ -86,6 +87,7 @@ const GITIGNORE_ENTRIES_TEAM = [
 	".session/SESSION_STATE.md",
 	".session/NEXT_PROMPT.md",
 	".session/DONE_LOG.md",
+	".session/CONTEXT_LOG.md",
 	".session/context-manifest.json",
 ] as const;
 

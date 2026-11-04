@@ -131,6 +131,10 @@ REQ-PLA-10 turn "the skill is cheap" from a claim into a test.
   was skipped.
 - **REQ-PLA-14** — When a skill file carries the managed marker of an older
   version, init and `update` shall replace it.
+- **REQ-PLA-15** — The skill shall write each command as `npx dev-sesssion …`.
+  (Found 2026-11-03: the skill said `dev-sesssion status --json`, which fails
+  where the tool is only ever run through `npx`, as the README installs it.
+  Init's no-plan direction uses the same constants, so it changes too.)
 
 ### Orchestration (`ORC`)
 
@@ -149,6 +153,28 @@ REQ-PLA-10 turn "the skill is cheap" from a claim into a test.
   or leaves a gap.
 - **REQ-ORC-7** — While a chunk with a higher id than the active one exists,
   `advance` shall not report `allChunksComplete`.
+- **REQ-ORC-9** — If `init`, `update` or `trim` would prompt and stdin is not a
+  TTY, then it shall exit non-zero before writing anything, and name the flag
+  that runs it without prompting. (Found 2026-11-03: all three exited 0
+  mid-question, and `init` created no `.session/` — a harness read success.)
+- **REQ-ORC-10** — If a chunk the plan yields has no tasks, then `plan check`
+  shall exit non-zero, and shall name that chunk and the `- [ ]` task form.
+- **REQ-ORC-12** — Where `--json` is given, `advance` shall write one JSON
+  document to stdout whether it advanced or not: `ok: true` with the result, or
+  `ok: false` with the error and its suggestion, still exiting non-zero.
+  (Found 2026-11-03: a refused `advance --json` wrote nothing to stdout, so an
+  orchestrator had to parse English from stderr.)
+- **REQ-ORC-11** — If the active chunk has no tasks, then `advance` shall treat
+  it as a chunk with incomplete tasks: ask to confirm, refuse without a TTY,
+  and advance only with `--yes`.
+
+  (Found 2026-11-03: a milestones plan written with `* Build login page`
+  bullets passed `plan check` with 0 tasks per chunk and no warning. Every
+  chunk counted as complete, since all of its zero tasks were done, so
+  `advance --json` succeeded at once and an orchestrator following the skill's
+  loop "finished" the plan in seconds. Bullets are not read as tasks: a
+  section's `Files:` or `Risks:` list is bullets too, and guessing would tick
+  work nobody planned. The fix makes the empty chunk loud instead.)
 
 REQ-ORC-3 adds a message and changes no outcome: `init -y` still scaffolds its
 placeholder chunk and exits 0, so nothing in this LLD is a breaking change.

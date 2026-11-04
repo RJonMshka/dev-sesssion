@@ -44,7 +44,7 @@ is specific to it. This document describes version **1.0** of the format.
 ├── ai-index.yaml        # OPTIONAL — extracted symbol index (layered loading)
 ├── context-manifest.json # OPTIONAL — what the current NEXT_PROMPT.md loads, and why
 ├── trim-overrides.json  # OPTIONAL — per-file context exclusions
-└── backups/             # OPTIONAL — pre-compaction file backups
+└── backups/             # OPTIONAL — earlier sessions, moved aside by `init --fresh`; never committed
 ```
 
 A directory is a valid v1.0 session if and only if the four REQUIRED artifacts
@@ -187,9 +187,10 @@ tasks:
 ## Optional artifacts
 
 ### `ROUTINES.md`
-Documents the **start** routine (read `SESSION_STATE.md` → load active-chunk
-files from `FILE_INDEX.md` → confirm before coding) and the **end** routine
-(update state, update index, rewrite `NEXT_PROMPT.md`).
+Documents how a session runs: start from `NEXT_PROMPT.md`, mark each finished
+task through the tool, and end by letting the tool record the session and
+write the next prompt. Session files are not edited by hand. Human-readable;
+no tool parses it.
 
 ### `CONTEXT_LOG.md`
 Append-only log of session events (loads, expansions, advances) used for
@@ -201,6 +202,14 @@ A deterministic, extracted index of exported symbols and their summaries, used
 for **layered context loading**: Layer 0 = module summaries, Layer 1 = public
 signatures, Layer 2 = full source (loaded on demand). Serialized with sorted
 keys. When present, prompts reference summaries instead of inlining whole files.
+
+`project_root` is written as `.`: entry paths are relative to the directory
+that holds `.session/`, wherever the checkout is. Older indexes may record an
+absolute path there; a reader MUST NOT resolve entries against it.
+
+The index MAY carry a top-level `max_files`: the file cap it was built with
+(`init --max-files`). A tool that refreshes the index indexes no more files than
+that. A value that is not a positive integer is ignored.
 
 A file entry MAY also carry two optional keys. An entry without them stays
 valid, and a reader MUST accept it:
