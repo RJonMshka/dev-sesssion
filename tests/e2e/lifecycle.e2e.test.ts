@@ -160,6 +160,7 @@ describe("dev-sesssion advance", () => {
 		// The whole of stdout parses — no clack decoration around it.
 		const midJson = JSON.parse(mid.stdout) as AdvanceJson;
 		expect(midJson).toEqual({
+			ok: true,
 			archivedChunkId: 1,
 			newChunkId: 2,
 			newChunkTitle: "Core",
@@ -192,6 +193,18 @@ describe("dev-sesssion advance", () => {
 		expect(result.stdout + result.stderr).toContain("--yes");
 		expect(snapshot()).toEqual(before);
 		expect(await activeChunk()).toBe(1);
+	});
+
+	it("writes ok: false with the error as JSON when it refuses (REQ-ORC-12)", async () => {
+		await initProject();
+
+		const r = await runCli(["advance", "--json", "--cwd", tmpDir]);
+
+		expect(r.exitCode).toBe(1);
+		const json = JSON.parse(r.stdout) as { ok: boolean; error: string; suggestion?: string };
+		expect(json.ok).toBe(false);
+		expect(json.error).toMatch(/incomplete tasks/);
+		expect(json.suggestion).toContain("--yes");
 	});
 
 	it("does not pass a chunk with no tasks as complete (REQ-ORC-11)", async () => {

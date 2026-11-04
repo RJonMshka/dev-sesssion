@@ -290,6 +290,7 @@ exits 1 without changing anything and names `--yes` as the override.
 
 ```json
 {
+  "ok": true,
   "archivedChunkId": 1,
   "newChunkId": 2,
   "newChunkTitle": "Core",
@@ -301,6 +302,17 @@ exits 1 without changing anything and names `--yes` as the override.
 
 Stop when `allChunksComplete` is `true`. In that case `newChunkId` equals
 `archivedChunkId` and nothing was archived.
+
+When `advance` refuses or fails, stdout still carries one document, and the
+exit code is non-zero:
+
+```json
+{
+  "ok": false,
+  "error": "Chunk 1 has incomplete tasks and stdin is not a terminal, so advance cannot ask to confirm.",
+  "suggestion": "Mark the tasks done first, or pass --yes to advance with them incomplete."
+}
+```
 
 ---
 

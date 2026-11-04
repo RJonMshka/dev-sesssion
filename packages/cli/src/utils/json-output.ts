@@ -11,6 +11,8 @@
  * @module
  */
 
+import { isCliError, isParseError, isSecurityError } from "@dev-session/security";
+
 /**
  * Run `work` with stdout redirected to stderr.
  *
@@ -36,4 +38,30 @@ export async function withStdoutOnStderr<T>(work: () => Promise<T>): Promise<T> 
  */
 export function writeJson(value: unknown): void {
 	process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
+}
+
+/** The document a `--json` command prints when it fails (REQ-ORC-12). */
+export interface JsonFailure {
+	readonly ok: false;
+	readonly error: string;
+	readonly suggestion?: string;
+}
+
+/**
+ * Describes a failure for `--json` output. Only the repo's own error types
+ * promise messages free of absolute paths; anything else gets a generic one.
+ *
+ * @param error - The caught value.
+ * @returns The failure document.
+ */
+export function jsonFailure(error: unknown): JsonFailure {
+	if (isCliError(error)) {
+		return {
+			ok: false,
+			error: error.message,
+			...(error.suggestion !== undefined ? { suggestion: error.suggestion } : {}),
+		};
+	}
+	if (isParseError(error) || isSecurityError(error)) return { ok: false, error: error.message };
+	return { ok: false, error: "Unexpected error; run without --json for details." };
 }

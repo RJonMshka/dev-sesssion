@@ -155,6 +155,11 @@ REQ-PLA-10 turn "the skill is cheap" from a claim into a test.
   mid-question, and `init` created no `.session/` — a harness read success.)
 - **REQ-ORC-10** — If a chunk the plan yields has no tasks, then `plan check`
   shall exit non-zero, and shall name that chunk and the `- [ ]` task form.
+- **REQ-ORC-12** — Where `--json` is given, `advance` shall write one JSON
+  document to stdout whether it advanced or not: `ok: true` with the result, or
+  `ok: false` with the error and its suggestion, still exiting non-zero.
+  (Found 2026-11-03: a refused `advance --json` wrote nothing to stdout, so an
+  orchestrator had to parse English from stderr.)
 - **REQ-ORC-11** — If the active chunk has no tasks, then `advance` shall treat
   it as a chunk with incomplete tasks: ask to confirm, refuse without a TTY,
   and advance only with `--yes`.

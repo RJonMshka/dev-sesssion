@@ -30,7 +30,7 @@ import { CliError, PathValidator, type ValidatedPath } from "@dev-session/securi
 import type { Command } from "commander";
 import { dryRunSkipWrite } from "../utils/dry-run.js";
 import { handleError } from "../utils/error-handler.js";
-import { withStdoutOnStderr, writeJson } from "../utils/json-output.js";
+import { jsonFailure, withStdoutOnStderr, writeJson } from "../utils/json-output.js";
 import { refreshIndexForPrompt } from "./refresh-index.js";
 import { regeneratePrompt } from "./regenerate-prompt.js";
 import { withSessionBase } from "./touch-tagging.js";
@@ -344,15 +344,16 @@ export function registerAdvanceCommand(program: Command): void {
 				return;
 			}
 
-			// One JSON document on stdout; progress and errors go to stderr (REQ-ORC-1).
-			const result = await withStdoutOnStderr(async () => {
+			// One JSON document on stdout, advanced or not; progress and errors
+			// go to stderr (REQ-ORC-1, REQ-ORC-12).
+			const outcome = await withStdoutOnStderr(async () => {
 				try {
-					return await runAdvance(advanceOptions);
+					return { ok: true as const, ...(await runAdvance(advanceOptions)) };
 				} catch (error: unknown) {
-					handleError(error);
-					return undefined;
+					process.exitCode = handleError(error, { exit: false });
+					return jsonFailure(error);
 				}
 			});
-			if (result !== undefined) writeJson(result);
+			writeJson(outcome);
 		});
 }
