@@ -1,3 +1,24 @@
+## [3.1.0](https://github.com/RJonMshka/dev-sesssion/compare/v3.0.0...v3.1.0) (2026-11-04)
+
+### Features
+
+* **cli:** task done marks one task of the active chunk done ([ffbc34c](https://github.com/RJonMshka/dev-sesssion/commit/ffbc34cde7e5ff9acdde55a728ba506643098cf5))
+
+### Bug Fixes
+
+* **adapters:** agent instructions follow the CLI loop instead of hand-editing state ([2561b76](https://github.com/RJonMshka/dev-sesssion/commit/2561b765e0932f0331571fe10ba601357cc3ee05))
+* **advance:** --json prints ok: false with the error when it refuses ([cd3da70](https://github.com/RJonMshka/dev-sesssion/commit/cd3da7033ee813d25b828f8ed1a4c45da138e32b))
+* **cli:** init, update and trim refuse to prompt without a terminal ([dd59ddf](https://github.com/RJonMshka/dev-sesssion/commit/dd59ddf46b64c2ada3f587292281900d8eab04ba))
+* **cli:** rerunning init keeps the session unless --fresh is given ([274fb30](https://github.com/RJonMshka/dev-sesssion/commit/274fb300e67e2f65756125701ee98608778f186b))
+* **index:** ai-index.yaml records no absolute path ([b37ef78](https://github.com/RJonMshka/dev-sesssion/commit/b37ef786557a122b390c0ea26154ef51de71f9c4))
+* **index:** update and advance keep ai-index.yaml in step with the code ([e8e33d0](https://github.com/RJonMshka/dev-sesssion/commit/e8e33d0f0ac498d397cefc6fedb6f747af8b17bb))
+* **init:** .gitignore covers CONTEXT_LOG.md ([f61a476](https://github.com/RJonMshka/dev-sesssion/commit/f61a476f9ddcf61ba67e183ce29f8f68027d09f4))
+* **init:** say which files the ai-index reads, and how many it does not ([3d16731](https://github.com/RJonMshka/dev-sesssion/commit/3d167313533d56f4e894ec69d22b0c09035181b4))
+* **mcp:** read_file_layer finds entries in a moved or cloned checkout ([7540223](https://github.com/RJonMshka/dev-sesssion/commit/754022320cb966130ad2579dc0538c9251f87b92))
+* **plan:** a chunk with no tasks fails plan check and does not pass advance ([2aa6cea](https://github.com/RJonMshka/dev-sesssion/commit/2aa6ceacc359537e02be2936a6c83dec480107a7))
+* **prompt:** the Resume line reads as two sentences ([c001564](https://github.com/RJonMshka/dev-sesssion/commit/c0015642863216be661e0dbd3e7df02c8c19fa8b))
+* **skill:** commands are written with npx, so they run without a global install ([30fddb4](https://github.com/RJonMshka/dev-sesssion/commit/30fddb40d2ce956350282936d3054d1effb91163))
+
 ## [3.0.0](https://github.com/RJonMshka/dev-sesssion/compare/v2.4.2...v3.0.0) (2026-10-27)
 
 ### ⚠ BREAKING CHANGES
