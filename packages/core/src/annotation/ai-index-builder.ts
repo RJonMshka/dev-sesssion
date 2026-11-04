@@ -230,7 +230,9 @@ export const AiIndexBuilder = {
 		const data: Record<string, unknown> = {
 			version: index.version,
 			generated_at: index.generated_at,
-			project_root: index.project_root,
+			// Never the absolute root: team mode commits this file, and entries
+			// are keyed relative to wherever the checkout is (REQ-SYM-27).
+			project_root: ".",
 			files: buildSerializableFiles(index.files),
 			...(index.max_files !== undefined ? { max_files: index.max_files } : {}),
 		};

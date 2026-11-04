@@ -250,8 +250,8 @@ async function runIndexFile(
 	// Also save to existing index if it exists
 	const existingIndex = AiIndexManager.load(sessionDir);
 	if (existingIndex) {
-		const projectRoot = existingIndex.project_root;
-		const relPath = path.relative(projectRoot, absPath).replace(/\\/g, "/");
+		// The root this runs in, not the one recorded in the index (REQ-SYM-28).
+		const relPath = path.relative(path.resolve(cwd), absPath).replace(/\\/g, "/");
 		log.info(`Would update index entry: ${relPath}`);
 	}
 }

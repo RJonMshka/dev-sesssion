@@ -203,6 +203,10 @@ for **layered context loading**: Layer 0 = module summaries, Layer 1 = public
 signatures, Layer 2 = full source (loaded on demand). Serialized with sorted
 keys. When present, prompts reference summaries instead of inlining whole files.
 
+`project_root` is written as `.`: entry paths are relative to the directory
+that holds `.session/`, wherever the checkout is. Older indexes may record an
+absolute path there; a reader MUST NOT resolve entries against it.
+
 The index MAY carry a top-level `max_files`: the file cap it was built with
 (`init --max-files`). A tool that refreshes the index indexes no more files than
 that. A value that is not a positive integer is ignored.

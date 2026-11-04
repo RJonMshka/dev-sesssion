@@ -251,6 +251,26 @@ judge staleness the same way. `health` checks entries only; it does not walk
 the tree for unindexed files. REQ-SYM-26 has no automated test: a refresh that
 reads the tree `init` just indexed cannot be made to fail from outside.
 
+
+### No absolute path in the index (added 2026-11-03)
+
+`ai-index.yaml` recorded `project_root: "/Users/<name>/…"`, and team mode
+commits the file, so every clone carried the author's home directory. Since
+REQ-SYM-18 and -19 nothing looks entries up by it; the last reader,
+`index --file` (`index-cmd.ts:253`), computed its "would update" path against
+it and so named a `../` path on any other checkout.
+
+**REQ-SYM-27** — When the ai-index is saved, it shall record `project_root` as
+`.`, and no absolute path.
+
+**REQ-SYM-28** — `index --file <path>` shall name the entry by its path relative
+to the project root it runs in, not the root recorded in the index.
+
+*Design.* Only `serialize` changes; the in-memory `project_root` stays the root
+the index was built from. `"."` rather than dropping the key, so a reader that
+expects the string still finds one. An index already on disk loses the path the
+next time it is written, by `index` or by a refresh that changed an entry.
+
 ---
 
 ## Design

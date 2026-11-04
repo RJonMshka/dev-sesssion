@@ -133,3 +133,34 @@ describe("ai-index freshness", () => {
 		expect(fs.readFileSync(indexPath(), "utf-8")).toBe(before);
 	});
 });
+
+describe("no absolute path in the index", () => {
+	it("records project_root as '.' and no absolute path (REQ-SYM-27)", async () => {
+		await init("--team");
+
+		const text = fs.readFileSync(indexPath(), "utf-8");
+		expect(readIndex().project_root).toBe(".");
+		expect(text).not.toContain(tmpDir);
+		expect(text).not.toContain(os.homedir());
+	});
+
+	it("index --file names the entry relative to the checkout it runs in (REQ-SYM-28)", async () => {
+		await init();
+		// The same index, as a teammate's clone at another path would hold it.
+		const moved = fs.mkdtempSync(path.join(os.tmpdir(), "dev-sesssion-index-moved-"));
+		try {
+			fs.cpSync(tmpDir, moved, { recursive: true });
+			const yaml = fs
+				.readFileSync(indexPath(), "utf-8")
+				.replace("project_root: .", `project_root: ${tmpDir}`);
+			fs.writeFileSync(path.join(moved, ".session", "ai-index.yaml"), yaml);
+
+			const r = await runCli(["index", "--file", "src/utils.ts", "--cwd", moved]);
+
+			expect(r.exitCode).toBe(0);
+			expect(r.stdout).toContain("Would update index entry: src/utils.ts");
+		} finally {
+			fs.rmSync(moved, { recursive: true, force: true });
+		}
+	});
+});
