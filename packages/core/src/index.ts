@@ -24,6 +24,8 @@ export type {
 	SessionLifecycleContext,
 	TransformStateContext,
 } from "./adapters/adapter.js";
+export type { SessionLoopStyle } from "./adapters/session-loop.js";
+export { CLI_COMMAND, sessionLoopLines } from "./adapters/session-loop.js";
 export type {
 	AiIndex,
 	AiIndexRefresh,

@@ -187,9 +187,10 @@ tasks:
 ## Optional artifacts
 
 ### `ROUTINES.md`
-Documents the **start** routine (read `SESSION_STATE.md` → load active-chunk
-files from `FILE_INDEX.md` → confirm before coding) and the **end** routine
-(update state, update index, rewrite `NEXT_PROMPT.md`).
+Documents how a session runs: start from `NEXT_PROMPT.md`, mark each finished
+task through the tool, and end by letting the tool record the session and
+write the next prompt. Session files are not edited by hand. Human-readable;
+no tool parses it.
 
 ### `CONTEXT_LOG.md`
 Append-only log of session events (loads, expansions, advances) used for

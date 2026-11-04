@@ -20,10 +20,10 @@ import type {
 	TransformStateContext,
 } from "@dev-session/core";
 import {
-	DEFAULT_MAX_PROMPT_LINES,
 	MANAGED_BLOCK_END,
 	MANAGED_BLOCK_START,
 	MEMORY_NOTE_PREFIX,
+	sessionLoopLines,
 } from "@dev-session/core";
 import { ClaudeBootstrapFormatter } from "./claude-bootstrap-formatter.js";
 import {
@@ -76,10 +76,8 @@ function generateSessionSection(_projectName: string, sessionDir: string): strin
 		"",
 		"### Session workflow",
 		"",
-		`**Start:** Read \`${sessionDir}/SESSION_STATE.md\` → note active chunk → load only files tagged to that chunk in \`FILE_INDEX.md\` → confirm before writing code.`,
-		"",
-		`**End:** Update \`SESSION_STATE.md\` (mark tasks done), update \`FILE_INDEX.md\` (add new files), rewrite \`NEXT_PROMPT.md\` (≤${String(DEFAULT_MAX_PROMPT_LINES)} lines by default, self-contained). See \`${sessionDir}/ROUTINES.md\` for the full routine. Do not skip this.`,
-		"",
+		// One source for every adapter and ROUTINES.md (REQ-TASK-14).
+		...sessionLoopLines(sessionDir, "markdown").flatMap((line) => [line, ""]),
 	];
 	return lines.join("\n");
 }

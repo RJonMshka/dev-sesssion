@@ -340,13 +340,12 @@ describe("ClaudeAdapter", () => {
 });
 
 describe("generateSessionSection", () => {
-	it("includes session workflow instructions", () => {
+	it("includes session workflow instructions (REQ-TASK-9)", () => {
 		const section = generateSessionSection("my-app", ".session");
 		expect(section).toContain("dev-sesssion");
-		expect(section).toContain("SESSION_STATE.md");
-		expect(section).toContain("FILE_INDEX.md");
 		expect(section).toContain("NEXT_PROMPT.md");
-		expect(section).toContain("ROUTINES.md");
+		expect(section).toContain("npx dev-sesssion task done");
+		expect(section).toContain("npx dev-sesssion update --yes");
 	});
 });
 
