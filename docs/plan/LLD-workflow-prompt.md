@@ -281,6 +281,12 @@ the Part C lines.
 A formatter registered through `registerAdapter()` that renders today's shape
 keeps working.
 
+**REQ-WF-23** — The `Resume:` line shall end each part with a full stop, so the
+task progress and the completed chunks read as two sentences, and every shipped
+formatter shall render it from one function in `formatter-utils.ts`. *(Added
+2026-11-03: the line read `Resume: 0/2 tasks done Chunk 1 done.`, joined by a
+space in five copied formatter bodies.)*
+
 ---
 
 ## Design

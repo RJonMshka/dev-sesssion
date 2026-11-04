@@ -130,6 +130,7 @@ export {
 	formatQuotedNote,
 	formatQuotedSummary,
 	formatRefList,
+	formatResumeLine,
 	formatUnitRef,
 	formatWorkLines,
 	getPendingTasks,

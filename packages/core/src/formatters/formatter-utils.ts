@@ -54,6 +54,22 @@ export function formatCompletedChunksSummary(state: SessionState): string {
 	return `Chunks ${keys.map(String).join(", ")} done.`;
 }
 
+/** Prefix of the line that says where the session stands. */
+export const RESUME_PREFIX = "Resume:";
+
+/**
+ * The `Resume:` line: task progress, then the completed chunks, each a
+ * sentence (REQ-WF-23). Every shipped formatter renders it here.
+ *
+ * @param state - The session state, for completed chunks.
+ * @param chunk - The active chunk, for task progress.
+ * @returns The whole line, e.g. `Resume: 1/2 tasks done. Chunk 1 done.`
+ */
+export function formatResumeLine(state: SessionState, chunk: PlanChunk): string {
+	const completed = formatCompletedChunksSummary(state);
+	return `${RESUME_PREFIX} ${formatChunkProgress(chunk)}.${completed.length > 0 ? ` ${completed}` : ""}`;
+}
+
 /**
  * Builds the progress line for the active chunk.
  *

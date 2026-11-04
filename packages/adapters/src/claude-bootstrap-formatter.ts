@@ -22,12 +22,11 @@ import {
 	AiIndexManager,
 	DEFAULT_MAX_PROMPT_LINES,
 	formatBudgetLine,
-	formatChunkProgress,
-	formatCompletedChunksSummary,
 	formatLayeredContextLines,
 	formatNewFilesLine,
 	formatPlanLine,
 	formatRefList,
+	formatResumeLine,
 	formatWorkLines,
 	mergeContextFiles,
 	trimToMaxLines,
@@ -120,13 +119,7 @@ export const ClaudeBootstrapFormatter: BootstrapFormatter = {
 		}
 
 		// -- Resume section (up to 5 lines) --
-		const completedSummary = formatCompletedChunksSummary(state);
-		const progress = formatChunkProgress(chunk);
-		const resumeParts: string[] = [progress];
-		if (completedSummary.length > 0) {
-			resumeParts.push(completedSummary);
-		}
-		lines.push(`Resume: ${resumeParts.join(" ")}`);
+		lines.push(formatResumeLine(state, chunk));
 
 		if (state.last_worked_files.length > 0) {
 			const lastFiles = state.last_worked_files.slice(0, 3).map((f) => `@${f}`);
