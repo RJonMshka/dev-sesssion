@@ -13,7 +13,7 @@ export { AI_INDEX_FILENAME, AiIndexBuilder } from "./ai-index-builder.js";
 export { AiIndexManager } from "./ai-index-manager.js";
 export type { FileAnnotations, LayerHint, SymbolAnnotations } from "./annotation-parser.js";
 export { AnnotationParser } from "./annotation-parser.js";
-export { AutoExtractor } from "./auto-extractor.js";
+export { AutoExtractor, INDEXED_EXTENSIONS } from "./auto-extractor.js";
 export type {
 	Freshness,
 	SymbolExportRow,

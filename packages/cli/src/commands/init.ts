@@ -27,6 +27,7 @@ import type { AiIndex, PlanChunk } from "@dev-session/core";
 import {
 	AiIndexBuilder,
 	AiIndexManager,
+	INDEXED_EXTENSIONS,
 	noPlanDirection,
 	PlanChunkManager,
 	ProjectDetector,
@@ -202,7 +203,7 @@ export async function runInit(options: InitOptions): Promise<void> {
 	const indexResult = await generateIndex(sessionDir, openChunks, generateOpts);
 
 	// Phase 4b: ai-index, so the first prompt can focus units (REQ-RUN-10)
-	const aiIndex = await buildInitIndex(sessionDir, options);
+	const aiIndex = await buildInitIndex(sessionDir, options, indexResult.walkedPaths);
 
 	// Phase 5: Final writes (SESSION_STATE, ROUTINES, NEXT_PROMPT, .gitignore)
 	await runFinalWrites(sessionDir, chunks, indexResult.entries, projectName, {
@@ -240,11 +241,13 @@ export async function runInit(options: InitOptions): Promise<void> {
  *
  * @param sessionDir - Validated path to `.session/`.
  * @param options - CLI options.
+ * @param walkedPaths - Every path the file-index walk found, for the coverage note.
  * @returns The index, or `null` if it could not be built or saved.
  */
 async function buildInitIndex(
 	sessionDir: ValidatedPath,
 	options: InitOptions,
+	walkedPaths: readonly string[],
 ): Promise<AiIndex | null> {
 	const s = spinner();
 	s.start("Building ai-index...");
@@ -263,6 +266,7 @@ async function buildInitIndex(
 			s.stop(`Built ai-index: ${String(fileCount)} file${fileCount === 1 ? "" : "s"}.`);
 		}
 		secrets.report();
+		log.info(coverageNote(walkedPaths));
 		return index;
 	} catch (cause: unknown) {
 		s.stop("ai-index not written.");
@@ -332,6 +336,33 @@ function activeChunkLabel(sessionDir: ValidatedPath): string {
 	} catch {
 		return "";
 	}
+}
+
+/**
+ * Says which file types get summaries, and how many walked files do not
+ * (REQ-RUN-38). A Java or Python repo otherwise gets an index of almost
+ * nothing, silently.
+ *
+ * @param walkedPaths - Every path the walk found.
+ * @returns One line, naming up to three of the most common other extensions.
+ */
+function coverageNote(walkedPaths: readonly string[]): string {
+	const indexed = new Set(INDEXED_EXTENSIONS);
+	const others = new Map<string, number>();
+	for (const p of walkedPaths) {
+		const ext = path.extname(p) || "(no extension)";
+		if (!indexed.has(ext)) others.set(ext, (others.get(ext) ?? 0) + 1);
+	}
+	const reads = `Summaries cover ${INDEXED_EXTENSIONS.join(" ")}`;
+	const count = [...others.values()].reduce((a, b) => a + b, 0);
+	if (count === 0) return `${reads}.`;
+	const top = [...others.entries()]
+		.sort((a, b) => b[1] - a[1])
+		.slice(0, 3)
+		.map(([ext, n]) => `${ext} ${String(n)}`)
+		.join(", ");
+	const one = count === 1;
+	return `${reads}; ${String(count)} other file${one ? "" : "s"} (${top}${others.size > 3 ? ", …" : ""}) ha${one ? "s" : "ve"} no summaries and appear by path only.`;
 }
 
 /**

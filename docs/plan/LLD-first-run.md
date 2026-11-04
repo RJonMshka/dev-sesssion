@@ -113,7 +113,9 @@ always-include files.
 with the same matcher as the file index generator.
 
 **REQ-RUN-6** — When `init` runs with `--yes`, `init` shall report how many
-files were tagged to a chunk and how many were left to the ai-index alone.
+files were tagged to a chunk and how many were not tagged. *(Amended
+2026-11-03: it said "left to the ai-index", which on a Java repo meant 7,766
+files the ai-index does not read. See REQ-RUN-38.)*
 
 ### Import
 
@@ -268,6 +270,24 @@ DevNexus, `init --yes --chunk 8` recorded chunks 1–7 as completed, and
 `health`, `verify` and a dry-run `advance` to chunk 9 all accepted the state.
 The prompt for chunk 8 still names only `CLAUDE.md`: every file phase 8 lists
 is one it is meant to *create*, and nothing tags a file that does not exist yet.
+
+### Saying what the ai-index covers (added 2026-11-03)
+
+Found in the overnight eval of 2026-11-03, on a copy of automq (7,768 files,
+Java): "Tagged 1 file to chunks from the plan; 7766 left to the ai-index", then
+"Built ai-index: 1 file" (a stray `.js` under `docs/`). The extractor reads
+`.ts .tsx .js .jsx .mts .mjs .vue .svelte` only (`auto-extractor.ts:37`), so
+Python, Go, Java and Rust repos get no summaries and no unit focus, and nothing
+says so. Adding languages is a feature for later; saying so is this fix.
+
+**REQ-RUN-38** — When `init` builds the ai-index, it shall name the file types
+the ai-index reads, and say how many of the files it walked are of other types
+and so have no summaries.
+
+*Design.* `INDEXED_EXTENSIONS` is exported from `auto-extractor.ts`, derived
+from the set the extractor uses, so the message cannot drift from the code.
+`generateIndex` returns the walked paths it already holds; `init` counts those
+whose extension is not indexed.
 
 ### Re-running init (added 2026-11-03)
 

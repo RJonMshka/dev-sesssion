@@ -45,6 +45,12 @@ const SUPPORTED_EXTENSIONS = new Set([
 	...SFC_EXTENSIONS,
 ]);
 
+/**
+ * The file extensions the ai-index reads, in a stable order, for messages that
+ * say what it covers (LLD-first-run.md, REQ-RUN-38).
+ */
+export const INDEXED_EXTENSIONS: readonly string[] = [...SUPPORTED_EXTENSIONS];
+
 /** Max chars to include in a signature (avoids huge generics). */
 const MAX_SIGNATURE_CHARS = 200;
 

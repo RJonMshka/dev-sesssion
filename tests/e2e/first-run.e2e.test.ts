@@ -119,10 +119,19 @@ describe("init --yes tags files from task text", () => {
 		expect(paths).not.toContain("PLAN.md");
 	});
 
-	it("says how many files were tagged and how many were left to the ai-index (REQ-RUN-6)", async () => {
+	it("says how many files were tagged and how many were not (REQ-RUN-6)", async () => {
 		const out = await cli("init", "--yes");
 
-		expect(out).toMatch(/Tagged 2 files to chunks from the plan; 2 left to the ai-index\./);
+		expect(out).toMatch(/Tagged 2 files to chunks from the plan; 2 not tagged\./);
+	});
+
+	it("names what the ai-index reads and how many files it gives no summary (REQ-RUN-38)", async () => {
+		fs.writeFileSync(path.join(tmpDir, "tool.py"), "def run():\n    pass\n");
+
+		const out = await cli("init", "--yes");
+
+		expect(out).toContain(".ts .tsx .js .jsx");
+		expect(out).toMatch(/\d+ other files? \([^)]*\.py[^)]*\) ha(s|ve) no summaries/);
 	});
 });
 

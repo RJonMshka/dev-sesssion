@@ -332,7 +332,8 @@ units added since the last run. `--dry-run` writes none of them.
 
 TypeScript and JavaScript files are indexed, and so are `.vue` and `.svelte`
 components: their `<script>` blocks are parsed in place, so units carry the
-component file's own line numbers.
+component file's own line numbers. Other languages are not read: their files
+appear in prompts by path only, and `init` says how many there are.
 
 The subcommands below manage `FILE_INDEX.md`.
 

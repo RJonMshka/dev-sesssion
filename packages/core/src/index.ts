@@ -54,6 +54,7 @@ export {
 	AiIndexManager,
 	AnnotationParser,
 	AutoExtractor,
+	INDEXED_EXTENSIONS,
 	SymbolQuery,
 } from "./annotation/index.js";
 // Calculators

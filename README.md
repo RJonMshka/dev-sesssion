@@ -57,6 +57,8 @@ The underlying data lives in `SESSION_STATE.md`: task statuses, notes from the s
 
 `FILE_INDEX.md` is an annotated table of every file the AI should know about, tagged by plan chunk. It tracks each file's purpose and a token-cost estimate. `dev-sesssion index add <filepath>` appends an entry; `dev-sesssion index audit` flags stale ones when files are deleted or moved.
 
+Summaries and code-unit focus come from `.session/ai-index.yaml`, which reads TypeScript and JavaScript (`.ts .tsx .js .jsx .mts .mjs`) and `.vue`/`.svelte` components only. In a Python, Go, Java or Rust project, files are still tracked and tagged, but prompts list them by path without summaries; `init` says how many.
+
 The registry keeps context budgets honest. `dev-sesssion status` shows a per-file breakdown so you know exactly how many tokens you're handing to the AI before the session starts — not mid-conversation when it's too late.
 
 ### Plan chunks
